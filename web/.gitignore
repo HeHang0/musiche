@@ -1,0 +1,8 @@
+node_modules
+dist
+yarn.lock
+/*.d.ts
+env.d.ts
+*.log
+.vscode
+PingFang-SC-Regular.otf

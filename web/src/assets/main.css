@@ -1,0 +1,36 @@
+@import './base.css';
+
+@font-face {
+  /*自定义字体名*/
+  font-family: 'PingFang SC';
+  /*路径*/
+  src: url('./PingFang-SC-Regular.otf');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  /*自定义字体名*/
+  font-family: 'icon-font';
+  /*路径*/
+  src: url('./icon-font.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+html > body {
+  color: var(--el-color-black);
+}
+
+html.dark > body {
+  color: var(--el-color-white);
+}
+
+body {
+  font-family: 'PingFang SC', Arial, sans-serif;
+}
+
+.music-icon {
+  font-family: 'icon-font';
+  font-size: 20px;
+}
