@@ -35,7 +35,7 @@ function createMyPlaylists() {
 <template>
   <el-aside class="music-aside">
     <div class="music-aside-title">
-      <img src="/logo.png" class="music-aside-title-logo" />
+      <img :src="DefaultImage" class="music-aside-title-logo" />
       <span class="music-aside-title-text"> 音乐和 </span>
     </div>
     <el-scrollbar>
