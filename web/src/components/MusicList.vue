@@ -24,8 +24,6 @@ function toAlbum(music: Music) {
     router.push(`/album/${music.type}/${music.albumId}`);
   }
 }
-const defaultImage = '/logo.png';
-
 const play = usePlayStore();
 </script>
 <template>

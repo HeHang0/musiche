@@ -10,6 +10,7 @@ export enum StorageKey {
   SortType = 'sort-type',
   PlayerMode = 'player-mode',
   MyLoves = 'my-loves',
+  MyFavorites = 'my-favorites',
   Volume = 'volume',
   VolumeCache = 'volume-cache'
 }

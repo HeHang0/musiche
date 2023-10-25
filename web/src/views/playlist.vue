@@ -84,12 +84,41 @@ onUnmounted(unWatch);
             v-html="playlistInfo.description || ''"></div>
         </div>
         <div>
-          <el-button type="primary" @click="play.play(undefined, musicList)"
-            >播放全部</el-button
-          >
-          <el-button v-if="currentRoute.meta?.key != 'lover'" type="info"
-            >收藏全部</el-button
-          >
+          <el-button-group>
+            <el-button type="primary" @click="play.play(undefined, musicList)">
+              <span class="music-icon">播</span>
+              播放全部
+            </el-button>
+            <el-button
+              type="primary"
+              @click="play.add(musicList)"
+              title="添加到播放列表">
+              <span class="music-icon">批</span>
+            </el-button>
+          </el-button-group>
+          <el-button
+            v-if="currentRoute.meta?.key != 'lover'"
+            type="info"
+            @click="
+              playlistInfo &&
+                play.addMyFavorite(
+                  [playlistInfo],
+                  play.myFavorite[playlistInfo.type + playlistInfo.id]
+                )
+            ">
+            <span class="music-icon">{{
+              playlistInfo &&
+              play.myFavorite[playlistInfo.type + playlistInfo.id]
+                ? '藏'
+                : '收'
+            }}</span>
+            {{
+              playlistInfo &&
+              play.myFavorite[playlistInfo.type + playlistInfo.id]
+                ? '已'
+                : ''
+            }}收藏
+          </el-button>
           <el-button type="info" @click="play.add(musicList)">添加</el-button>
         </div>
       </div>

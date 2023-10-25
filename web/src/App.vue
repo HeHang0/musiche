@@ -7,6 +7,8 @@ import CurrentList from './components/CurrentList.vue';
 import PlayDetail from './components/PlayDetail.vue';
 import WindowHelper from './components/WindowHelper.vue';
 import { webView2Services } from './utils/utils';
+import { usePlayStore } from './stores/play';
+const play = usePlayStore();
 document.addEventListener(
   'error',
   function (event: ErrorEvent) {
@@ -25,7 +27,9 @@ document.addEventListener(
     direction="vertical"
     :class="webView2Services.enabled ? 'webview-host' : ''">
     <el-scrollbar class="music-root">
-      <el-container class="music-layout-top">
+      <el-container
+        class="music-layout-top"
+        :class="play.musicList.length > 0 ? '' : 'music-layout-top-full'">
         <SideMenu />
 
         <el-container class="music-layout-right" direction="vertical">
@@ -62,6 +66,9 @@ document.addEventListener(
     overflow: hidden;
     height: calc(100vh - 80px);
     min-height: 600px;
+    &-full {
+      height: 100vh;
+    }
   }
   &-top,
   .music-footer {

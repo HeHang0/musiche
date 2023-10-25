@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import * as api from '../utils/api/api';
-import { Music, SortType, WindowInfo } from '../utils/type';
+import { Music, Playlist, SortType, WindowInfo } from '../utils/type';
 import { CommunicationClient, musicOperate, wsClient } from '../utils/http';
 import { StorageKey, storage } from '../utils/storage';
 import { getRandomInt } from '../utils/utils';
@@ -27,6 +27,8 @@ export const usePlayStore = defineStore('play', {
       musicList: [] as Music[],
       myLoves: [] as Music[],
       myLover: {} as any,
+      myFavorites: [] as Playlist[],
+      myFavorite: {} as any,
       sortType: SortType.Loop as SortType,
       musicHistory: [] as Music[],
       currentListShow: false,
@@ -102,6 +104,24 @@ export const usePlayStore = defineStore('play', {
       });
       this.myLoves.map(m => (this.myLover[m.type + m.id] = true));
       storage.setValue(StorageKey.MyLoves, this.myLoves);
+    },
+    async addMyFavorite(Playlists: Playlist[], remove?: boolean) {
+      if (!Array.isArray(Playlists)) return;
+      Playlists.map(playlist => {
+        var index = this.myFavorites.findIndex(
+          m => m.id == playlist.id && m.type == playlist.type
+        );
+        if (remove) {
+          if (index >= 0) this.myFavorites.splice(index, 1);
+        } else {
+          if (index < 0) this.myFavorites.push(playlist);
+        }
+      });
+      Object.keys(this.myFavorite).map(m => {
+        delete this.myFavorite[m];
+      });
+      this.myFavorites.map(m => (this.myFavorite[m.type + m.id] = true));
+      storage.setValue(StorageKey.MyFavorites, this.myFavorites);
     },
     add(musics: Music[]) {
       if (!musics) return;
@@ -365,6 +385,7 @@ export const usePlayStore = defineStore('play', {
     async initValue() {
       this.setCurrentMusic(await storage.getValue(StorageKey.CurrentMusic));
       this.addMyLove(await storage.getValue(StorageKey.MyLoves));
+      this.addMyFavorite(await storage.getValue(StorageKey.MyFavorites));
       this.addHistory(
         await storage.getValue(StorageKey.CurrentMusicHistory),
         false,

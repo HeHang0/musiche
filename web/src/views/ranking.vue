@@ -86,7 +86,10 @@ onUnmounted(unWatch);
         <el-button type="primary" @click="play.play(undefined, musicList)"
           >播放全部</el-button
         >
-        <el-button type="info">收藏全部</el-button>
+        <el-button type="info">
+          <span class="music-icon">藏</span>
+          收藏
+        </el-button>
       </div>
     </div>
     <el-scrollbar>

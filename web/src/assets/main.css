@@ -34,3 +34,8 @@ body {
   font-family: 'icon-font';
   font-size: 20px;
 }
+
+button .music-icon {
+  font-size: 18px;
+  margin-right: 5px;
+}

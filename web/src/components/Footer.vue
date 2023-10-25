@@ -247,7 +247,6 @@ play.startCheck();
     &-singer > div {
       overflow: hidden;
       white-space: nowrap;
-      overflow: hidden;
       text-overflow: ellipsis;
     }
     &-singer {

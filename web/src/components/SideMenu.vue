@@ -44,7 +44,10 @@ options.routes.forEach(item => {
             <span :id="menu.key">{{ menu.name }}</span>
           </el-menu-item>
         </template>
-        <el-divider></el-divider>
+        <el-divider
+          v-if="
+            play.musicHistory.length > 0 || play.myLoves.length > 0
+          "></el-divider>
         <el-menu-item
           v-if="play.myLoves.length > 0"
           index="/lover"
@@ -59,6 +62,22 @@ options.routes.forEach(item => {
           <span class="music-icon">时</span>
           <span id="recent">最近播放</span>
         </el-menu-item>
+        <el-divider v-if="play.myFavorites.length > 0"></el-divider>
+        <el-sub-menu>
+          <template #title>
+            <el-menu-item>
+              <span class="music-icon">藏</span>
+              <span>收藏的歌单</span>
+            </el-menu-item>
+          </template>
+          <el-menu-item
+            class="el-menu-item-wide"
+            v-for="item in play.myFavorites"
+            :index="`/playlist/${item.type}/${item.id}`">
+            <img :src="item.image" />
+            <div class="text-overflow-2">{{ item.name }}</div>
+          </el-menu-item>
+        </el-sub-menu>
       </el-menu>
     </el-scrollbar>
   </el-aside>
@@ -68,6 +87,9 @@ options.routes.forEach(item => {
   width: 205px;
   .music-icon {
     margin-right: 5px;
+  }
+  :deep(.el-menu--inline) {
+    background: transparent !important;
   }
   & > .el-scrollbar {
     height: calc(100% - 80px);
@@ -95,13 +117,28 @@ options.routes.forEach(item => {
       margin: 10px 40px;
       width: calc(100% - 80px);
     }
+    :deep(.el-sub-menu__title) {
+      padding-left: 0 !important;
+    }
     .el-menu-item {
       margin: 2px 20px;
       height: 35px;
       border-radius: 8px;
       font-size: 13px;
+      width: calc(100% - 40px);
+      padding-left: var(--el-menu-base-level-padding) !important;
       &:hover {
         background: var(--music-button-background-hover);
+      }
+      img {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--music-border-radio);
+        margin-right: 5px;
+      }
+      &-wide {
+        height: 50px;
+        font-size: 11px;
       }
     }
     .el-menu-item.is-active {

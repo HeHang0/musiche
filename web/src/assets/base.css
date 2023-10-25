@@ -20,7 +20,7 @@
   --music-page-padding-horizontal: 38px;
   --music-border-radio: 8px;
   --music-progress-height: 4px;
-  --music-button-margin: 20px;
+  --music-button-margin: 12px;
   --music-progress-hover-height: var(--music-progress-height);
   --music-text-color: #2c3e50;
   --music-highlight-color: #0c73c2;
@@ -62,7 +62,8 @@
   background: var(--music-button-info-background-hover);
   border-color: var(--music-button-info-border-color);
 }
-.music-button-pure + .music-button-pure {
+.el-button-group + button,
+button + button {
   margin-left: var(--music-button-margin);
 }
 .music-button-pure {
@@ -266,4 +267,22 @@ body {
 .spinning {
   -webkit-animation: spin 30s linear 30s 5 alternate;
   animation: spin 30s linear infinite;
+}
+
+.text-overflow-1 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.text-overflow-2 {
+  /* flex: 1; */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: pre-line;
+  overflow-wrap: break-word;
+  line-height: 1.6;
 }

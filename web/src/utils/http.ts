@@ -1,4 +1,3 @@
-import 'vite/client';
 import { AudioPlayer } from './audio';
 import { ProxyRequestData } from './type';
 import { webView2Services } from './utils';

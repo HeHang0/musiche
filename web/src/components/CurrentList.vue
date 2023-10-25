@@ -17,7 +17,10 @@ const play = usePlayStore();
         </span>
       </span>
       <span>
-        <span class="music-icon">收藏全部</span>
+        <span>
+          <span class="music-icon">藏</span>
+          <span>收藏全部</span>
+        </span>
         <span class="music-icon" @click="play.clearMusicList">清空</span>
       </span>
     </div>
