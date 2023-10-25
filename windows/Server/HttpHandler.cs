@@ -163,9 +163,9 @@ namespace Musiche.Server
             ProxyResponseData proxyResData;
             string queryUrl = ctx.Request.QueryString["url"] ?? string.Empty;
             var proxyData = ProxyRequestData.Parse(string.IsNullOrWhiteSpace(queryUrl) ? ctx.Request.DataAsString() : queryUrl);
-            Logger.Logger.Debug("HttpProxy", proxyData.Method, queryUrl);
+            Logger.Logger.Debug("HttpProxy", proxyData.Method, proxyData.Url);
             proxyResData = await HttpProxy.Request(proxyData);
-            Logger.Logger.Debug("HttpProxy", queryUrl, proxyResData.Data.Length, proxyResData.ContentLength);
+            Logger.Logger.Debug("HttpProxy", proxyData.Url, proxyResData.Data.Length, proxyResData.ContentLength);
             ctx.Response.SetHeaders(proxyResData.Headers);
             ctx.Response.StatusCode = proxyResData.StatusCode;
             ctx.Response.ContentType = proxyResData.ContentType;
