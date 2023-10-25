@@ -96,9 +96,27 @@ export async function ranking(
   };
 }
 
+export function rankingPlaylist(
+  type: MusicType,
+  ranking: RankingType
+): Playlist | null {
+  var func = getFunction(type, 'rankingPlaylist');
+  if (func) return func(ranking);
+  return null;
+}
+
 export async function musicDetail(music: Music): Promise<Music | null> {
   var func = getFunction(music.type, 'musicDetail');
   if (func) return func(music);
+  return null;
+}
+
+export async function musicById(
+  type: MusicType,
+  id: string
+): Promise<Music | null> {
+  var func = getFunction(type, 'musicById');
+  if (func) return func(id);
   return null;
 }
 

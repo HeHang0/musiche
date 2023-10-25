@@ -14,7 +14,7 @@ const musicType: Ref<MusicType> = ref(
 );
 const total = ref(0);
 const musicList: Ref<Music[]> = ref([] as Music[]);
-const rankingTypes = [
+const rankingTypes = ref([
   {
     label: '热歌榜',
     value: RankingType.Hot
@@ -27,7 +27,7 @@ const rankingTypes = [
     label: '飙升榜',
     value: RankingType.Soar
   }
-];
+]);
 const rankingType: Ref<RankingType> = ref(
   currentRoute.value.params.ranking as RankingType
 );
@@ -51,6 +51,11 @@ function parseParams() {
 }
 async function searchMusic() {
   if (!parseParams()) return;
+  if (musicType.value == MusicType.MiguMusic) {
+    rankingTypes.value[2].label = '原创榜';
+  } else {
+    rankingTypes.value[2].label = '飙升榜';
+  }
   var result = await api.ranking(musicType.value, rankingType.value);
   total.value = result.total;
   musicList.value.splice(0, musicList.value.length);
@@ -63,6 +68,14 @@ function musicTypeChange(type: MusicType) {
 function rankingTypeChange(type: RankingType) {
   rankingType.value = type;
   push(`/ranking/${musicType.value}/${rankingType.value}`);
+}
+function favoritePlaylist() {
+  const playlistInfo = api.rankingPlaylist(musicType.value, rankingType.value);
+  playlistInfo &&
+    play.addMyFavorite(
+      [playlistInfo],
+      play.myFavorite[playlistInfo.type + playlistInfo.id]
+    );
 }
 onMounted(searchMusic);
 onUnmounted(unWatch);
@@ -86,9 +99,15 @@ onUnmounted(unWatch);
         <el-button type="primary" @click="play.play(undefined, musicList)"
           >播放全部</el-button
         >
-        <el-button type="info">
-          <span class="music-icon">藏</span>
-          收藏
+        <el-button type="info" @click="favoritePlaylist">
+          <span class="music-icon">
+            {{
+              play.myFavorite[musicType + 'ranking' + rankingType] ? '藏' : '收'
+            }}
+          </span>
+          {{
+            play.myFavorite[musicType + 'ranking' + rankingType] ? '已' : ''
+          }}收藏
         </el-button>
       </div>
     </div>

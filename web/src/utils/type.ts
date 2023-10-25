@@ -2,9 +2,11 @@ export enum MusicType {
   CloudMusic = 'cloud',
   QQMusic = 'qq',
   MiguMusic = 'migu',
+  Local = 'local',
   cloud = 'cloud',
   qq = 'qq',
-  migu = 'migu'
+  migu = 'migu',
+  local = 'local'
 }
 
 export enum RankingType {
@@ -34,7 +36,7 @@ export interface Music {
   duration: string;
   length?: number;
   vip: boolean;
-  remark: string;
+  remark?: string;
   type: MusicType;
   url?: string;
   lyricUrl?: string;
@@ -46,6 +48,7 @@ export interface Playlist {
   image: string;
   type: MusicType;
   description?: string;
+  musicList?: Music[];
 }
 
 export interface Album {

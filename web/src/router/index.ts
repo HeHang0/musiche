@@ -64,6 +64,12 @@ const routers: RouteRecordRaw[] = [
     name: '最近播放',
     meta: { key: 'recent', show: false, localShow: true },
     component: () => import(`../views/playlist.vue`)
+  },
+  {
+    path: '/created/:id',
+    name: '创建的歌单',
+    meta: { key: 'created', show: false, localShow: true },
+    component: () => import(`../views/playlist.vue`)
   }
 ];
 routers.push({ path: '/:catchAll(.*)', redirect: '/recommend' });

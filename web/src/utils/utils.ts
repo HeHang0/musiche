@@ -116,3 +116,12 @@ export function parseLyric(text: string, length: number) {
   }
   return lyricLines;
 }
+
+export function generateGuid() {
+  return (
+    new Date().getTime().toString() +
+    Math.abs(
+      (Math.round(2147483647 * Math.random()) * new Date().valueOf()) % 1e10
+    ).toString()
+  );
+}

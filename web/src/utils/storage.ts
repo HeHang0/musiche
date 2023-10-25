@@ -11,6 +11,7 @@ export enum StorageKey {
   PlayerMode = 'player-mode',
   MyLoves = 'my-loves',
   MyFavorites = 'my-favorites',
+  MyPlaylists = 'my-playlists',
   Volume = 'volume',
   VolumeCache = 'volume-cache'
 }

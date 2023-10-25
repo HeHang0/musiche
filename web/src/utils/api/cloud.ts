@@ -2,15 +2,23 @@ import * as CryptoJS from 'crypto-js';
 import { Music, MusicType, Playlist, RankingType } from '../type';
 import { httpProxy } from '../http';
 import { millisecond2Duration } from '../utils';
+import RankingHotImage from '../../assets/images/ranking-hot.jpg';
+import RankingNewImage from '../../assets/images/ranking-new.jpg';
+import RankingSoarImage from '../../assets/images/ranking-soar.jpg';
 
 function aesEncrypt(plain: string, key: string): string {
   var iv = '0102030405060708';
   var cipherText = CryptoJS.AES.encrypt(plain, CryptoJS.enc.Utf8.parse(key), {
     iv: CryptoJS.enc.Utf8.parse(iv),
-    mode: CryptoJS.mode.CBC,
-    padding: CryptoJS.pad.Pkcs7
+    mode: CryptoJS.mode.CBC
   });
   return cipherText.toString();
+}
+
+function parseSinger(data: any) {
+  return data && Array.isArray(data)
+    ? data.map((n: any) => n.name).join(' / ')
+    : '';
 }
 
 export async function search(keywords: string, offset: number) {
@@ -58,9 +66,7 @@ export async function search(keywords: string, offset: number) {
       name: m.name,
       highlightName: highlightName,
       image: m.al.picUrl + '?param=100y100',
-      singer: Array.isArray(m.ar)
-        ? m.ar.map((n: any) => n.name).join(' / ')
-        : '',
+      singer: parseSinger(m.ar),
       album: m.al.name,
       albumId: m.al.id,
       duration: millisecond2Duration(m.dt),
@@ -126,6 +132,23 @@ export async function recommend(offset: number) {
 }
 
 export async function playlistDetail(id: string) {
+  if (id.startsWith('ranking')) {
+    var rankingType = RankingType.Hot;
+    switch (id) {
+      case RankingNew:
+        rankingType = RankingType.New;
+        break;
+      case RankingSoar:
+        rankingType = RankingType.Soar;
+        break;
+    }
+    const rankingList = await ranking(rankingType);
+    return {
+      list: rankingList.list,
+      total: rankingList.total,
+      playlist: rankingPlaylist(rankingType)
+    };
+  }
   var url = 'https://music.163.com/weapi/v3/playlist/detail';
   const data = {
     id: id,
@@ -170,9 +193,7 @@ export async function playlistDetail(id: string) {
       id: m.id,
       name: m.name,
       image: m.al.picUrl + '?param=100y100',
-      singer: Array.isArray(m.ar)
-        ? m.ar.map((n: any) => n.name).join(' / ')
-        : '',
+      singer: parseSinger(m.ar),
       album: m.al.name,
       albumId: m.al.id,
       duration: millisecond2Duration(m.dt),
@@ -230,9 +251,7 @@ export async function albumDetail(id: string) {
       id: m.id,
       name: m.name,
       image: (m.al.picUrl || playlist.image) + '?param=100y100',
-      singer: Array.isArray(m.ar)
-        ? m.ar.map((n: any) => n.name).join(' / ')
-        : '',
+      singer: parseSinger(m.ar),
       album: m.al.name,
       albumId: m.al.id,
       duration: millisecond2Duration(m.dt),
@@ -249,7 +268,10 @@ export async function albumDetail(id: string) {
   };
 }
 
-export async function ranking(ranking: RankingType) {
+export async function ranking(ranking: RankingType): Promise<{
+  list: Music[];
+  total: number;
+}> {
   var playlistId = '';
   switch (ranking) {
     case RankingType.New:
@@ -264,6 +286,33 @@ export async function ranking(ranking: RankingType) {
       break;
   }
   return playlistDetail(playlistId);
+}
+const RankingHot = 'rankinghot';
+const RankingNew = 'rankingnew';
+const RankingSoar = 'rankingsoar';
+
+export function rankingPlaylist(ranking: RankingType): Playlist {
+  var id = RankingHot;
+  var name = '热歌榜';
+  var image = RankingHotImage;
+  switch (ranking) {
+    case RankingType.New:
+      id = RankingNew;
+      name = '新歌榜';
+      image = RankingNewImage;
+      break;
+    case RankingType.Soar:
+      id = RankingSoar;
+      name = '飙升榜';
+      image = RankingSoarImage;
+      break;
+  }
+  return {
+    id,
+    name: '网易云' + name,
+    image,
+    type: MusicType.CloudMusic
+  };
 }
 
 export async function musicDetail(music: Music) {
@@ -296,6 +345,53 @@ export async function musicDetail(music: Music) {
     music.url = ret.data[0].url;
   }
   return music;
+}
+
+export async function musicById(id: string): Promise<Music | null> {
+  var url = 'https://music.163.com/weapi/v3/song/detail';
+  const data = {
+    c: JSON.stringify([
+      {
+        id: id
+      }
+    ]),
+    csrf_token: ''
+  };
+  var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
+  param = aesEncrypt(param, 'Zw8xKXE1jdYdGNpj');
+  param = encodeURIComponent(param);
+  var encSecKey =
+    '&encSecKey=35f01c51527de6cc9aa39304cb4eeafb611f82cd0a15d86c3913d0e724711064b967b06204f2bc5623905d06bc9c3a9162369b5b68d8e9a408d8d11b8136030a1a8e68a0fc47979eb17509476ba482244402dbad953eeacfcfc5000c44cd875d4426e07ce5cb3e26930482c32ef7670f952e921e218683437115415670fb9282';
+  var paramData = 'params=' + param + encSecKey;
+  var res = await httpProxy({
+    url: url,
+    method: 'POST',
+    data: paramData,
+    headers: {
+      // Cookie: 'os=ios;MUSIC_U=',
+      // Referer: 'https://music.163.com',
+      ContentType: 'application/x-www-form-urlencoded'
+      // UserAgent:
+      //   'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1',
+    }
+  });
+  const ret = await res.json();
+  if (ret && ret.songs && ret.songs[0]) {
+    const m = ret.songs[0];
+    return {
+      id: m.id,
+      name: m.name,
+      image: m.al && m.al.picUrl,
+      singer: parseSinger(m.ar),
+      album: m.al && m.al.name,
+      albumId: m.al && m.al.id,
+      duration: millisecond2Duration(m.dt),
+      length: m.dt,
+      vip: m.privilege && m.privilege.fee == 1,
+      type: MusicType.CloudMusic
+    };
+  }
+  return null;
 }
 
 export async function lyric(music: Music) {

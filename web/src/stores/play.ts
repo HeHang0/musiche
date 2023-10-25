@@ -1,9 +1,15 @@
 import { defineStore } from 'pinia';
 import * as api from '../utils/api/api';
-import { Music, Playlist, SortType, WindowInfo } from '../utils/type';
+import {
+  Music,
+  MusicType,
+  Playlist,
+  SortType,
+  WindowInfo
+} from '../utils/type';
 import { CommunicationClient, musicOperate, wsClient } from '../utils/http';
 import { StorageKey, storage } from '../utils/storage';
-import { getRandomInt } from '../utils/utils';
+import { generateGuid, getRandomInt } from '../utils/utils';
 
 interface PlayStatus {
   currentTime: string;
@@ -29,10 +35,13 @@ export const usePlayStore = defineStore('play', {
       myLover: {} as any,
       myFavorites: [] as Playlist[],
       myFavorite: {} as any,
+      myPlaylists: [] as Playlist[],
+      myPlaylistsPreMusics: undefined as Music[] | undefined,
       sortType: SortType.Loop as SortType,
       musicHistory: [] as Music[],
       currentListShow: false,
       playDetailShow: false,
+      selectPlaylistShow: false,
       playerMode: '',
       windowInfo: {} as WindowInfo,
       playStatus: {
@@ -105,9 +114,9 @@ export const usePlayStore = defineStore('play', {
       this.myLoves.map(m => (this.myLover[m.type + m.id] = true));
       storage.setValue(StorageKey.MyLoves, this.myLoves);
     },
-    async addMyFavorite(Playlists: Playlist[], remove?: boolean) {
-      if (!Array.isArray(Playlists)) return;
-      Playlists.map(playlist => {
+    async addMyFavorite(playlists: Playlist[], remove?: boolean) {
+      if (!Array.isArray(playlists)) return;
+      playlists.map(playlist => {
         var index = this.myFavorites.findIndex(
           m => m.id == playlist.id && m.type == playlist.type
         );
@@ -122,6 +131,59 @@ export const usePlayStore = defineStore('play', {
       });
       this.myFavorites.map(m => (this.myFavorite[m.type + m.id] = true));
       storage.setValue(StorageKey.MyFavorites, this.myFavorites);
+    },
+    beforeAddMyPlaylistsMusic(musics: Music[]) {
+      this.myPlaylistsPreMusics = musics;
+      this.selectPlaylistShow = true;
+    },
+    addMyPlaylistsMusic(
+      playlistId: string,
+      musics?: Music[],
+      remove?: boolean
+    ) {
+      if (!musics || !Array.isArray(musics) || !playlistId) return;
+      const playlist = this.myPlaylists.find(
+        m => m.id == playlistId && m.type == MusicType.Local
+      );
+      if (!playlist) return;
+      if (!playlist.musicList) playlist.musicList = [];
+      musics.map(music => {
+        var index = playlist.musicList?.findIndex(
+          m => m.id == music.id && m.type == music.type
+        );
+        if (index == null) index = -1;
+        if (remove) {
+          if (index >= 0) playlist.musicList?.splice(index, 1);
+        } else {
+          if (index < 0) playlist.musicList?.push(music);
+        }
+      });
+      storage.setValue(StorageKey.MyPlaylists, this.myPlaylists);
+      if (this.selectPlaylistShow) this.selectPlaylistShow = false;
+    },
+    createMyPlaylists(name: string) {
+      this.myPlaylists.unshift({
+        id: generateGuid(),
+        name: name,
+        image: '',
+        type: MusicType.Local,
+        musicList: []
+      });
+      storage.setValue(StorageKey.MyPlaylists, this.myPlaylists);
+    },
+    addMyPlaylists(playlists: Playlist[], remove?: boolean) {
+      if (!Array.isArray(playlists)) return;
+      playlists.map(playlist => {
+        var index = this.myPlaylists.findIndex(
+          m => m.id == playlist.id && m.type == playlist.type
+        );
+        if (remove) {
+          if (index >= 0) this.myPlaylists.splice(index, 1);
+        } else {
+          if (index < 0) this.myPlaylists.push(playlist);
+        }
+      });
+      storage.setValue(StorageKey.MyPlaylists, this.myPlaylists);
     },
     add(musics: Music[]) {
       if (!musics) return;
@@ -386,6 +448,7 @@ export const usePlayStore = defineStore('play', {
       this.setCurrentMusic(await storage.getValue(StorageKey.CurrentMusic));
       this.addMyLove(await storage.getValue(StorageKey.MyLoves));
       this.addMyFavorite(await storage.getValue(StorageKey.MyFavorites));
+      this.addMyPlaylists(await storage.getValue(StorageKey.MyPlaylists));
       this.addHistory(
         await storage.getValue(StorageKey.CurrentMusicHistory),
         false,

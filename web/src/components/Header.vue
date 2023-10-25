@@ -13,7 +13,7 @@ function startSearch() {
   push(
     `/search/${parseMusicType(
       storage.getValue(StorageKey.SearchMusicType)
-    )}/${encodeURIComponent(searchKey.value)}`
+    )}/${encodeURIComponent(btoa(searchKey.value))}`
   );
 }
 const canBack: Ref<boolean> = ref(Boolean(history.state.back));
@@ -21,7 +21,7 @@ const unWatch = watch(
   () => currentRoute.value.params,
   newValue => {
     if (newValue.keywords) {
-      searchKey.value = newValue.keywords.toString();
+      searchKey.value = atob(newValue.keywords.toString());
     }
     canBack.value = Boolean(history.state.back);
   }
@@ -40,7 +40,7 @@ onUnmounted(unWatch);
       <el-input
         class="music-header-search"
         v-model="searchKey"
-        placeholder="搜索音乐、歌手、歌词"
+        placeholder="搜索音乐、歌手、歌词、链接"
         @keyup.enter.native="startSearch"
         clearable>
         <template #prefix>
@@ -88,15 +88,6 @@ onUnmounted(unWatch);
       cursor: pointer;
       &:hover {
         color: var(--music-text-color);
-      }
-    }
-    :deep(.el-input__wrapper) {
-      border-radius: 8px;
-      background-color: transparent;
-      &.is-focus,
-      &:hover {
-        box-shadow: 0 0 0 1px
-          var(--el-input-border-color, var(--el-border-color)) inset !important;
       }
     }
   }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Playlist } from '../utils/type';
+import DefaultImage from '../assets/images/default.png';
 interface Props {
   list: Playlist[];
 }
@@ -13,7 +14,9 @@ const props = withDefaults(defineProps<Props>(), {
       :to="'/playlist/' + item.type + '/' + item.id"
       v-for="item in props.list">
       <div class="music-play-list-item">
-        <img class="music-play-list-item-image" :src="item.image" />
+        <img
+          class="music-play-list-item-image"
+          :src="item.image || DefaultImage" />
         <div class="music-play-list-item-name">{{ item.name }}</div>
       </div>
     </RouterLink>

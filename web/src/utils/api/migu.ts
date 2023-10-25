@@ -1,6 +1,9 @@
 import { httpProxy, parseHttpProxyAddress } from '../http';
 import { Music, MusicType, Playlist, RankingType } from '../type';
 import { duration2Millisecond, durationTrim, second2Duration } from '../utils';
+import RankingHotImage from '../../assets/images/ranking-hot.jpg';
+import RankingNewImage from '../../assets/images/ranking-new.jpg';
+import RankingSoarImage from '../../assets/images/ranking-original.jpg';
 
 function padProtocol(url: string) {
   return url && url.startsWith('//') ? 'https:' + url : url;
@@ -96,6 +99,23 @@ export async function playlistInfo(id: string) {
 }
 
 export async function playlistDetail(id: string) {
+  if (id.startsWith('ranking')) {
+    var rankingType = RankingType.Hot;
+    switch (id) {
+      case RankingNew:
+        rankingType = RankingType.New;
+        break;
+      case RankingSoar:
+        rankingType = RankingType.Soar;
+        break;
+    }
+    const rankingList = await ranking(rankingType);
+    return {
+      list: rankingList.list,
+      total: rankingList.total,
+      playlist: rankingPlaylist(rankingType)
+    };
+  }
   var url =
     'https://m.music.migu.cn/migumusic/h5/playlist/songsInfo?pageNo=1&pageSize=30&palylistId=' +
     id;
@@ -183,6 +203,43 @@ export async function albumDetail(id: string) {
     total,
     list,
     playlist
+  };
+}
+const RankingHot = 'rankinghot';
+const RankingNew = 'rankingnew';
+const RankingSoar = 'rankingsoar';
+
+export function rankingPlaylist(ranking: RankingType): Playlist {
+  var id = RankingHot;
+  var name = '热歌榜';
+  var image = RankingHotImage;
+  var desc = `实时追踪当前平台飙升最快的单曲。关注发行时间超过30 天的音乐作品，发掘最值得循环的经典歌曲！<br />
+歌曲数量：100首<br />
+榜单规则：根据登录用户的【试听】、【下载】、【分享】、【收藏】等数据，对发行时间超过 30天的歌曲进行实时排名。`;
+  switch (ranking) {
+    case RankingType.New:
+      id = RankingNew;
+      name = '新歌榜';
+      image = RankingNewImage;
+      desc = `实时统计当前平台最具人气的热门新歌，关注发行时间在 30 天内的音乐作品，寻找最具人气的潮流单曲！<br />
+歌曲数量：50首<br />
+榜单规则：根据登录用户的【试听】、【下载】、【分享】、【收藏】等数据，对30天内发行的歌曲进行实时排名`;
+      break;
+    case RankingType.Soar:
+      id = RankingSoar;
+      name = '原创榜';
+      image = RankingSoarImage;
+      desc = `实时追踪当前平台最受听众喜爱的原创音乐作品，聚焦发行时间在90天内的原创作品，用行动鼓励原创！<br />
+歌曲数量：50首<br />
+榜单规则：根据登录用户的【试听】、【下载】、【分享】、【收藏】等数据，对90 天内发行的原创歌曲进行实时排名。`;
+      break;
+  }
+  return {
+    id,
+    name: '咪咕音乐' + name,
+    image,
+    description: desc,
+    type: MusicType.MiguMusic
   };
 }
 

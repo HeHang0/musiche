@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { usePlayStore } from '../../stores/play';
 import { Ref, onUnmounted, ref, watch } from 'vue';
+import { usePlayStore } from '../../stores/play';
+import DefaultImage from '../../assets/images/default.png';
 const play = usePlayStore();
 const discElement: Ref<HTMLImageElement | null> = ref(null);
 const spinningStyle: Ref<string> = ref('');
@@ -33,7 +34,7 @@ onUnmounted(unWatch);
     <div class="music-jukebox-album">
       <img
         :class="play.playStatus.playing ? 'music-jukebox-spinning' : ''"
-        :src="play.music.image" />
+        :src="play.music.image || DefaultImage" />
     </div>
     <div class="music-jukebox-stylus">
       <img

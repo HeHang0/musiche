@@ -1,6 +1,9 @@
 import { httpProxy } from '../http';
 import { Music, Playlist, MusicType, RankingType } from '../type';
-import { millisecond2Duration } from '../utils';
+import { generateGuid, millisecond2Duration } from '../utils';
+import RankingHotImage from '../../assets/images/ranking-hot.jpg';
+import RankingNewImage from '../../assets/images/ranking-new.jpg';
+import RankingSoarImage from '../../assets/images/ranking-soar.jpg';
 
 function parseAlbumImage(music: any) {
   const albumPMId =
@@ -161,6 +164,23 @@ export async function playlistDetail1(id: string) {
 }
 
 export async function playlistDetail(id: string) {
+  if (id.startsWith('ranking')) {
+    var rankingType = RankingType.Hot;
+    switch (id) {
+      case RankingNew:
+        rankingType = RankingType.New;
+        break;
+      case RankingSoar:
+        rankingType = RankingType.Soar;
+        break;
+    }
+    const rankingList = await ranking(rankingType);
+    return {
+      list: rankingList.list,
+      total: rankingList.total,
+      playlist: rankingPlaylist(rankingType)
+    };
+  }
   var data = {
     comm: {
       g_tk: 5381,
@@ -282,6 +302,36 @@ export async function albumDetail(id: string) {
     playlist
   };
 }
+const RankingHot = 'rankinghot';
+const RankingNew = 'rankingnew';
+const RankingSoar = 'rankingsoar';
+
+export function rankingPlaylist(ranking: RankingType): Playlist {
+  var id = RankingHot;
+  var name = '热歌榜';
+  var image = RankingHotImage;
+  var desc = 'QQ音乐站内播放热度前300首歌曲，每日更新。';
+  switch (ranking) {
+    case RankingType.New:
+      id = RankingNew;
+      name = '新歌榜';
+      image = RankingNewImage;
+      desc = 'QQ音乐站内播放热度前100首新歌，每日更新。';
+      break;
+    case RankingType.Soar:
+      id = RankingSoar;
+      name = '飙升榜';
+      desc = 'QQ音乐站内播放热度飙升最快的前100首歌曲，每日更新。';
+      image = RankingSoarImage;
+      break;
+  }
+  return {
+    id,
+    name: 'QQ音乐' + name,
+    image,
+    type: MusicType.QQMusic
+  };
+}
 
 export async function ranking(ranking: RankingType) {
   var playlistId = '';
@@ -342,9 +392,7 @@ export async function ranking(ranking: RankingType) {
 }
 
 export async function musicDetail2(music: Music) {
-  const guid = Math.abs(
-    (Math.round(2147483647 * Math.random()) * new Date().valueOf()) % 1e10
-  ).toString();
+  const guid = generateGuid();
   //const fileType = {"128":{"s":"M500","e":".mp3"},"320":{"s":"M800","e":".mp3"},"m4a":{"s":"C400","e":".m4a"},"ape":{"s":"A000","e":".ape"},"flac":{"s":"F000","e":".flac"}}
   const songmidList = [music.id];
   const fileInfo = {
@@ -446,9 +494,9 @@ function parseMusicUrl(ret: any) {
 
 export async function musicDetail(
   music: Music,
-  jsoup?: boolean
+  _jsoup?: boolean
 ): Promise<Music> {
-  const { url, callback } = getMusicDetailUrl(music.id, jsoup);
+  const { url, callback } = getMusicDetailUrl(music.id, true); //jsoup);
   var res = await httpProxy({
     url: url,
     method: 'GET',

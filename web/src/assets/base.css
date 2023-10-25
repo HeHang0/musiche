@@ -32,6 +32,14 @@
   --el-skeleton-color: rgb(237, 237, 237);
 }
 
+.el-dialog {
+  border-radius: var(--music-border-radio);
+}
+/* .el-dialog__headerbtn {
+  font-size: 22px;
+  font-weight: bold;
+} */
+
 .el-button--primary {
   height: 37px;
   border: none;
@@ -39,11 +47,16 @@
 }
 .el-button--primary,
 .el-button--primary:active,
-.el-button--primary:focus {
+.el-button--primary:focus,
+.el-button--primary.is-disabled,
+.el-button--primary.is-disabled:hover {
   background: var(--music-button-primary-background);
 }
 .el-button--primary:hover {
   background: var(--music-button-primary-background-hover);
+}
+.el-button--primary.is-disabled {
+  opacity: 0.4;
 }
 
 .el-button--info {
@@ -65,6 +78,22 @@
 .el-button-group + button,
 button + button {
   margin-left: var(--music-button-margin);
+}
+.el-input__wrapper,
+.el-textarea__inner {
+  border-radius: 8px;
+  background-color: transparent;
+}
+.el-textarea__inner {
+  box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color))
+    inset !important;
+}
+.el-textarea__inner.is-focus,
+.el-textarea__inner:hover,
+.el-input__wrapper.is-focus,
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color))
+    inset !important;
 }
 .music-button-pure {
   height: 37px;

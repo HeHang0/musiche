@@ -40,6 +40,7 @@ function valueChange(v: MusicType) {
 .el-radio-group {
   border: 1px solid var(--music-button-info-border-color);
   border-radius: var(--music-border-radio);
+  width: 155px;
 }
 
 :deep(.el-radio-button--large .el-radio-button__inner) {

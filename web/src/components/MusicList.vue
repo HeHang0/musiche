@@ -2,6 +2,7 @@
 import { useRouter } from 'vue-router';
 import { usePlayStore } from '../stores/play';
 import { Music } from '../utils/type';
+import DefaultImage from '../assets/images/default.png';
 interface Props {
   list: Music[];
   single?: boolean;
@@ -77,8 +78,7 @@ const play = usePlayStore();
       </div>
       <div class="music-list-item-title">
         <div class="music-list-item-image">
-          <img v-if="item.image" :src="item.image" />
-          <el-skeleton-item v-else variant="image" />
+          <img :src="item.image || DefaultImage" />
           <div class="music-list-item-image-single" v-if="props.single">
             <span
               v-if="
@@ -127,7 +127,12 @@ const play = usePlayStore();
             </div>
           </div>
           <div class="music-list-item-name-operate">
-            <span class="music-icon" title="收藏">收</span>
+            <span
+              class="music-icon"
+              @click="play.beforeAddMyPlaylistsMusic([item])"
+              title="收藏"
+              >收</span
+            >
             <span
               class="music-icon"
               @click="play.nextPlay(item)"

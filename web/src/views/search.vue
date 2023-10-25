@@ -6,10 +6,11 @@ import MusicTypeEle from '../components/MusicType.vue';
 import MusicList from '../components/MusicList.vue';
 import { Music, MusicType } from '../utils/type';
 import { StorageKey, storage } from '../utils/storage';
-const { currentRoute, push } = useRouter();
+const { currentRoute, push, replace } = useRouter();
 const musicType: Ref<MusicType> = ref(
   currentRoute.value.params.type as MusicType
 );
+const searchTextShow = ref(true);
 const total = ref(0);
 const musicList: Ref<Music[]> = ref([] as Music[]);
 const keywords = ref('');
@@ -17,15 +18,48 @@ const unWatch = watch(currentRoute, searchMusic);
 async function searchMusic() {
   if (currentRoute.value.meta.key != 'search') return;
   musicType.value = currentRoute.value.params.type as MusicType;
-  keywords.value = decodeURIComponent(
-    currentRoute.value.params?.keywords?.toString() || ''
-  );
-  if (!keywords.value) return;
+  const kw = atob(currentRoute.value.params?.keywords?.toString());
+  if (!kw) return;
+  if (await checkLink(kw)) {
+    return;
+  }
+  keywords.value = kw;
+  searchTextShow.value = true;
   storage.setValue(StorageKey.SearchMusicType, musicType.value);
   var result = await api.search(musicType.value, keywords.value, 0);
   total.value = result.total;
   musicList.value.splice(0, musicList.value.length);
   result.list.map((m: Music) => musicList.value.push(m));
+}
+async function checkLink(link: string) {
+  if (!/^(http|https):\/\//.test(link)) return false;
+  if (await checkLinkCloud(link)) {
+    return true;
+  }
+}
+async function checkLinkCloud(link: string): Promise<boolean> {
+  const matchCloud = /music\.163\.com[\S]+song[\S]*[\?&]id=([\d]+)/.exec(link);
+  if (matchCloud) {
+    if (musicType.value != MusicType.CloudMusic) {
+      replace(
+        `/search/${MusicType.CloudMusic}/${encodeURIComponent(btoa(link))}`
+      );
+    } else {
+      setMusic(await api.musicById(musicType.value, matchCloud[1]));
+    }
+    return true;
+  }
+  return false;
+}
+function setMusic(music: Music | null) {
+  total.value = 1;
+  musicList.value.splice(0, musicList.value.length);
+  if (music) {
+    musicList.value.push(music);
+    keywords.value = `${music.name} - ${music.singer}`;
+    searchTextShow.value = false;
+  }
+  storage.setValue(StorageKey.SearchMusicType, musicType.value);
 }
 function musicTypeChange(type: MusicType) {
   musicType.value = type;
@@ -40,7 +74,7 @@ onUnmounted(unWatch);
     <div class="music-search-header">
       <div>
         <span class="music-search-title">{{ keywords }}</span>
-        <span class="music-search-subtitle">
+        <span class="music-search-subtitle" v-if="searchTextShow">
           的相关搜索如下，找到{{ total }}首单曲
         </span>
       </div>

@@ -2,15 +2,17 @@
 import { ref, onMounted, watch, Ref, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import * as api from '../utils/api/api';
-import MusicList from '../components/MusicList.vue';
-import { Music, MusicType, Playlist } from '../utils/type';
 import { usePlayStore } from '../stores/play';
+import { Music, MusicType, Playlist } from '../utils/type';
+import MusicList from '../components/MusicList.vue';
+import DefaultImage from '../assets/images/default.png';
 const { currentRoute, replace } = useRouter();
 const play = usePlayStore();
 const musicList: Ref<Music[]> = ref([] as Music[]);
 const playlistInfo: Ref<Playlist | null> = ref({} as Playlist);
 const unWatch = watch(currentRoute, searchMusic);
-const pageKeys = ['album', 'playlist', 'lover', 'recent'];
+const pageKeys = ['album', 'playlist', 'lover', 'recent', 'created'];
+const hideFavoriteKeys = ['lover', 'created'];
 async function searchMusic() {
   if (!pageKeys.includes(currentRoute.value.meta.key as string)) return false;
   const localShow = Boolean(currentRoute.value.meta.localShow);
@@ -25,6 +27,8 @@ async function searchMusic() {
     list: Music[];
     playlist: Playlist | null;
   };
+  musicList.value = [];
+  playlistInfo.value = null;
   switch (currentRoute.value.meta.key) {
     case 'album':
       result = await api.albumDetail(musicType, playlistId);
@@ -51,6 +55,14 @@ async function searchMusic() {
         playlist: null
       };
       break;
+    case 'created':
+      const playlist = play.myPlaylists.find(item => item.id == playlistId);
+      result = {
+        list: playlist?.musicList || [],
+        total: (playlist?.musicList && playlist?.musicList.length) || 0,
+        playlist: playlist || null
+      };
+      break;
 
     default:
       replace('/');
@@ -71,8 +83,13 @@ onUnmounted(unWatch);
     <div class="music-playlist-header">
       <div v-if="playlistInfo" class="music-playlist-header-image">
         <img
-          :src="playlistInfo.image"
-          :style="playlistInfo.image ? '' : 'opacity: 0'" />
+          :src="
+            playlistInfo.image ||
+            (playlistInfo.musicList &&
+              playlistInfo.musicList[0] &&
+              playlistInfo.musicList[0].image) ||
+            DefaultImage
+          " />
       </div>
       <div class="music-playlist-header-info">
         <div v-if="playlistInfo">
@@ -93,11 +110,15 @@ onUnmounted(unWatch);
               type="primary"
               @click="play.add(musicList)"
               title="添加到播放列表">
-              <span class="music-icon">批</span>
+              <span class="music-icon">添</span>
             </el-button>
           </el-button-group>
           <el-button
-            v-if="currentRoute.meta?.key != 'lover'"
+            v-if="
+              !hideFavoriteKeys.includes(
+                currentRoute.meta?.key?.toString() || ''
+              )
+            "
             type="info"
             @click="
               playlistInfo &&
@@ -119,7 +140,6 @@ onUnmounted(unWatch);
                 : ''
             }}收藏
           </el-button>
-          <el-button type="info" @click="play.add(musicList)">添加</el-button>
         </div>
       </div>
     </div>

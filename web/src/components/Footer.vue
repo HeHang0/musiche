@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { usePlayStore } from '../stores/play';
 import { SortType } from '../utils/type';
+import DefaultImage from '../assets/images/default.png';
 const play = usePlayStore();
 play.startCheck();
 </script>
@@ -35,7 +36,7 @@ play.startCheck();
           class="music-footer-image"
           @click="play.playDetailShow = true"
           :class="play.playStatus.playing ? 'spinning' : ''">
-          <img :src="play.music.image" v-show="play.music.image" />
+          <img :src="play.music.image || DefaultImage" />
         </div>
         <div class="music-footer-title">
           <div class="music-footer-title-name" :title="play.music.name">
