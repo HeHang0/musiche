@@ -1,15 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Musiche.Webview2
 {
     public class FileAccessor
     {
-        private string rootPath;
+        private readonly string rootPath;
         public FileAccessor()
         {
             string roming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -39,7 +36,7 @@ namespace Musiche.Webview2
 #if NETFRAMEWORK
                 return File.ReadAllText(Path.Combine(rootPath, filePath));
 #else
-                    return await File.ReadAllTextAsync(Path.Combine(rootPath, filePath));
+                return await File.ReadAllTextAsync(Path.Combine(rootPath, filePath));
 #endif
             }
             catch (Exception)
@@ -55,7 +52,7 @@ namespace Musiche.Webview2
 #if NETFRAMEWORK
                 File.WriteAllText(Path.Combine(rootPath, filePath), text);
 #else
-                    await File.WriteAllTextAsync(Path.Combine(rootPath, filePath), text);
+                await File.WriteAllTextAsync(Path.Combine(rootPath, filePath), text);
 #endif
             }
             catch (Exception)

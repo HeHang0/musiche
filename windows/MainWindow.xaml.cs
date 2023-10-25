@@ -1,23 +1,11 @@
 ﻿using Musiche.Audio;
 using Musiche.Server;
 using Musiche.Webview2;
-using NAudio.Wave;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Sockets;
+using System.IO;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
+using System.Net.Sockets;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Musiche
 {
@@ -31,6 +19,7 @@ namespace Musiche
         readonly WebServer webServer;
         readonly WebSocketHandler webSocketHandler;
         readonly HttpHandler httpHandler;
+        readonly Stream logStream = null;
         public MainWindow()
         {
             InitializeComponent();
@@ -38,7 +27,9 @@ namespace Musiche
             webview2 = new Webview2Control();
 #if DEBUG
             webServer = new WebServer(54621);
-            webview2.Control.Source = new Uri("http://localhost:5173");
+            webview2.Control.Source = new Uri("http://127.0.0.1:5173");
+            string exeDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location);
+            logStream = File.Open(Path.Combine(exeDirectory, "log."+DateTime.Now.ToString("yyyy-MM-dd")+".log"), FileMode.Append);
 #else
             int port = GetAvailablePort();
             webServer = new WebServer(port);
@@ -48,9 +39,15 @@ namespace Musiche
             httpHandler = new HttpHandler(this, audioPlay);
             InitWebview2();
             StateChanged += MainWindow_StateChanged;
+            Closing += MainWindow_Closing;
             webServer.ClientConnected += WebServer_ClientConnected;
             TaskbarItemInfo = new TaskbarInfo(audioPlay, webSocketHandler).TaskbarItemInfo;
             webServer.Start();
+        }
+
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            logStream?.Close();
         }
 
         private void WebServer_ClientConnected(object sender, System.Net.HttpListenerContext context)
@@ -67,11 +64,12 @@ namespace Musiche
 
         private void MainWindow_StateChanged(object sender, EventArgs e)
         {
-            if(WindowState == WindowState.Maximized)
+            if (WindowState == WindowState.Maximized)
             {
                 MinHeight = 0;
                 MinWidth = 0;
-            }else
+            }
+            else
             {
                 MinHeight = 750;
                 MinWidth = 1055;

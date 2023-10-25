@@ -1,6 +1,8 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 
 namespace Musiche.Server
 {
@@ -14,6 +16,14 @@ namespace Musiche.Server
         public string ContentEncoding { get; set; } = string.Empty;
         public string CharacterSet { get; set; } = string.Empty;
         public Dictionary<string, string> Headers { get; set; } = new Dictionary<string, string>();
+        public ProxyResponseData(string data)
+        {
+            Data = Encoding.UTF8.GetBytes(data);
+        }
+        public ProxyResponseData(Dictionary<string, object> data)
+        {
+            Data = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(data));
+        }
         public ProxyResponseData(byte[] data, int statusCode, string contentType, string contentEncoding, string characterSet, Dictionary<string, string> headers)
         {
             Data = data;

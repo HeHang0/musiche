@@ -2,7 +2,6 @@
 using Microsoft.Web.WebView2.Wpf;
 using System;
 using System.IO;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -15,7 +14,7 @@ namespace Musiche.Webview2
     public partial class Webview2Control : UserControl
     {
         private Window _parentWindow;
-        private static CoreWebView2Environment _coreEnvironment;
+        private static readonly CoreWebView2Environment _coreEnvironment;
         private static readonly string _userDataFolder = Path.Combine(Path.GetTempPath(), "WebView2");
 
         public event EventHandler<CoreWebView2WebMessageReceivedEventArgs> WebMessageReceived;

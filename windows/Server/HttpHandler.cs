@@ -2,22 +2,19 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO.Compression;
 using System.IO;
 using System.Net;
 using System.Reflection;
-using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 
 namespace Musiche.Server
 {
-    public class HttpHandler: Handler, IHandler
+    public class HttpHandler : Handler, IHandler
     {
         private readonly Dictionary<string, MethodInfo> routers;
-        public HttpHandler(Window window, AudioPlay audioPlay):base(window, audioPlay)
+        public HttpHandler(Window window, AudioPlay audioPlay) : base(window, audioPlay)
         {
             routers = Utils.ReadRouter(this);
         }
@@ -165,25 +162,14 @@ namespace Musiche.Server
         {
             ProxyResponseData proxyResData;
             string queryUrl = ctx.Request.QueryString["url"] ?? string.Empty;
-            DateTime now = DateTime.Now;
-            if (string.IsNullOrWhiteSpace(queryUrl))
-            {
-                var proxyData = ProxyRequestData.Parse(ctx.Request.DataAsString());
-                queryUrl = proxyData.Url;
-                Logger.Logger.Info("HttpProxy", proxyData.Method, queryUrl);
-                proxyResData = await HttpRequest(proxyData.Url, proxyData.Method, proxyData.Data, proxyData.Headers);
-            }
-            else
-            {
-                Logger.Logger.Info("HttpProxy", "GET", queryUrl);
-                proxyResData = await HttpRequest(queryUrl, "GET", "", new Dictionary<string, string>());
-            }
-
-            Logger.Logger.Info("HttpProxy", queryUrl, (DateTime.Now - now).TotalSeconds + "s", proxyResData.Data.Length, proxyResData.ContentLength);
+            var proxyData = ProxyRequestData.Parse(string.IsNullOrWhiteSpace(queryUrl) ? ctx.Request.DataAsString() : queryUrl);
+            Logger.Logger.Debug("HttpProxy", proxyData.Method, queryUrl);
+            proxyResData = await HttpProxy.Request(proxyData);
+            Logger.Logger.Debug("HttpProxy", queryUrl, proxyResData.Data.Length, proxyResData.ContentLength);
             ctx.Response.SetHeaders(proxyResData.Headers);
             ctx.Response.StatusCode = proxyResData.StatusCode;
             ctx.Response.ContentType = proxyResData.ContentType;
-            if(proxyResData.Stream != null)
+            if (proxyResData.Stream != null)
             {
                 await WriteResponse(ctx, proxyResData.Stream, proxyResData.ContentLength);
             }
@@ -227,13 +213,11 @@ namespace Musiche.Server
         {
             try
             {
-                if(length > 0)
+                if (length > 0)
                 {
                     ctx.Response.ContentLength64 = length;
                 }
-                Logger.Logger.Info("ready write response stram", (DateTime.Now.ToUniversalTime().Ticks - 621355968000000000) / 10000);
                 await stream.CopyToAsync(ctx.Response.OutputStream);
-                Logger.Logger.Info("write response stream end", (DateTime.Now.ToUniversalTime().Ticks - 621355968000000000) / 10000);
                 stream.Close();
                 return true;
             }
@@ -248,76 +232,6 @@ namespace Musiche.Server
         {
             var data = Encoding.UTF8.GetBytes(message);
             return await WriteResponse(ctx, data);
-        }
-
-        public static async Task<ProxyResponseData> HttpRequest(string url, string method, string body, Dictionary<string, string> headers)
-        {
-            try
-            {
-#pragma warning disable SYSLIB0014
-                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-#pragma warning restore SYSLIB0014
-                request.Method = method;
-                request.SetHeaders(headers);
-                if (!string.IsNullOrEmpty(body))
-                {
-                    var data = Encoding.UTF8.GetBytes(body);
-                    request.ContentLength = data.Length;
-                    using (var stream = request.GetRequestStream())
-                    {
-                        stream.Write(data, 0, data.Length);
-                    }
-                }
-
-                HttpWebResponse response = (HttpWebResponse)await request.GetResponseAsync();
-                Dictionary<string, string> resHeaders = new Dictionary<string, string>();
-                foreach (string item in response.Headers.AllKeys)
-                {
-                    resHeaders.Add(item, response.Headers.Get(item) ?? string.Empty);
-                }
-
-                return new ProxyResponseData(
-                    response.GetResponseStream(),
-                    response.ContentLength,
-                    (int)response.StatusCode,
-                    response.ContentType,
-                    response.ContentEncoding ?? string.Empty,
-                    response.CharacterSet ?? string.Empty,
-                    resHeaders);
-                //using (Stream responseStream = response.GetResponseStream())
-                //{
-
-                //    if (response.ContentEncoding?.ToLower() == "gzip")
-                //    {
-                //        using (Stream gzipStream = new GZipStream(responseStream, CompressionMode.Decompress))
-                //        {
-                //            return new ProxyResponseData(
-                //                Utils.StreamToBytes(gzipStream),
-                //                (int)response.StatusCode,
-                //                response.ContentType,
-                //                response.ContentEncoding,
-                //                response.CharacterSet ?? string.Empty,
-                //                resHeaders);
-                //        }
-                //    }
-                //    else
-                //    {
-                //        return new ProxyResponseData(
-                //            responseStream,
-                //            response.ContentLength,
-                //            (int)response.StatusCode,
-                //            response.ContentType,
-                //            response.ContentEncoding ?? string.Empty,
-                //            response.CharacterSet ?? string.Empty,
-                //            resHeaders);
-                //    }
-                //}
-            }
-            catch (Exception ex)
-            {
-                Logger.Logger.Error("HttpRequest Error: ", ex);
-            }
-            return ProxyResponseData.Empty;
         }
 
         public async Task Handle(HttpListenerContext context)

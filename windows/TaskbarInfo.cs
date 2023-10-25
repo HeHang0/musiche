@@ -1,12 +1,8 @@
 ﻿using Musiche.Audio;
 using Musiche.Server;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shell;
@@ -15,7 +11,7 @@ namespace Musiche
 {
     public class TaskbarInfo
     {
-        ThumbButtonInfo ToolBarPlayPauseButton;
+        readonly ThumbButtonInfo ToolBarPlayPauseButton;
         readonly ImageSource iconPlay = GetBitmapSource(Properties.Resources.tool_play);
         readonly ImageSource iconPause = GetBitmapSource(Properties.Resources.tool_pause);
         readonly AudioPlay audioPlay;

@@ -2,7 +2,6 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
 using System.Reflection;
@@ -13,7 +12,7 @@ using System.Windows;
 
 namespace Musiche.Server
 {
-    public class WebSocketHandler: Handler, IHandler
+    public class WebSocketHandler : Handler, IHandler
     {
         private readonly Dictionary<string, MethodInfo> routers;
         private readonly HashSet<WebSocket> webSockets = new HashSet<WebSocket>();
