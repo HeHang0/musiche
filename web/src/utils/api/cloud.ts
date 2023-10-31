@@ -253,7 +253,12 @@ export async function dailyPlayList(cookies: Record<string, string>) {
     });
   }
   let playlist = await daily(cookies);
-  if (playlist) playlist.name = playlist.name.replace('<br />', ' ');
+  if (playlist) {
+    playlist.name = playlist.name.replace('<br />', ' ');
+    if (!playlist.image && list.length > 0) {
+      playlist.image = list[0].image.replace('100y100', '300y300');
+    }
+  }
   return {
     total,
     list,
