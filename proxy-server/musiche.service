@@ -1,0 +1,11 @@
+[Unit]
+Description=Musiche
+After=network.target nss-lookup.target
+
+[Service]
+User=nobody
+ExecStart=/opt/musiche/musiche
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
