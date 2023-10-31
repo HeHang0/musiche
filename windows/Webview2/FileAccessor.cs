@@ -11,7 +11,7 @@ namespace Musiche.Webview2
         {
             string roming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string appName = System.Reflection.Assembly.GetExecutingAssembly()?.GetName()?.Name?.ToString() ?? "Musiche";
-            rootPath = Path.Combine(roming, appName, "storage");
+            rootPath = Path.Combine(roming, appName, "Storage");
 
 
             CreateDirectoryIFNotExists(rootPath);

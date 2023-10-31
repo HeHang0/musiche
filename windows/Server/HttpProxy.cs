@@ -25,6 +25,7 @@ namespace Musiche.Server
 #pragma warning restore SYSLIB0014
                 request.Method = data.Method;
                 request.SetHeaders(data.Headers);
+                request.AllowAutoRedirect = data.AllowAutoRedirect;
                 if (data.HasBody)
                 {
                     using (var stream = request.GetRequestStream())
@@ -39,6 +40,10 @@ namespace Musiche.Server
                 foreach (string item in response.Headers.AllKeys)
                 {
                     resHeaders.Add(item, response.Headers.Get(item) ?? string.Empty);
+                }
+                if(data.SetCookieRename && resHeaders.ContainsKey("Set-Cookie"))
+                {
+                    resHeaders.Add("Set-Cookie-Renamed", resHeaders["Set-Cookie"]);
                 }
 
                 return new ProxyResponseData(

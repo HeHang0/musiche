@@ -14,14 +14,12 @@ namespace Musiche
         readonly ThumbButtonInfo ToolBarPlayPauseButton;
         readonly ImageSource iconPlay = GetBitmapSource(Properties.Resources.tool_play);
         readonly ImageSource iconPause = GetBitmapSource(Properties.Resources.tool_pause);
-        readonly AudioPlay audioPlay;
         readonly WebSocketHandler webSocketHandler;
 
         readonly TaskbarItemInfo _taskbarInfo;
         public TaskbarItemInfo TaskbarItemInfo => _taskbarInfo;
-        public TaskbarInfo(AudioPlay audioPlay, WebSocketHandler webSocketHandler)
+        public TaskbarInfo(WebSocketHandler webSocketHandler)
         {
-            this.audioPlay = audioPlay;
             this.webSocketHandler = webSocketHandler;
 
             _taskbarInfo = new TaskbarItemInfo();
@@ -46,11 +44,9 @@ namespace Musiche
             _taskbarInfo.ThumbButtonInfos.Add(toolBarLastButton);
             _taskbarInfo.ThumbButtonInfos.Add(ToolBarPlayPauseButton);
             _taskbarInfo.ThumbButtonInfos.Add(toolBarNextButton);
-
-            audioPlay.PlatStateChanged += AudioPlatStateChanged;
         }
 
-        private void AudioPlatStateChanged(object sender, NAudio.Wave.PlaybackState state)
+        private void AudioPlayStateChanged(object sender, NAudio.Wave.PlaybackState state)
         {
             if (state == NAudio.Wave.PlaybackState.Playing)
             {
@@ -62,18 +58,15 @@ namespace Musiche
                 ToolBarPlayPauseButton.ImageSource = iconPlay;
                 ToolBarPlayPauseButton.Description = "播放";
             }
+            if(state == NAudio.Wave.PlaybackState.Stopped)
+            {
+                webSocketHandler.SendMessage("{\"type\": \"next\",\"data\": true}");
+            }
         }
 
         private void AudioPlayPause(object sender, EventArgs e)
         {
-            if (audioPlay.Playing)
-            {
-                webSocketHandler.SendMessage("{\"type\": \"pause\"}");
-            }
-            else
-            {
-                webSocketHandler.SendMessage("{\"type\": \"play\"}");
-            }
+            webSocketHandler.SendMessage("{\"type\": \"playOrPause\"}");
         }
 
         private void AudioNext(object sender, EventArgs e)

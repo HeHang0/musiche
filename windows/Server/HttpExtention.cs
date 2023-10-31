@@ -71,12 +71,26 @@ namespace Musiche.Server
                     case "connection":
                     case "contentlength":
                     case "transferencoding":
+                    case "accesscontrolalloworigin":
+                    case "accesscontrolallowheaders":
+                    case "accesscontrolallowmethods":
+                    case "accesscontrolexposeheaders":
+                    case "accesscontrolallowcredentials":
                         break;
                     default:
                         response.Headers.Set(item.Key, item.Value);
                         break;
                 }
             }
+        }
+
+        public static void ProcessCors(this HttpListenerResponse response)
+        {
+            response.AddHeader("Access-Control-Allow-Origin", "*");
+            response.AddHeader("Access-Control-Allow-Headers", "*");
+            response.AddHeader("Access-Control-Allow-Methods", "*");
+            response.AddHeader("Access-Control-Expose-Headers", "*");
+            response.AddHeader("Access-Control-Allow-Credentials", "true");
         }
     }
 }

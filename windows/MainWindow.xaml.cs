@@ -1,4 +1,5 @@
 ﻿using Musiche.Audio;
+using Musiche.NotifyIcon;
 using Musiche.Server;
 using Musiche.Webview2;
 using System;
@@ -19,7 +20,9 @@ namespace Musiche
         readonly WebServer webServer;
         readonly WebSocketHandler webSocketHandler;
         readonly HttpHandler httpHandler;
+        readonly NotifyIconInfo notifyIcon;
         readonly Stream logStream = null;
+        Hotkey.Hotkey hotkey = null;
         public MainWindow()
         {
             InitializeComponent();
@@ -40,14 +43,31 @@ namespace Musiche
             InitWebview2();
             StateChanged += MainWindow_StateChanged;
             Closing += MainWindow_Closing;
+            SourceInitialized += MainWindow_SourceInitialized;
             webServer.ClientConnected += WebServer_ClientConnected;
-            TaskbarItemInfo = new TaskbarInfo(audioPlay, webSocketHandler).TaskbarItemInfo;
+            TaskbarItemInfo = new TaskbarInfo(webSocketHandler).TaskbarItemInfo;
+            notifyIcon = new NotifyIconInfo(webSocketHandler, ShowApp, ExitApp);
             webServer.Start();
+        }
+
+        private void MainWindow_SourceInitialized(object sender, EventArgs e)
+        {
+            hotkey = new Hotkey.Hotkey(webSocketHandler);
+        }
+
+        public string RegisterHotkey(Hotkey.ShortcutKey shortcutKey)
+        {
+            return hotkey?.Register(shortcutKey) ?? string.Empty;
+        }
+
+        public bool RemoveHotkey(string shortcutType)
+        {
+            return hotkey?.Remove(shortcutType) ?? false;
         }
 
         private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            logStream?.Close();
+            webSocketHandler.SendMessage("{\"type\": \"close\"}");
         }
 
         private void WebServer_ClientConnected(object sender, System.Net.HttpListenerContext context)
@@ -97,6 +117,35 @@ namespace Musiche
             int port = ((IPEndPoint)listener.LocalEndpoint).Port;
             listener.Stop();
             return port;
+        }
+
+        public void ShowApp(object sender, EventArgs e)
+        {
+            Show();
+            if (WindowState == WindowState.Minimized)
+            {
+                WindowState = WindowState.Normal;
+            }
+            Activate();
+        }
+
+        public void ExitApp(object sender, EventArgs e)
+        {
+            hotkey?.Clear();
+            logStream?.Close();
+            notifyIcon?.Dispose();
+            Application.Current.Shutdown();
+        }
+
+        public void SetMusicLoopType(string loopType)
+        {
+            notifyIcon.SetMusicLoopType(loopType);
+        }
+
+        public void SetTitle(string title)
+        {
+            Title = title;
+            notifyIcon.SetTitle(title);
         }
     }
 }

@@ -8,6 +8,7 @@ namespace Musiche.Server
     public class ProxyRequestData
     {
         public string Url { get; set; } = string.Empty;
+        public bool SetCookieRename { get; set; } = false;
         private string _method = "GET";
         public string Method
         {
@@ -30,6 +31,7 @@ namespace Musiche.Server
         }
         public bool HasBody => DataBytes.Length > 0;
         public Dictionary<string, string> Headers { get; set; } = new Dictionary<string, string>();
+        public bool AllowAutoRedirect { get; set; } = true;
 
         public static ProxyRequestData Parse(string data)
         {

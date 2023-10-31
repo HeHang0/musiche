@@ -8,7 +8,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
 
 namespace Musiche.Server
 {
@@ -16,7 +15,7 @@ namespace Musiche.Server
     {
         private readonly Dictionary<string, MethodInfo> routers;
         private readonly HashSet<WebSocket> webSockets = new HashSet<WebSocket>();
-        public WebSocketHandler(Window window, AudioPlay audioPlay) : base(window, audioPlay)
+        public WebSocketHandler(MainWindow window, AudioPlay audioPlay) : base(window, audioPlay)
         {
             routers = Utils.ReadRouter(this);
         }

@@ -19,6 +19,7 @@ namespace Musiche.Audio
 
         private void WasapiOut_PlaybackStopped(object sender, StoppedEventArgs e)
         {
+            PlatStateChanged?.Invoke(this, PlaybackState.Stopped);
             mediaFoundationReader.Position = 0;
             mediaFoundationReader?.Close();
             mediaFoundationReader?.Dispose();

@@ -14,13 +14,30 @@ namespace Musiche.Server
     public class HttpHandler : Handler, IHandler
     {
         private readonly Dictionary<string, MethodInfo> routers;
-        public HttpHandler(Window window, AudioPlay audioPlay) : base(window, audioPlay)
+        private static readonly HashSet<string> installChineseFonts = new HashSet<string>();
+        public HttpHandler(MainWindow window, AudioPlay audioPlay) : base(window, audioPlay)
         {
             routers = Utils.ReadRouter(this);
         }
 
+        private static void InitFonts()
+        {
+            foreach (var family in System.Windows.Media.Fonts.SystemFontFamilies)
+            {
+                foreach (var keyPair in family.FamilyNames)
+                {
+                    var specificCulture = keyPair.Key.GetSpecificCulture();
+                    if (specificCulture.Name.ToLower().Contains("zh"))
+                    {
+                        installChineseFonts.Add(keyPair.Value);
+                    }
+                }
+            }
+        }
+
         static HttpHandler()
         {
+            InitFonts();
             ServicePointManager.ServerCertificateValidationCallback +=
             (sender, certificate, chain, sslPolicyErrors) => true;
         }
@@ -37,7 +54,7 @@ namespace Musiche.Server
             string title = ctx.Request.DataAsString();
             window.Dispatcher.Invoke(() =>
             {
-                window.Title = title;
+                window.SetTitle(title);
             });
             await SendString(ctx, "");
         }
@@ -125,14 +142,73 @@ namespace Musiche.Server
             await SendString(ctx, text, "text/json");
         }
 
-        [Router("/close")]
+        [Router("/loop")]
+        public async Task SetLoopType(HttpListenerContext ctx)
+        {
+            string loopType = ctx.Request.DataAsString();
+            window.Dispatcher.Invoke(() =>
+            {
+                window.SetMusicLoopType(loopType);
+            });
+            await SendString(ctx, "");
+        }
+
+        [Router("/exit")]
         public async Task SetClose(HttpListenerContext ctx)
         {
             window.Dispatcher.Invoke(() =>
             {
-                window.Close();
+                window.ExitApp(null, null);
             });
             string text = GetWindowInfoText();
+            await SendString(ctx, text, "text/json");
+        }
+
+        [Router("/hide")]
+        public async Task SetHide(HttpListenerContext ctx)
+        {
+            window.Dispatcher.Invoke(() =>
+            {
+                window.WindowState = WindowState.Minimized;
+                window.Hide();
+            });
+            string text = GetWindowInfoText();
+            await SendString(ctx, text, "text/json");
+        }
+
+        [Router("/fonts")]
+        public async Task InstalledFonts(HttpListenerContext ctx)
+        {
+            await SendString(ctx, JsonConvert.SerializeObject(installChineseFonts), "text/json");
+        }
+
+        [Router("/hotkey")]
+        public async Task RegisterHostkey(HttpListenerContext ctx)
+        {
+            string cancelString = ctx.Request.QueryString["cancel"] ?? string.Empty;
+            bool cancel = cancelString == "1" || cancelString.ToLower() == "true";
+            Hotkey.ShortcutKey[] shortcutKeys = JsonConvert.DeserializeObject<Hotkey.ShortcutKey[]>(ctx.Request.DataAsString());
+            Dictionary<string, string> registerResult = new Dictionary<string, string>();
+            window.Dispatcher.Invoke(() =>
+            {
+                foreach (var shortcutKey in shortcutKeys)
+                {
+                    if (cancel)
+                    {
+                        registerResult.Add(shortcutKey.Type, window.RemoveHotkey(shortcutKey.Type) ? string.Empty : "取消热键注册失败");
+                    }
+                    else
+                    {
+                        registerResult.Add(shortcutKey.Type, window.RegisterHotkey(shortcutKey));
+                    }
+                }
+            });
+            Dictionary<string, object> result = new Dictionary<string, object>()
+            {
+                { "data",  registerResult},
+                { "type",  "hotkey"}
+            };
+            string text = JsonConvert.SerializeObject(result);
             await SendString(ctx, text, "text/json");
         }
 
@@ -166,16 +242,25 @@ namespace Musiche.Server
             Logger.Logger.Debug("HttpProxy", proxyData.Method, proxyData.Url);
             proxyResData = await HttpProxy.Request(proxyData);
             Logger.Logger.Debug("HttpProxy", proxyData.Url, proxyResData.Data.Length, proxyResData.ContentLength);
-            ctx.Response.SetHeaders(proxyResData.Headers);
-            ctx.Response.StatusCode = proxyResData.StatusCode;
-            ctx.Response.ContentType = proxyResData.ContentType;
-            if (proxyResData.Stream != null)
+            if(proxyResData.StatusCode > 300 && proxyResData.StatusCode < 310)
             {
-                await WriteResponse(ctx, proxyResData.Stream, proxyResData.ContentLength);
+                ctx.Response.StatusCode = 200;
+                ctx.Response.ContentType = "application/json";
+                await WriteResponse(ctx, proxyResData.Headers);
             }
             else
             {
-                await WriteResponse(ctx, proxyResData.Data);
+                ctx.Response.SetHeaders(proxyResData.Headers);
+                ctx.Response.StatusCode = proxyResData.StatusCode;
+                ctx.Response.ContentType = proxyResData.ContentType;
+                if (proxyResData.Stream != null)
+                {
+                    await WriteResponse(ctx, proxyResData.Stream, proxyResData.ContentLength);
+                }
+                else
+                {
+                    await WriteResponse(ctx, proxyResData.Data);
+                }
             }
             return;
         }
@@ -200,6 +285,23 @@ namespace Musiche.Server
             {
                 ctx.Response.ContentLength64 = data.Length;
                 await ctx.Response.OutputStream.WriteAsync(data, 0, data.Length);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Logger.Logger.Error("Send Response Error: ", ex);
+                return false;
+            }
+        }
+
+        private static async Task<bool> WriteResponse(HttpListenerContext ctx, Dictionary<string, string> data)
+        {
+            try
+            {
+                string res = JsonConvert.SerializeObject(data);
+                byte[] bytes = Encoding.UTF8.GetBytes(res);
+                ctx.Response.ContentLength64 = bytes.Length;
+                await ctx.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length);
                 return true;
             }
             catch (Exception ex)

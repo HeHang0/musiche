@@ -45,7 +45,7 @@ namespace Musiche.Server
                     HttpListenerContext context = listener.GetContext();
                     try
                     {
-                        ProcessCors(context.Response);
+                        context.Response.ProcessCors();
                         Logger.Logger.Info("Receive Connection", context.Request.HttpMethod, context.Request.RawUrl);
                         ClientConnected?.Invoke(this, context);
                     }
@@ -67,15 +67,6 @@ namespace Musiche.Server
             {
                 listener.Stop();
             }
-        }
-
-        private void ProcessCors(HttpListenerResponse response)
-        {
-            response.AddHeader("Access-Control-Allow-Origin", "*");
-            response.AddHeader("Access-Control-Allow-Headers", "*");
-            response.AddHeader("Access-Control-Allow-Methods", "*");
-            response.AddHeader("Access-Control-Expose-Headers", "*");
-            response.AddHeader("Access-Control-Allow-Credentials", "true");
         }
     }
 }

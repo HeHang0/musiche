@@ -8,8 +8,8 @@ namespace Musiche.Server
     public class Handler
     {
         protected readonly AudioPlay audioPlay;
-        protected readonly Window window;
-        public Handler(Window window, AudioPlay audioPlay)
+        protected readonly MainWindow window;
+        public Handler(MainWindow window, AudioPlay audioPlay)
         {
             this.window = window;
             this.audioPlay = audioPlay;
