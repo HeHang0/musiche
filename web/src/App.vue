@@ -9,6 +9,7 @@ import WindowHelper from './components/WindowHelper.vue';
 import { webView2Services } from './utils/utils';
 import { usePlayStore } from './stores/play';
 import LogoImage from './assets/images/logo.png';
+import LogoCircleImage from './assets/images/logo-circle.png';
 import { MusicConnection } from './stores/connection';
 const play = usePlayStore();
 document.addEventListener(
@@ -21,6 +22,10 @@ document.addEventListener(
   },
   true
 );
+const iconLink = document.createElement('link');
+iconLink.rel = 'icon';
+iconLink.href = LogoCircleImage;
+document.head.appendChild(iconLink);
 new MusicConnection(webView2Services.enabled);
 </script>
 

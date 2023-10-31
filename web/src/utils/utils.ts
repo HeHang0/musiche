@@ -133,10 +133,7 @@ export function generateGuid() {
 }
 
 const cookieSkipKeys = ['max-age', 'path', 'httponly', 'expires'];
-export function parseCookie(
-  cookie: string,
-  splitComma?: boolean
-): Record<string, string> {
+export function parseCookie(cookie: string): Record<string, string> {
   if (!cookie) cookie = '';
   let cookies = cookie.split(/[;,]/);
   let cookieObj: Record<string, string> = {};

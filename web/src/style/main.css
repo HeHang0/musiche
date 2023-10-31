@@ -1,12 +1,11 @@
 @import './base.less';
 @import './element.less';
-/* @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC&display=swap'); */
 
 @font-face {
   /*自定义字体名*/
   font-family: 'PingFang SC';
   /*路径*/
-  src: url('./PingFang-SC-Regular.otf');
+  src: url('../assets/PingFang-SC-Regular.otf');
   font-weight: normal;
   font-style: normal;
 }
@@ -24,7 +23,7 @@
   /*自定义字体名*/
   font-family: 'icon-font';
   /*路径*/
-  src: url('./icon-font.woff2') format('woff2');
+  src: url('../assets/icon-font.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
 }

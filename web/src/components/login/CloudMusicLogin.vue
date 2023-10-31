@@ -33,7 +33,7 @@ async function checkQRCode(key: string) {
   const data = await api.qrCodeState(MusicType.CloudMusic, key);
   const state = data?.state || 0;
   if (state == 803) {
-    var cookieInfo = parseCookie(data!.cookie, true);
+    var cookieInfo = parseCookie(data!.cookie);
     const userInfo = await api.userInfo(MusicType.CloudMusic, cookieInfo);
     if (userInfo && userInfo.id) {
       setting.userInfo.cloud.id = userInfo.id;

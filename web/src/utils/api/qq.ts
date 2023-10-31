@@ -156,10 +156,7 @@ export async function daily(
   return null;
 }
 
-export async function yours(
-  cookies: Record<string, string>,
-  offset: number
-): Promise<{
+export async function yours(cookies: Record<string, string>): Promise<{
   total: number;
   list: Playlist[];
 }> {
@@ -443,6 +440,7 @@ export function rankingPlaylist(ranking: RankingType): Playlist {
     id,
     name: 'QQ音乐' + name,
     image,
+    description: desc,
     type: MusicType.QQMusic
   };
 }
