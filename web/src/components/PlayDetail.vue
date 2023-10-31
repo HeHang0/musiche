@@ -1,20 +1,24 @@
 <script setup lang="ts">
 import { Ref, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useThrottleFn } from '@vueuse/core';
 
 import { usePlayStore } from '../stores/play';
 import { ThemeColor } from '../utils/color';
 import { webView2Services } from '../utils/utils';
 
+import Footer from './Footer.vue';
+import WindowControls from './WindowControls.vue';
 import DefaultMode from './player/DefaultMode.vue';
 import LyricMode from './player/LyricMode.vue';
-import WindowControls from './WindowControls.vue';
 
 const { beforeResolve } = useRouter();
 const play = usePlayStore();
 const pageElement: Ref<HTMLDivElement | null> = ref(null);
 const imageThemeStyle: Ref<string> = ref('');
 const fullscreen: Ref<boolean> = ref(Boolean(document.fullscreenElement));
+const mouseStillness: Ref<boolean> = ref(false);
+const onMouseMove = useThrottleFn(checkMouseStillness, 200);
 function setThemeColor() {
   play.music.image &&
     new ThemeColor(play.music.image, color => {
@@ -33,6 +37,21 @@ function requestFullscreen() {
 }
 function checkFullscreen() {
   fullscreen.value = Boolean(document.fullscreenElement);
+}
+var mouseStillnessTimeout: any = null;
+function setMouseStillness() {
+  mouseStillness.value = true;
+}
+function checkMouseStillness() {
+  if (mouseStillness.value) {
+    mouseStillness.value = false;
+  }
+  clearTimeout(mouseStillnessTimeout);
+  mouseStillnessTimeout = setTimeout(setMouseStillness, 5000);
+}
+function setMouseMotion() {
+  mouseStillness.value = false;
+  clearTimeout(mouseStillnessTimeout);
 }
 function close() {
   if (document.fullscreenElement) {
@@ -66,8 +85,12 @@ beforeResolve(() => {
     <div
       class="music-play-detail-layout"
       ref="pageElement"
+      @mouseleave="checkMouseStillness"
       :style="imageThemeStyle">
-      <div class="music-play-detail-header">
+      <div
+        class="music-play-detail-header"
+        @mouseenter="setMouseMotion"
+        :style="mouseStillness ? 'opacity:0' : ''">
         <span>
           <el-button class="music-button-pure music-icon" @click="close"
             >下</el-button
@@ -99,20 +122,13 @@ beforeResolve(() => {
           <WindowControls v-if="webView2Services.enabled" />
         </div>
       </div>
-      <div class="music-play-detail-body">
+      <div class="music-play-detail-body" @mousemove="onMouseMove">
         <LyricMode v-if="play.playerMode == 'lyric'" />
         <DefaultMode v-else />
-
-        <el-slider
-          class="music-slider-primary"
-          v-model="play.playStatus.progress"
-          :show-tooltip="false"
-          :max="1000"
-          @mousedown="play.playStatus.disableUpdateProgress = true"
-          style="--music-progress-height: 6px"
-          @change="play.changeProgress" />
       </div>
-      <div class="music-play-detail-footer"></div>
+      <div class="music-play-detail-footer" @mouseenter="setMouseMotion">
+        <Footer full :style="mouseStillness ? 'opacity:0' : ''" />
+      </div>
     </div>
   </el-drawer>
 </template>
@@ -130,7 +146,7 @@ beforeResolve(() => {
 
 .music-play-detail {
   &-header {
-    z-index: 3;
+    z-index: 2;
     height: 80px;
     display: flex;
     color: white;
@@ -163,31 +179,13 @@ beforeResolve(() => {
     }
   }
   &-body {
-    z-index: 2;
+    z-index: 1;
     height: calc(100vh - 160px);
     width: 100vw;
     position: relative;
-    .music-slider-primary {
-      position: absolute;
-      width: 100%;
-      left: 0;
-      bottom: 0;
-      transform: translateY(13px);
-      --el-slider-runway-bg-color: transparent;
-      --music-slider-primary-color: linear-gradient(
-        to right,
-        var(--music-slider-color-start),
-        var(--music-slider-color-end)
-      );
-      --music-slider-primary-hover-color: linear-gradient(
-        to right,
-        var(--music-slider-color-start),
-        var(--music-slider-color-end)
-      );
-    }
   }
   &-footer {
-    z-index: 1;
+    z-index: 2;
     height: 80px;
   }
 }

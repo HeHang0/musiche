@@ -32,16 +32,22 @@ try {
   webView2Services.enabled = !!webView2Services.specialService;
 } catch (error) {}
 
-export function elementScrollClick(id: string, click?: boolean) {
-  const menuEle = document.getElementById(id);
-  if (!menuEle) return;
-  click && menuEle.click();
-  const intoView =
-    (menuEle as any).scrollIntoViewIfNeeded || menuEle.scrollIntoView;
-  intoView.bind(menuEle)();
+export function scrollToElementId(
+  id: string,
+  center?: boolean,
+  smooth?: boolean
+) {
+  const ele = document.getElementById(id);
+  if (!ele) return;
+  const scrollParams: ScrollIntoViewOptions = {
+    behavior: smooth ? 'smooth' : 'instant',
+    block: center ? 'center' : 'start'
+  };
+  ele && ele.scrollIntoView(scrollParams);
 }
 
 export function durationTrim(duration: string) {
+  if (!duration) return '';
   if (duration.startsWith('00:')) duration = duration.substring(3);
   return duration;
 }
@@ -124,4 +130,31 @@ export function generateGuid() {
       (Math.round(2147483647 * Math.random()) * new Date().valueOf()) % 1e10
     ).toString()
   );
+}
+
+const cookieSkipKeys = ['max-age', 'path', 'httponly', 'expires'];
+export function parseCookie(
+  cookie: string,
+  splitComma?: boolean
+): Record<string, string> {
+  if (!cookie) cookie = '';
+  let cookies = cookie.split(/[;,]/);
+  let cookieObj: Record<string, string> = {};
+  cookies.map(item => {
+    if (item.indexOf('=') === -1) return;
+    let kv = item.split('=');
+    if (kv.length < 2) return;
+    let key = kv[0]?.trim() || '';
+    let value = kv[1]?.trim() || '';
+    if (key && !cookieSkipKeys.includes(key.toLowerCase()))
+      cookieObj[key] = value;
+  });
+  return cookieObj;
+}
+
+export function formatCookies(cookies: Record<string, string>): string {
+  if (!cookies) return '';
+  return Object.keys(cookies)
+    .map(m => `${m}=${cookies[m]}`)
+    .join('; ');
 }

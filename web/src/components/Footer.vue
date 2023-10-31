@@ -1,20 +1,22 @@
 <script setup lang="ts">
 import { usePlayStore } from '../stores/play';
 import { SortType } from '../utils/type';
-import DefaultImage from '../assets/images/default.png';
+import LogoImage from '../assets/images/logo.png';
+interface Props {
+  full?: boolean;
+}
+const props = withDefaults(defineProps<Props>(), {
+  full: false
+});
 const play = usePlayStore();
-play.startCheck();
 </script>
 <template>
   <el-footer
     v-show="play.musicList.length > 0"
     class="music-footer"
-    :class="play.playDetailShow ? 'music-footer-full' : ''">
-    <title>
-      {{ play.music.name || '音乐和' }} - {{ play.music.singer || '' }}
-    </title>
+    :class="props.full ? 'music-footer-full' : ''">
     <div class="music-footer-layout">
-      <div v-if="play.playDetailShow" class="music-footer-layout-left">
+      <div v-if="props.full" class="music-footer-layout-left">
         <span
           class="music-icon"
           style="color: red"
@@ -36,7 +38,7 @@ play.startCheck();
           class="music-footer-image"
           @click="play.playDetailShow = true"
           :class="play.playStatus.playing ? 'spinning' : ''">
-          <img :src="play.music.image || DefaultImage" />
+          <img :src="play.music.image || LogoImage" />
         </div>
         <div class="music-footer-title">
           <div class="music-footer-title-name" :title="play.music.name">
@@ -104,31 +106,42 @@ play.startCheck();
             词
           </span>
         </div>
-        <div
-          v-if="!play.playDetailShow"
-          class="music-footer-layout-center-progress">
-          <span class="music-footer-second-text">{{
+        <div class="music-footer-layout-center-progress">
+          <span v-if="!props.full" class="music-footer-second-text">{{
             play.playStatus.currentTime
           }}</span>
           <el-slider
             class="music-slider-primary"
+            :class="
+              props.full ? 'music-footer-layout-center-progress-full' : ''
+            "
             v-model="play.playStatus.progress"
             :show-tooltip="false"
             :max="1000"
             @mousedown="play.playStatus.disableUpdateProgress = true"
             @change="play.changeProgress" />
-          <span class="music-footer-second-text">{{
+          <span v-if="!props.full" class="music-footer-second-text">{{
             play.playStatus.totalTime || play.music.duration
           }}</span>
         </div>
       </div>
       <div class="music-footer-layout-right">
-        <span
-          class="music-icon"
-          @click="play.currentListShow = !play.currentListShow"
-          @mouseup.stop>
-          表
-        </span>
+        <el-popover
+          :visible="play.currentListPopover.show"
+          placement="bottom"
+          width="130"
+          popper-class="music-footer-popover"
+          content="已添加至播放列表"
+          :auto-close="2000">
+          <template #reference>
+            <span
+              class="music-icon"
+              @click="play.currentListShow = !play.currentListShow"
+              @mouseup.stop>
+              表
+            </span>
+          </template>
+        </el-popover>
         <span class="music-icon" title="静音" @click="play.mute">
           {{ play.playStatus.volume > 0 ? '音' : '静' }}
         </span>
@@ -167,8 +180,7 @@ play.startCheck();
   &-full {
     background-color: rgba(255, 255, 255, 0.1);
     color: white;
-    border-color: transparent;
-    z-index: 9998;
+    border-top: none;
     .music-footer-play {
       background-color: rgba(255, 255, 255, 0.1);
     }
@@ -193,11 +205,17 @@ play.startCheck();
         margin-left: 20px;
       }
     }
+    &,
+    &-center,
+    &-center-progress {
+      position: unset;
+    }
     &-center {
       flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
+      min-width: 0;
       &-operate {
         text-align: center;
         span + span {
@@ -214,6 +232,28 @@ play.startCheck();
         }
         & > span:last-child {
           margin-left: 8px;
+        }
+        &-full {
+          position: absolute;
+          width: 100%;
+          left: 0;
+          top: -13px;
+          --music-progress-height: 6px;
+          --el-slider-runway-bg-color: transparent;
+          --music-slider-primary-color: linear-gradient(
+            to right,
+            var(--music-slider-color-start),
+            var(--music-slider-color-end)
+          );
+          --music-slider-primary-hover-color: linear-gradient(
+            to right,
+            var(--music-slider-color-start),
+            var(--music-slider-color-end)
+          );
+          :deep(.el-slider__bar) {
+            border-radius: 0 var(--el-slider-border-radius)
+              var(--el-slider-border-radius) 0;
+          }
         }
       }
     }

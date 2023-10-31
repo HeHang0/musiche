@@ -1,19 +1,17 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { elementScrollClick } from '../utils/utils';
 import { usePlayStore } from '../stores/play';
-import DefaultImage from '../assets/images/default.png';
+import LogoImage from '../assets/images/logo-circle.png';
+import LogoCircleImage from '../assets/images/logo-circle.png';
+import { useSettingStore } from '../stores/setting';
 const { options } = useRouter();
 const route = useRoute();
 const play = usePlayStore();
+const setting = useSettingStore();
 
 const playListName = ref('');
 const createPlaylistShow = ref(false);
-
-onMounted(() => {
-  elementScrollClick(route.meta.key as any);
-});
 const menus: any[] = [];
 options.routes.forEach(item => {
   if (item.name && item.meta?.show != false) {
@@ -35,7 +33,7 @@ function createMyPlaylists() {
 <template>
   <el-aside class="music-aside">
     <div class="music-aside-title">
-      <img :src="DefaultImage" class="music-aside-title-logo" />
+      <img :src="LogoCircleImage" class="music-aside-title-logo" />
       <span class="music-aside-title-text"> 音乐和 </span>
     </div>
     <el-scrollbar>
@@ -44,15 +42,34 @@ function createMyPlaylists() {
         class="music-aside-menu"
         style="margin-top: 20px"
         router
+        :default-openeds="['favorite']"
         :default-active="route.path">
-        <template v-for="menu in menus" :key="menu.key">
-          <el-menu-item
-            :index="'/' + menu.key"
-            :class="route.meta.key == menu.key ? 'is-active' : ''">
-            <span v-if="menu.icon" class="music-icon">{{ menu.icon }}</span>
-            <span :id="menu.key">{{ menu.name }}</span>
-          </el-menu-item>
-        </template>
+        <el-menu-item
+          index="/recommend"
+          id="/recommend"
+          :class="route.meta.key == 'recommend' ? 'is-active' : ''">
+          <span class="music-icon">荐</span>
+          <span>发现音乐</span>
+        </el-menu-item>
+        <el-menu-item
+          v-if="
+            setting.userInfo.cloud.id ||
+            setting.userInfo.qq.id ||
+            setting.userInfo.migu.id
+          "
+          index="/yours"
+          id="/yours"
+          :class="route.meta.key == 'yours' ? 'is-active' : ''">
+          <span class="music-icon">我</span>
+          <span>我的歌单</span>
+        </el-menu-item>
+        <el-menu-item
+          index="/ranking"
+          id="/ranking"
+          :class="route.meta.key == 'ranking' ? 'is-active' : ''">
+          <span class="music-icon">顶</span>
+          <span>音乐榜单</span>
+        </el-menu-item>
         <el-divider
           v-if="
             play.musicHistory.length > 0 || play.myLoves.length > 0
@@ -60,16 +77,18 @@ function createMyPlaylists() {
         <el-menu-item
           v-if="play.myLoves.length > 0"
           index="/lover"
+          id="lover"
           :class="route.path == 'lover' ? 'is-active' : ''">
           <span class="music-icon">爱</span>
-          <span id="lover">我喜欢的音乐</span>
+          <span>我喜欢的音乐</span>
         </el-menu-item>
         <el-menu-item
           v-if="play.musicHistory.length > 0"
           index="/recent"
+          id="recent"
           :class="route.path == 'recent' ? 'is-active' : ''">
           <span class="music-icon">时</span>
-          <span id="recent">最近播放</span>
+          <span>最近播放</span>
         </el-menu-item>
         <el-divider v-if="play.myFavorites.length > 0"></el-divider>
         <el-sub-menu index="favorite" v-if="play.myFavorites.length > 0">
@@ -83,8 +102,9 @@ function createMyPlaylists() {
             class="el-menu-item-wide"
             v-for="item in play.myFavorites"
             :title="item.name"
+            :id="`/playlist/${item.type}/${item.id}`"
             :index="`/playlist/${item.type}/${item.id}`">
-            <img :src="item.image || DefaultImage" />
+            <img :src="item.image || LogoImage" />
             <div class="text-overflow-2">{{ item.name }}</div>
           </el-menu-item>
         </el-sub-menu>
@@ -100,6 +120,7 @@ function createMyPlaylists() {
             class="el-menu-item-wide"
             v-for="item in play.myPlaylists"
             :title="item.name"
+            :id="`/created/${item.id}`"
             :index="`/created/${item.id}`">
             <img
               :src="
@@ -107,7 +128,7 @@ function createMyPlaylists() {
                   item.musicList[0] &&
                   item.musicList[0].image) ||
                 item.image ||
-                DefaultImage
+                LogoImage
               " />
             <div class="text-overflow-2">{{ item.name }}</div>
           </el-menu-item>
@@ -151,7 +172,7 @@ function createMyPlaylists() {
                 (item.musicList &&
                   item.musicList[0] &&
                   item.musicList[0].image) ||
-                DefaultImage
+                LogoImage
               " />
             <div class="music-select-playlist-item-right text-overflow-1">
               <span class="music-select-playlist-item-name text-overflow-1">
@@ -199,6 +220,7 @@ function createMyPlaylists() {
 <style lang="less" scoped>
 .music-aside {
   width: 205px;
+  background-color: var(--music-side-background);
   .music-icon {
     margin-right: 5px;
   }
@@ -248,6 +270,14 @@ function createMyPlaylists() {
       font-size: 13px;
       width: calc(100% - 40px);
       padding: 0 10px !important;
+      & > span {
+        opacity: 0.8;
+      }
+      &.is-active {
+        & > span {
+          opacity: 1;
+        }
+      }
       &:hover {
         background: var(--music-button-background-hover);
       }
@@ -340,6 +370,7 @@ function createMyPlaylists() {
     }
     &-right {
       flex: 1;
+      min-width: 0;
       margin-left: 10px;
       display: flex;
       flex-direction: column;

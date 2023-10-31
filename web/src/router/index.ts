@@ -24,10 +24,10 @@ const routers: RouteRecordRaw[] = [
     component: Recommend
   },
   {
-    path: '/my',
+    path: '/yours/:type?',
     name: '我的音乐',
-    meta: { key: 'my', icon: '我' },
-    component: () => import(`../views/my.vue`)
+    meta: { key: 'yours', icon: '我' },
+    component: Recommend
   },
   {
     path: '/ranking/:type?/:ranking?',
@@ -70,12 +70,18 @@ const routers: RouteRecordRaw[] = [
     name: '创建的歌单',
     meta: { key: 'created', show: false, localShow: true },
     component: () => import(`../views/playlist.vue`)
+  },
+  {
+    path: '/setting/:item?',
+    name: '设置',
+    meta: { key: 'setting', show: false },
+    component: () => import(`../views/setting.vue`)
   }
 ];
 routers.push({ path: '/:catchAll(.*)', redirect: '/recommend' });
 const router = createRouter({
   history: createWebHistory(
-    localStorage.getItem('music-he-router-prefix') || undefined
+    localStorage.getItem('musiche-router-prefix') || undefined
   ),
   routes: routers
 });

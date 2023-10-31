@@ -6,14 +6,15 @@ export enum StorageKey {
   CurrentMusic = 'current-music',
   CurrentMusicList = 'current-music-list',
   CurrentMusicHistory = 'current-music-history',
-  SearchMusicType = 'search-music-type',
   SortType = 'sort-type',
   PlayerMode = 'player-mode',
   MyLoves = 'my-loves',
   MyFavorites = 'my-favorites',
   MyPlaylists = 'my-playlists',
   Volume = 'volume',
-  VolumeCache = 'volume-cache'
+  VolumeCache = 'volume-cache',
+  Setting = 'setting',
+  UserInfo = 'user-info'
 }
 
 async function setValue<T>(key: string, value: T) {
@@ -24,12 +25,9 @@ async function setValue<T>(key: string, value: T) {
     result = `${value}`;
   }
   if (webView2Services.enabled) {
-    await webView2Services.fileAccessor?.WriteFile(
-      'music-collection-' + key,
-      result
-    );
+    await webView2Services.fileAccessor?.WriteFile('musiche-' + key, result);
   } else {
-    localStorage.setItem('music-collection-' + key, result);
+    localStorage.setItem('musiche-' + key, result);
   }
 }
 
@@ -41,11 +39,9 @@ async function getValue<T>(
   var value: any = '';
   if (webView2Services.enabled) {
     value =
-      (await webView2Services.fileAccessor?.ReadFile(
-        'music-collection-' + key
-      )) || '';
+      (await webView2Services.fileAccessor?.ReadFile('musiche-' + key)) || '';
   } else {
-    value = localStorage.getItem('music-collection-' + key) as any;
+    value = localStorage.getItem('musiche-' + key) as any;
   }
   let result: T = value;
   if (value) {
@@ -60,9 +56,9 @@ async function getValue<T>(
 
 async function removeKey(key: string) {
   if (webView2Services.enabled) {
-    await webView2Services.fileAccessor?.DeleteFile('music-collection-' + key);
+    await webView2Services.fileAccessor?.DeleteFile('musiche-' + key);
   } else {
-    localStorage.removeItem('music-collection-' + key);
+    localStorage.removeItem('musiche-' + key);
   }
 }
 

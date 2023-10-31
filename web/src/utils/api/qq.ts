@@ -1,6 +1,6 @@
-import { httpProxy } from '../http';
-import { Music, Playlist, MusicType, RankingType } from '../type';
-import { generateGuid, millisecond2Duration } from '../utils';
+import { httpProxy, parseHttpProxyAddress } from '../http';
+import { Music, Playlist, MusicType, RankingType, UserInfo } from '../type';
+import { formatCookies, generateGuid, millisecond2Duration } from '../utils';
 import RankingHotImage from '../../assets/images/ranking-hot.jpg';
 import RankingNewImage from '../../assets/images/ranking-new.jpg';
 import RankingSoarImage from '../../assets/images/ranking-soar.jpg';
@@ -32,22 +32,68 @@ function parseAlbumImage(music: any) {
   //'https://y.qq.com/music/photo_new/T002R300x300M000' + almubMid + '_1.jpg'
 }
 
-export async function search(keywords: string, offset: number) {
+function getSearchlUrl(keywords: string, offset: number, jSoup?: boolean) {
+  const format = jSoup ? 'jsoup' : 'json';
+  const guid = Math.abs(
+    (Math.round(2147483647 * Math.random()) * new Date().valueOf()) % 1e10
+  ).toString();
+  const callback = jSoup ? `qqMusicUrl${guid}` : '';
   var url =
     'http://i.y.qq.com/s.music/fcgi-bin/search_for_qq_cp?' +
-    'g_tk=938407465&uin=0&format=json&inCharset=utf-8&outCharset=utf-8' +
-    `&notice=0&platform=h5&needNewCode=1&w=${encodeURIComponent(keywords)}` +
+    'g_tk=938407465&uin=0&inCharset=utf-8&outCharset=utf-8' +
+    `&format=${format}&jsonpCallback=${callback}` +
     `&flag=1&ie=utf-8&sem=1&aggr=0&perpage=30&n=30&p=${offset + 1}` +
-    '&zhidaqu=1&catZhida=1&t=0&remoteplace=txt.mqq.all&_=1459991037831';
-  var res = await httpProxy({
-    url: url,
-    method: 'GET',
-    data: '',
-    headers: {
-      Referer: 'http://y.qq.com'
+    '&zhidaqu=1&catZhida=1&t=0&remoteplace=txt.mqq.all&_=1459991037831' +
+    `&notice=0&platform=h5&needNewCode=1&w=${encodeURIComponent(
+      keywords
+    ).replace(/%20/g, '+')}`;
+  return {
+    url,
+    callback
+  };
+}
+
+export async function search(
+  keywords: string,
+  offset: number,
+  jSoup?: boolean
+) {
+  const { callback, url } = getSearchlUrl(keywords, offset, jSoup);
+  let json: any = null;
+  if (callback) {
+    let callbackTimeout: any = null;
+    let script: any = null;
+    json = await new Promise(resolve => {
+      (window as any)[callback] = resolve;
+      script = document.createElement('script')!;
+      script.src = url;
+      document.head.appendChild(script);
+      callbackTimeout = setTimeout(() => {
+        delete (window as any)[callback];
+        script?.remove();
+        resolve(null);
+      }, 5000);
+    });
+    script?.remove();
+    clearTimeout(callbackTimeout);
+    delete (window as any)[callback];
+  } else {
+    var res = await httpProxy({
+      url: url,
+      method: 'GET',
+      data: '',
+      headers: {
+        Referer: 'http://y.qq.com'
+      }
+    });
+    try {
+      json = await res.json();
+      if (!json['data']['song']) throw new Error('获取失败');
+    } catch (e) {
+      return search(keywords, offset, true);
     }
-  });
-  const json = await res.json();
+  }
+
   const ret = json['data']['song'];
   const list: Music[] = [];
   const total: number = ret.totalnum;
@@ -80,6 +126,74 @@ function removeExtJson(jsonStr: string) {
   jsonStr = jsonStr.replace(/;$/, '');
   jsonStr = jsonStr.replace(/\)$/, '');
   return jsonStr;
+}
+
+export async function daily(
+  cookies: Record<string, string>
+): Promise<Playlist | null> {
+  const cookie = formatCookies(cookies);
+  var url = 'https://c.y.qq.com/node/musicmac/v6/index.html';
+  var res = await httpProxy({
+    url: url,
+    method: 'GET',
+    data: '',
+    headers: {
+      Referer: 'http://y.qq.com',
+      Cookie: cookie
+    }
+  });
+  const html = await res.text();
+  const matchId = /data-rid="([\d]+)"[\s]*[\S]+[\s]*今日私享/.exec(html);
+  const matchImage = /src="([\S]+?)"[\s]+alt="今日私享/.exec(html);
+  if (matchId && matchImage) {
+    return {
+      id: matchId[1],
+      name: '今日私享',
+      image: matchImage[1],
+      type: MusicType.QQMusic
+    };
+  }
+  return null;
+}
+
+export async function yours(
+  cookies: Record<string, string>,
+  offset: number
+): Promise<{
+  total: number;
+  list: Playlist[];
+}> {
+  const list: Playlist[] = [];
+  const dailyPlaylist = await daily(cookies);
+  if (dailyPlaylist) list.push(dailyPlaylist);
+
+  const cookie = formatCookies(cookies);
+  var res = await httpProxy({
+    url: 'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg?cid=205360838&reqfrom=1',
+    method: 'GET',
+    data: '',
+    headers: {
+      Referer: 'http://y.qq.com',
+      Cookie: cookie
+    }
+  });
+  let ret = await res.json();
+  function _pushList(retList: any[]) {
+    retList.map((m: any) => {
+      list.push({
+        id: m.dissid || m.id,
+        name: m.title,
+        type: MusicType.QQMusic,
+        image: m.picurl && parseHttpProxyAddress(m.picurl)
+      });
+    });
+  }
+  if (ret.data.mymusic) _pushList(ret.data.mymusic);
+  if (ret.data.mydiss.list) _pushList(ret.data.mydiss.list);
+  return {
+    total: list.length,
+    list
+  };
 }
 
 export async function recommend(offset: number) {
@@ -497,14 +611,6 @@ export async function musicDetail(
   _jsoup?: boolean
 ): Promise<Music> {
   const { url, callback } = getMusicDetailUrl(music.id, true); //jsoup);
-  var res = await httpProxy({
-    url: url,
-    method: 'GET',
-    data: '',
-    headers: {
-      Referer: 'http://y.qq.com'
-    }
-  });
   var musicUrl = '';
   if (callback) {
     let callbackTimeout: any = null;
@@ -525,6 +631,14 @@ export async function musicDetail(
     delete (window as any)[callback];
     musicUrl = parseMusicUrl(ret);
   } else {
+    var res = await httpProxy({
+      url: url,
+      method: 'GET',
+      data: '',
+      headers: {
+        Referer: 'http://y.qq.com'
+      }
+    });
     const ret = await res.json();
     musicUrl = parseMusicUrl(ret);
     if (!musicUrl) {
@@ -582,4 +696,39 @@ export async function lyric(music: Music) {
   });
   const data = await res.json();
   return (data && data.lyric && decodeBase64(data.lyric)) || '';
+}
+
+export async function parseLink(link: string) {
+  const matchQQ = /qq\.com[\S]+[\S]*[\?&]id=([\d]+)/.exec(link);
+  if (matchQQ) {
+    return {
+      linkType: 'playlist',
+      id: matchQQ[1]
+    };
+  }
+  return null;
+}
+
+export async function userInfo(
+  cookies: Record<string, string>
+): Promise<UserInfo | null> {
+  const cookie = Object.keys(cookies)
+    .map(m => `${m}=${cookies[m]}`)
+    .join('; ');
+  var res = await httpProxy({
+    url: 'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg?cid=205360838&reqfrom=1',
+    method: 'GET',
+    headers: {
+      Referer: 'https://y.qq.com',
+      Cookie: cookie
+    }
+  });
+  const ret = await res.json();
+  const creator = (ret && ret.data && ret.data.creator) || null;
+  if (!creator || !creator.encrypt_uin) return null;
+  return {
+    id: creator.encrypt_uin,
+    name: creator.nick,
+    image: creator.headpic
+  };
 }

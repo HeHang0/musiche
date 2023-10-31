@@ -1,25 +1,37 @@
 <script setup lang="ts">
 import { Playlist } from '../utils/type';
-import DefaultImage from '../assets/images/default.png';
+import LogoImage from '../assets/images/logo.png';
 interface Props {
   list: Playlist[];
+  loading?: boolean;
 }
 const props = withDefaults(defineProps<Props>(), {
-  list: () => []
+  list: () => [],
+  loading: false
 });
 </script>
 <template>
   <div class="music-play-list">
     <RouterLink
+      v-show="!loading"
       :to="'/playlist/' + item.type + '/' + item.id"
       v-for="item in props.list">
       <div class="music-play-list-item">
         <img
           class="music-play-list-item-image"
-          :src="item.image || DefaultImage" />
-        <div class="music-play-list-item-name">{{ item.name }}</div>
+          :src="item.image || LogoImage" />
+        <div class="music-play-list-item-name" v-html="item.name"></div>
       </div>
     </RouterLink>
+    <el-skeleton class="music-play-list-item" animated :loading="loading">
+      <template #template>
+        <el-skeleton-item variant="image" />
+        <div class="music-play-list-item-name">
+          <el-skeleton-item variant="text" />
+          <el-skeleton-item variant="text" style="width: 50%" />
+        </div>
+      </template>
+    </el-skeleton>
   </div>
 </template>
 <style lang="less" scoped>
@@ -32,6 +44,9 @@ const props = withDefaults(defineProps<Props>(), {
   width: 100%;
   height: 100%;
   padding-bottom: 10px;
+  & > a {
+    padding: 2px;
+  }
   &-item {
     cursor: pointer;
     width: 180px;
@@ -39,8 +54,12 @@ const props = withDefaults(defineProps<Props>(), {
     position: relative;
     color: white;
     border-radius: var(--music-border-radio);
-    outline: 2px solid rgba(85, 85, 85, 0.1);
+    // outline: 2px solid rgba(85, 85, 85, 0.1);
     overflow: hidden;
+    box-shadow: 0px 0px 2px 0px #9a94945c;
+    &.el-skeleton {
+      outline: none;
+    }
     &-name {
       font-size: 20px;
       font-weight: bold;
@@ -58,10 +77,14 @@ const props = withDefaults(defineProps<Props>(), {
         transform: scale(1.2);
       }
     }
-    &-image {
+    &-image,
+    .el-skeleton__image {
       width: 180px;
       height: 180px;
       transition: transform 0.5s;
+    }
+    .el-skeleton__image {
+      background: var(--el-skeleton-color) 55;
     }
   }
 }

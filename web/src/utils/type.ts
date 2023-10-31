@@ -72,9 +72,16 @@ export interface LyricLine {
 
 export interface ProxyRequestData {
   url: string;
-  method: string;
+  method?: string;
   data?: string;
-  headers?: object;
+  headers?: Record<string, string>;
+  allowAutoRedirect?: boolean;
+  setCookieRename?: boolean;
+}
+
+export enum CloseType {
+  Hide = 'hide',
+  Exit = 'exit'
 }
 
 export interface WindowInfo {
@@ -95,4 +102,24 @@ export function parseMusicType(type: any) {
     default:
       return MusicType.CloudMusic;
   }
+}
+
+export type ShortcutType = 'play' | 'last' | 'next' | 'plus' | 'minus' | 'love';
+
+export interface ShortcutKey {
+  ctrlKey?: boolean;
+  shiftKey?: boolean;
+  altKey?: boolean;
+  metaKey?: boolean;
+  key: string;
+  code?: string;
+  type?: string;
+  status?: string;
+}
+
+export interface UserInfo {
+  id: string;
+  name?: string;
+  image?: string;
+  cookie?: Record<string, string>;
 }

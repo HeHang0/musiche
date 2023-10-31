@@ -1,7 +1,19 @@
 <script setup lang="ts">
+import { ElMessageBox } from 'element-plus';
 import MusicList from './MusicList.vue';
 import { usePlayStore } from '../stores/play';
 const play = usePlayStore();
+function clear() {
+  ElMessageBox.confirm('', '确定要清空播放列表吗？', {
+    closeOnClickModal: false,
+    confirmButtonText: '确定',
+    cancelButtonText: '取消'
+  })
+    .then(() => {
+      play.clearMusicList();
+    })
+    .catch(() => {});
+}
 </script>
 
 <template>
@@ -17,11 +29,18 @@ const play = usePlayStore();
         </span>
       </span>
       <span>
-        <span>
-          <span class="music-icon">藏</span>
-          <span>收藏全部</span>
+        <span class="music-current-list-operate-item">
+          <span class="music-icon">收</span>
+          <span
+            class="music-current-list-operate"
+            @click="play.beforeAddMyPlaylistsMusic(play.musicList)"
+            >收藏全部</span
+          >
         </span>
-        <span class="music-icon" @click="play.clearMusicList">清空</span>
+        <span class="music-current-list-operate-item" @click="clear">
+          <span class="music-icon">删</span>
+          <span class="music-current-list-operate">清空</span>
+        </span>
       </span>
     </div>
     <div class="music-current-list-content">
@@ -30,11 +49,18 @@ const play = usePlayStore();
   </el-drawer>
 </template>
 <style lang="less" scoped>
-.music-icon {
+.music-icon,
+.music-current-list-operate {
   cursor: pointer;
-  margin-right: 10px;
   font-size: 13px;
   color: var(--el-text-color-placeholder);
+  font-weight: normal;
+  &-item + &-item {
+    margin-left: 20px;
+  }
+}
+.music-icon + span {
+  margin-left: 3px;
 }
 .music-current-list {
   &-header {

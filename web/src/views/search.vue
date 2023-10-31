@@ -2,31 +2,31 @@
 import { ref, onMounted, watch, Ref, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import * as api from '../utils/api/api';
-import MusicTypeEle from '../components/MusicType.vue';
 import MusicList from '../components/MusicList.vue';
 import { Music, MusicType } from '../utils/type';
-import { StorageKey, storage } from '../utils/storage';
-const { currentRoute, push, replace } = useRouter();
-const musicType: Ref<MusicType> = ref(
-  currentRoute.value.params.type as MusicType
-);
+import { usePlayStore } from '../stores/play';
+const { currentRoute, replace } = useRouter();
+const play = usePlayStore();
 const searchTextShow = ref(true);
 const total = ref(0);
 const musicList: Ref<Music[]> = ref([] as Music[]);
 const keywords = ref('');
+const loading = ref(false);
 const unWatch = watch(currentRoute, searchMusic);
 async function searchMusic() {
   if (currentRoute.value.meta.key != 'search') return;
-  musicType.value = currentRoute.value.params.type as MusicType;
-  const kw = atob(currentRoute.value.params?.keywords?.toString());
+  play.currentMusicType = currentRoute.value.params.type as MusicType;
+  play.currentMusicTypeShow = true;
+  const kw = decodeURIComponent(
+    currentRoute.value.params?.keywords?.toString() || ''
+  );
   if (!kw) return;
   if (await checkLink(kw)) {
     return;
   }
   keywords.value = kw;
   searchTextShow.value = true;
-  storage.setValue(StorageKey.SearchMusicType, musicType.value);
-  var result = await api.search(musicType.value, keywords.value, 0);
+  var result = await api.search(play.currentMusicType, keywords.value, 0);
   total.value = result.total;
   musicList.value.splice(0, musicList.value.length);
   result.list.map((m: Music) => musicList.value.push(m));
@@ -38,16 +38,18 @@ async function checkLink(link: string) {
   }
 }
 async function checkLinkCloud(link: string): Promise<boolean> {
-  const matchCloud = /music\.163\.com[\S]+song[\S]*[\?&]id=([\d]+)/.exec(link);
-  if (matchCloud) {
-    if (musicType.value != MusicType.CloudMusic) {
-      replace(
-        `/search/${MusicType.CloudMusic}/${encodeURIComponent(btoa(link))}`
-      );
+  var dataParsed = await api.parseLink(link);
+  if (dataParsed != null) {
+    if (play.currentMusicType != dataParsed.type) {
+      replace(`/search/${dataParsed.type}/${encodeURIComponent(link)}`);
     } else {
-      setMusic(await api.musicById(musicType.value, matchCloud[1]));
+      if (dataParsed.linkType === 'playlist') {
+        replace(`/playlist/${dataParsed.type}/${dataParsed.id}`);
+      } else {
+        setMusic(await api.musicById(play.currentMusicType, dataParsed.id));
+      }
+      return true;
     }
-    return true;
   }
   return false;
 }
@@ -59,11 +61,6 @@ function setMusic(music: Music | null) {
     keywords.value = `${music.name} - ${music.singer}`;
     searchTextShow.value = false;
   }
-  storage.setValue(StorageKey.SearchMusicType, musicType.value);
-}
-function musicTypeChange(type: MusicType) {
-  musicType.value = type;
-  push(`/search/${musicType.value}/${encodeURIComponent(keywords.value)}`);
 }
 onMounted(searchMusic);
 onUnmounted(unWatch);
@@ -79,17 +76,35 @@ onUnmounted(unWatch);
         </span>
       </div>
       <div>
-        <MusicTypeEle
-          :value="musicType"
-          size="large"
-          @change="musicTypeChange"
-          style="margin-right: 12px" />
-        <el-button type="primary">播放全部</el-button>
-        <el-button type="info">收藏全部</el-button>
+        <el-button-group>
+          <el-button
+            type="primary"
+            :disabled="loading || musicList.length === 0"
+            @click="play.play(undefined, musicList)">
+            <span class="music-icon">播</span>
+            播放
+          </el-button>
+          <el-button
+            type="primary"
+            :disabled="loading || musicList.length === 0"
+            @click="
+              play.add(musicList);
+              play.showCurrentListPopover();
+            "
+            title="添加到播放列表">
+            <span class="music-icon">添</span>
+          </el-button>
+        </el-button-group>
+        <el-button
+          type="info"
+          :disabled="loading || musicList.length === 0"
+          @click="play.beforeAddMyPlaylistsMusic(musicList)">
+          <span class="music-icon"> 收 </span>收藏
+        </el-button>
       </div>
     </div>
     <el-scrollbar>
-      <MusicList :list="musicList" search />
+      <MusicList :list="musicList" search :loading="loading" />
     </el-scrollbar>
   </div>
 </template>

@@ -3,11 +3,12 @@ import { second2Duration } from './utils';
 export class AudioPlayer {
   audio: HTMLAudioElement;
   onMessage?: (data: any) => void;
+  progressTemp?: number;
   constructor() {
     this.audio = new Audio();
     this.audio.addEventListener('play', this.statusChange.bind(this));
     this.audio.addEventListener('pause', this.statusChange.bind(this));
-    this.audio.addEventListener('ended', this.statusChange.bind(this));
+    this.audio.addEventListener('ended', this.audioEnded.bind(this));
     this.audio.addEventListener('volumechange', this.statusChange.bind(this));
     this.audio.addEventListener('timeupdate', this.statusChange.bind(this));
   }
@@ -35,7 +36,16 @@ export class AudioPlayer {
     if (!this.audio.src) {
       return this.status();
     }
-    await this.audio.play();
+    try {
+      await this.audio.play();
+    } catch {}
+
+    if (this.progressTemp && !isNaN(this.audio.duration)) {
+      this.audio.currentTime = Math.round(
+        (this.audio.duration * this.progressTemp) / 1000
+      );
+      this.progressTemp = 0;
+    }
     return this.status();
   }
   pause() {
@@ -43,9 +53,13 @@ export class AudioPlayer {
     return this.status();
   }
   progress(progress: number) {
-    this.audio.currentTime = Math.round(
-      (this.audio.duration * progress) / 1000
-    );
+    if (isNaN(this.audio.duration)) {
+      this.progressTemp = progress;
+      return this.status();
+    }
+    this.audio.currentTime = isNaN(this.audio.duration)
+      ? 0
+      : Math.round((this.audio.duration * progress) / 1000);
     return this.status();
   }
   volume(volume: number) {
@@ -60,9 +74,11 @@ export class AudioPlayer {
         totalTime: second2Duration(this.audio.duration),
         playing: !this.audio.paused,
         stopped: this.audio.ended || !this.audio.src,
-        progress: Math.round(
-          (1000 * (this.audio.currentTime || 0)) / (this.audio.duration || 1)
-        )
+        progress:
+          this.progressTemp ||
+          Math.round(
+            (1000 * (this.audio.currentTime || 0)) / (this.audio.duration || 1)
+          )
       },
       type: 'status'
     };
@@ -72,5 +88,12 @@ export class AudioPlayer {
   }
   statusChange() {
     this.onMessage && this.onMessage(this.status());
+  }
+  audioEnded() {
+    this.onMessage &&
+      this.onMessage({
+        type: 'next',
+        data: true
+      });
   }
 }

@@ -5,7 +5,7 @@ import { webView2Services } from './utils';
 const httpAddress = import.meta.env.DEV ? '127.0.0.1:54621' : location.host;
 const proxyAddress =
   (!webView2Services.enabled &&
-    localStorage.getItem('music-he-proxy-address')) ||
+    localStorage.getItem('musiche-proxy-address')) ||
   `//${httpAddress}/proxy`;
 const useLocalAudio = !webView2Services.enabled;
 var localAudio: AudioPlayer | null = null;
@@ -14,9 +14,11 @@ if (useLocalAudio) {
 }
 
 export function httpProxy(prd: ProxyRequestData): Promise<Response> {
+  prd.method = prd.method || 'GET';
   return fetch(proxyAddress, {
     method: 'POST',
-    body: JSON.stringify(prd)
+    body: JSON.stringify(prd),
+    redirect: prd.allowAutoRedirect === false ? 'manual' : undefined
   });
 }
 
@@ -31,18 +33,23 @@ export async function musicOperate(
 ): Promise<string | any> {
   if (useLocalAudio) {
     const route = url.substring(1);
-    return localAudio?.process(route, data);
-  } else {
-    const res = await fetch(`//${httpAddress}${url}`, {
-      method: 'POST',
-      body: data,
-      headers: headers
-    });
-    const text = await res.text();
     try {
+      return localAudio?.process(route, data);
+    } catch {
+      return {};
+    }
+  } else {
+    var text = '';
+    try {
+      const res = await fetch(`//${httpAddress}${url}`, {
+        method: 'POST',
+        body: data,
+        headers: headers
+      });
+      text = await res.text();
       return JSON.parse(text);
     } catch {
-      return text;
+      return text || {};
     }
   }
 }

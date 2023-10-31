@@ -1,6 +1,4 @@
 <script lang="ts" setup>
-import { usePlayStore } from '../stores/play';
-const playStore = usePlayStore();
 import { webView2Services } from '../utils/utils';
 function startDrag(e: MouseEvent) {
   if (e.button == 0 && e.buttons == 1)
@@ -10,16 +8,10 @@ function startResize(direction: number, e?: MouseEvent) {
   if (e && e.button == 0 && e.buttons == 1)
     webView2Services.specialService?.ResizeWindow(direction);
 }
-function setMaximize() {
-  playStore.maximize(!playStore.windowInfo.maximized);
-}
 </script>
 <template>
   <div v-if="webView2Services.enabled" class="music-window-helper">
-    <div
-      class="music-window-helper-drag"
-      @mousedown.stop="startDrag"
-      @dblclick="setMaximize"></div>
+    <div class="music-window-helper-drag" @mousedown.stop="startDrag"></div>
     <div
       class="music-window-helper-l"
       @mousedown.stop="startResize(1, $event)"></div>

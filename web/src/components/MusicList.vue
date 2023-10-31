@@ -1,15 +1,21 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { usePlayStore } from '../stores/play';
-import { Music } from '../utils/type';
-import DefaultImage from '../assets/images/default.png';
+import { Music, MusicType } from '../utils/type';
+import LogoImage from '../assets/images/logo.png';
+import CloudMusicImage from '../assets/images/cloud-music.webp';
+import QQMusicImage from '../assets/images/qq-music.png';
+import MiguMusicImage from '../assets/images/migu-music.webp';
+import { useSettingStore } from '../stores/setting';
 interface Props {
   list: Music[];
+  loading?: boolean;
   single?: boolean;
   search?: boolean;
 }
 const props = withDefaults(defineProps<Props>(), {
   list: () => [],
+  loading: false,
   single: false,
   search: false
 });
@@ -26,6 +32,7 @@ function toAlbum(music: Music) {
   }
 }
 const play = usePlayStore();
+const setting = useSettingStore();
 </script>
 <template>
   <div
@@ -40,11 +47,22 @@ const play = usePlayStore();
     </div>
     <div
       v-for="(item, index) in props.list"
+      v-show="!loading"
       class="music-list-item"
       :class="
         item.id == play.music.id && item.type == play.music.type
           ? 'music-list-item-is-play'
           : ''
+      "
+      @dblclick="
+        !props.single
+          ? play.play(
+              item,
+              setting.pageValue.onlyAddMusicListAtDbClick
+                ? undefined
+                : props.list
+            )
+          : undefined
       ">
       <div class="music-list-item-index">
         <span
@@ -78,7 +96,18 @@ const play = usePlayStore();
       </div>
       <div class="music-list-item-title">
         <div class="music-list-item-image">
-          <img :src="item.image || DefaultImage" />
+          <img :src="item.image || LogoImage" />
+          <div class="music-list-item-image-type">
+            <img
+              v-if="item.type == MusicType.CloudMusic"
+              :src="CloudMusicImage" />
+            <img
+              v-else-if="item.type == MusicType.QQMusic"
+              :src="QQMusicImage" />
+            <img
+              v-else-if="item.type == MusicType.MiguMusic"
+              :src="MiguMusicImage" />
+          </div>
           <div class="music-list-item-image-single" v-if="props.single">
             <span
               v-if="
@@ -135,13 +164,17 @@ const play = usePlayStore();
             >
             <span
               class="music-icon"
-              @click="play.nextPlay(item)"
+              @click="play.setNextPlay(item)"
               title="下一首播放">
               待
             </span>
             <span
+              v-if="!props.single"
               class="music-icon"
-              @click="play.add([item])"
+              @click="
+                play.add([item]);
+                play.showCurrentListPopover();
+              "
               title="添加到播放列表">
               添
             </span>
@@ -167,7 +200,12 @@ const play = usePlayStore();
         </div>
       </div>
       <div class="music-list-item-album">
-        <span :title="item.album" @click="toAlbum(item)">{{ item.album }}</span>
+        <span
+          class="text-overflow-2"
+          :title="item.album"
+          @click="toAlbum(item)"
+          >{{ item.album }}</span
+        >
       </div>
       <div v-if="!props.single" class="music-list-item-lover">
         <span
@@ -183,6 +221,33 @@ const play = usePlayStore();
       </div>
       <div class="music-list-item-duration">{{ item.duration }}</div>
     </div>
+    <el-skeleton animated :loading="loading">
+      <template #template>
+        <div class="music-list-item">
+          <div class="music-list-item-index">
+            <el-skeleton-item variant="text"></el-skeleton-item>
+          </div>
+          <div class="music-list-item-title">
+            <el-skeleton-item
+              variant="image"
+              class="music-list-item-image"></el-skeleton-item>
+            <div class="music-list-item-name">
+              <el-skeleton-item style="width: 50%"></el-skeleton-item>
+              <el-skeleton-item style="width: 30%"></el-skeleton-item>
+            </div>
+          </div>
+          <div class="music-list-item-album">
+            <el-skeleton-item variant="text"></el-skeleton-item>
+          </div>
+          <div class="music-list-item-lover">
+            <el-skeleton-item variant="text"></el-skeleton-item>
+          </div>
+          <div class="music-list-item-index">
+            <el-skeleton-item variant="text"></el-skeleton-item>
+          </div>
+        </div>
+      </template>
+    </el-skeleton>
   </div>
 </template>
 <style lang="less" scoped>
@@ -274,6 +339,17 @@ const play = usePlayStore();
           height: 13px;
         }
       }
+      &-type {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        height: 15px;
+        & > img {
+          width: 15px;
+          height: 15px;
+          border-radius: 50%;
+        }
+      }
     }
     .music-list-item-title {
       .music-list-item-name {
@@ -322,7 +398,7 @@ const play = usePlayStore();
         display: block;
         cursor: pointer;
       }
-      .music-list-item-image > div {
+      .music-list-item-image > .music-list-item-image-single {
         background-color: rgba(0, 0, 0, 0.2);
       }
 
@@ -392,6 +468,24 @@ const play = usePlayStore();
       background-color: white;
       border-radius: var(--music-border-radio);
       box-shadow: 0px 0px 8px 0px #9a94945c;
+    }
+  }
+}
+.el-skeleton {
+  .music-list-item-name {
+    height: 100%;
+    flex-direction: column;
+    justify-content: space-evenly;
+  }
+  .el-skeleton__text {
+    width: 80%;
+  }
+  .el-skeleton__image {
+    border-radius: var(--music-border-radio);
+  }
+  .music-list-item-index {
+    .el-skeleton__text {
+      width: var(--el-font-size-small);
     }
   }
 }

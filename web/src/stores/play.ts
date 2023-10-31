@@ -1,15 +1,12 @@
 import { defineStore } from 'pinia';
 import * as api from '../utils/api/api';
-import {
-  Music,
-  MusicType,
-  Playlist,
-  SortType,
-  WindowInfo
-} from '../utils/type';
-import { CommunicationClient, musicOperate, wsClient } from '../utils/http';
+import { Music, MusicType, Playlist, SortType } from '../utils/type';
+import { musicOperate } from '../utils/http';
 import { StorageKey, storage } from '../utils/storage';
 import { generateGuid, getRandomInt } from '../utils/utils';
+import { useTitle } from '@vueuse/core';
+
+const title = useTitle();
 
 interface PlayStatus {
   currentTime: string;
@@ -22,10 +19,6 @@ interface PlayStatus {
   volumeCache: number;
 }
 
-var checkingStatus: boolean = false;
-var nextPlay: Music | null = null;
-
-var webSocketClient: CommunicationClient | null = null;
 export const usePlayStore = defineStore('play', {
   state: () => {
     return {
@@ -40,10 +33,11 @@ export const usePlayStore = defineStore('play', {
       sortType: SortType.Loop as SortType,
       musicHistory: [] as Music[],
       currentListShow: false,
+      currentMusicType: MusicType.CloudMusic as MusicType,
+      currentMusicTypeShow: true,
       playDetailShow: false,
       selectPlaylistShow: false,
       playerMode: '',
-      windowInfo: {} as WindowInfo,
       playStatus: {
         currentTime: '00:00',
         playing: false,
@@ -52,7 +46,14 @@ export const usePlayStore = defineStore('play', {
         progress: 0,
         volume: 0,
         volumeCache: 100
-      } as PlayStatus
+      } as PlayStatus,
+      currentListPopover: {
+        show: false,
+        timer: null as any
+      },
+      checkingStatus: false,
+      nextPlay: null as Music | null,
+      preparePlay: false
     };
   },
   actions: {
@@ -74,14 +75,20 @@ export const usePlayStore = defineStore('play', {
       this.add([music]);
     },
     setSortType(type: SortType) {
+      if (!type) return;
       this.sortType = type;
+      musicOperate('/loop', this.sortType.toString());
       storage.setValue(StorageKey.SortType, this.sortType);
     },
-    nextPlay(music: Music) {
+    setNextPlay(music: Music) {
       this.add([music]);
-      nextPlay = music;
+      this.showCurrentListPopover();
+      this.nextPlay = music;
+      if (!this.playStatus.playing) {
+        this.next();
+      }
     },
-    addHistory(musics: Music[], remove?: boolean, noSave?: boolean) {
+    addHistory(musics: Music[], remove?: boolean, init?: boolean) {
       if (!Array.isArray(musics)) return;
       if (musics.length == this.musicHistory.length && remove) {
         this.musicHistory.splice(0, musics.length);
@@ -91,9 +98,12 @@ export const usePlayStore = defineStore('play', {
             m => m.id == music.id && m.type == music.type
           );
           if (index >= 0) this.musicHistory.splice(index, 1);
-          if (!remove) this.musicHistory.unshift(music);
+          if (!remove) {
+            if (init) this.musicHistory.push({ ...music });
+            else this.musicHistory.unshift({ ...music });
+          }
         });
-      if (!noSave)
+      if (!init)
         storage.setValue(StorageKey.CurrentMusicHistory, this.musicHistory);
     },
     async addMyLove(musics: Music[], remove?: boolean) {
@@ -131,6 +141,13 @@ export const usePlayStore = defineStore('play', {
       });
       this.myFavorites.map(m => (this.myFavorite[m.type + m.id] = true));
       storage.setValue(StorageKey.MyFavorites, this.myFavorites);
+    },
+    showCurrentListPopover() {
+      clearTimeout(this.currentListPopover.timer);
+      this.currentListPopover.show = true;
+      this.currentListPopover.timer = setTimeout(() => {
+        this.currentListPopover.show = false;
+      }, 3000);
     },
     beforeAddMyPlaylistsMusic(musics: Music[]) {
       this.myPlaylistsPreMusics = musics;
@@ -185,7 +202,7 @@ export const usePlayStore = defineStore('play', {
       });
       storage.setValue(StorageKey.MyPlaylists, this.myPlaylists);
     },
-    add(musics: Music[]) {
+    add(musics: Music[], noSet?: boolean) {
       if (!musics) return;
       const lastLength = this.musicList.length;
       musics.map(music => {
@@ -196,25 +213,45 @@ export const usePlayStore = defineStore('play', {
       });
       lastLength != this.musicList.length &&
         storage.setValue(StorageKey.CurrentMusicList, this.musicList);
-      if (!this.music.id && this.musicList.length > 0) {
+      if (!noSet && !this.music.id && this.musicList.length > 0) {
         this.setCurrentMusic(this.musicList[0]);
       }
     },
     async play(music?: Music, musicList?: Music[]) {
+      if (this.preparePlay) {
+        return;
+      }
+      this.preparePlay = true;
       if (!music && musicList && musicList[0]) music = musicList[0];
       if (!music && this.playStatus.stopped) music = this.music;
-      if (!music) {
-        checkingStatus = true;
+      console.log('play', music, musicList);
+      if (
+        !music ||
+        (!this.playStatus.stopped &&
+          music.id == this.music.id &&
+          music.type == this.music.type)
+      ) {
+        this.checkingStatus = true;
         const res = await musicOperate('/play');
         this.setStatus(res.data);
+        this.preparePlay = false;
         return;
+      }
+      if (Array.isArray(musicList)) {
+        this.musicList.splice(0, this.musicList.length);
+        this.add(musicList);
       }
       const m = await api.musicDetail(music);
       if (!m || !m.url) {
         console.log('fail', music);
+        const musicIndex = this.musicList.findIndex(
+          n => music && music.id == n.id && music.type == n.type
+        );
+        musicIndex >= 0 && this.musicList.splice(0, 1);
+        this.preparePlay = false;
+        this.musicList.length > 0 && this.next(true);
         return;
       }
-      console.log('play', music);
       if (
         music.id != this.music.id &&
         this.playStatus.stopped &&
@@ -223,50 +260,24 @@ export const usePlayStore = defineStore('play', {
         await musicOperate('/progress', '0');
       }
       this.setCurrentMusic(m);
-      checkingStatus = true;
+      this.checkingStatus = true;
       const res = await musicOperate('/play', music.url);
       this.setStatus(res.data);
       storage.setValue(StorageKey.CurrentMusic, this.music);
-      if (Array.isArray(musicList)) {
-        this.musicList.splice(0, this.musicList.length);
-        this.add(musicList);
-      }
       this.addHistory([this.music]);
       this.setTitle();
+      this.preparePlay = false;
     },
     async pause() {
-      checkingStatus = true;
+      this.checkingStatus = true;
       var res = await musicOperate('/pause');
       this.setStatus(res.data);
     },
-    setWindowInfo(data: any) {
-      this.windowInfo.maximized = data.maximized;
-      this.windowInfo.width = data.width;
-      this.windowInfo.height = data.height;
-      this.windowInfo.x = data.x;
-      this.windowInfo.y = data.y;
-    },
-    async window() {
-      var res = await musicOperate('/window');
-      res.data && this.setWindowInfo(res.data);
-    },
-    async maximize(maximized: boolean) {
-      var res = await musicOperate('/maximize', maximized ? '1' : '0');
-      res.data && this.setWindowInfo(res.data);
-    },
-    async close() {
-      var res = await musicOperate('/close');
-      res.data && this.setWindowInfo(res.data);
-    },
-    async minimize() {
-      var res = await musicOperate('/minimize');
-      res.data && this.setWindowInfo(res.data);
-    },
     async next(auto?: boolean) {
       if (typeof auto !== 'boolean') auto = false;
-      if (nextPlay) {
-        this.play(nextPlay);
-        nextPlay = null;
+      if (this.nextPlay) {
+        this.play(this.nextPlay);
+        this.nextPlay = null;
         return;
       }
       var currentIndex = this.musicList.findIndex(
@@ -286,25 +297,27 @@ export const usePlayStore = defineStore('play', {
       }
       if (currentIndex < 0 || currentIndex >= this.musicList.length)
         currentIndex = 0;
-      if (this.musicList[currentIndex]) {
-        this.setCurrentMusic(this.musicList[currentIndex]);
-      }
-      this.play(this.music);
+      this.play(this.musicList[currentIndex]);
     },
     async last() {
-      nextPlay = null;
-      this.musicHistory.splice(this.musicHistory.length - 1, 1);
-      const musicH = this.musicHistory.splice(
-        this.musicHistory.length - 1,
-        1
-      )[0];
+      this.nextPlay = null;
+      const musicH = this.musicHistory[this.musicHistory.length - 2];
+      this.addHistory(
+        this.musicHistory.slice(this.musicHistory.length - 2),
+        true
+      );
+      // this.musicHistory.splice(this.musicHistory.length - 1, 1);
+      // const musicH = this.musicHistory.splice(
+      //   this.musicHistory.length - 1,
+      //   1
+      // )[0];
       var ok = false;
       if (musicH) {
         const music = this.musicList.find(
           m => m.id == musicH.id && m.type == musicH.type
         );
         if (music) {
-          this.setCurrentMusic(music);
+          this.play(music);
           ok = true;
         }
       }
@@ -314,19 +327,18 @@ export const usePlayStore = defineStore('play', {
         );
         if (currentIndex == 0) currentIndex = this.musicList.length - 1;
         else if (--currentIndex < 0) currentIndex = 0;
-        this.setCurrentMusic(this.musicList[currentIndex]);
+        this.play(this.musicList[currentIndex]);
       }
-      this.play(this.music);
     },
     async changeProgress(value: number) {
-      checkingStatus = true;
+      this.checkingStatus = true;
       this.playStatus.disableUpdateProgress = false;
       var res = await musicOperate('/progress', value.toString());
       this.setStatus(res.data);
     },
     async changeVolume(value: number) {
-      if (value == null || !(value >= 0)) return;
-      checkingStatus = true;
+      if (value == null || isNaN(value) || value < 0 || value > 100) return;
+      this.checkingStatus = true;
       var res = await musicOperate('/volume', value.toString());
       this.setStatus(res.data);
       storage.setValue(StorageKey.Volume, this.playStatus.volume);
@@ -343,7 +355,7 @@ export const usePlayStore = defineStore('play', {
     },
     async setStatus(data: PlayStatus) {
       try {
-        checkingStatus = false;
+        this.checkingStatus = false;
         if (!data) return;
         if (this.playStatus.playing != data.playing) {
           this.playStatus.playing = data.playing;
@@ -373,78 +385,22 @@ export const usePlayStore = defineStore('play', {
         }
       } catch {}
     },
-    wsMessage(result: any) {
-      if (!result) return;
-      try {
-        switch (result.type) {
-          case 'status':
-            if (!checkingStatus) {
-              if (this.playStatus.playing && result.data.stopped) {
-                this.next(true);
-              } else {
-                this.setStatus(result.data);
-              }
-            }
-            break;
-          case 'window':
-            result.data && this.setWindowInfo(result.data);
-            break;
-          case 'maximized':
-            if (typeof result.data == 'boolean') {
-              this.windowInfo.maximized = result.data;
-            }
-            break;
-          case 'play':
-            this.play();
-            break;
-          case 'pause':
-            this.pause();
-            break;
-          case 'next':
-            this.next();
-            break;
-          case 'last':
-            this.last();
-            break;
-        }
-      } catch {}
-    },
-    wsClose() {
-      setTimeout(() => {
-        webSocketClient = wsClient(this.wsMessage, this.wsClose);
-      }, 1000);
-    },
-    sendWsStatus() {
-      if (checkingStatus) return;
-      webSocketClient &&
-        webSocketClient.readyState == WebSocket.OPEN &&
-        webSocketClient.send('/status\n');
-    },
     setTitle() {
       if (this.music && this.music.name) {
-        musicOperate(
-          '/title',
-          `${this.music.name}${(this.music.singer && ' - ') || ''}${
-            this.music.singer || ''
-          }`
-        );
+        title.value = `${this.music.name}${(this.music.singer && ' - ') || ''}${
+          this.music.singer || ''
+        }`;
       } else {
-        musicOperate('/title', `音乐和`);
+        title.value = '音乐和';
       }
-    },
-    async startCheck() {
-      if (webSocketClient) return;
-      await this.initValue();
-      webSocketClient = wsClient(this.wsMessage, this.wsClose);
-      setInterval(this.sendWsStatus, 500);
-      this.setTitle();
-      this.window();
+      musicOperate('/title', title.value);
     },
     changePlayerMode(mode: string) {
       this.playerMode = mode;
       storage.setValue(StorageKey.PlayerMode, mode);
     },
     async initValue() {
+      this.add(await storage.getValue(StorageKey.CurrentMusicList), true);
       this.setCurrentMusic(await storage.getValue(StorageKey.CurrentMusic));
       this.addMyLove(await storage.getValue(StorageKey.MyLoves));
       this.addMyFavorite(await storage.getValue(StorageKey.MyFavorites));
@@ -454,17 +410,15 @@ export const usePlayStore = defineStore('play', {
         false,
         true
       );
-      this.sortType = await storage.getValue(StorageKey.SortType);
-      this.playerMode = await storage.getValue(StorageKey.PlayerMode);
+      this.sortType =
+        (await storage.getValue(StorageKey.SortType)) || SortType.Loop;
+      this.playerMode = (await storage.getValue(StorageKey.PlayerMode)) || '';
       this.playStatus.volumeCache = await storage.getValue(
         StorageKey.VolumeCache
       );
       this.changeVolume(await storage.getValue(StorageKey.Volume));
-      // music: (storage.getValue(StorageKey.CurrentMusic) || {}) as Music,
-      // musicList: (storage.getValue(StorageKey.CurrentMusicList) ||
-      //   []) as Music[],
-      // sortType: (storage.getValue(StorageKey.SortType) ||
-      //   SortType.Loop) as SortType,
+      musicOperate('/loop', this.sortType.toString());
+      this.setTitle();
     }
   }
 });

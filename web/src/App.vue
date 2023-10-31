@@ -8,6 +8,8 @@ import PlayDetail from './components/PlayDetail.vue';
 import WindowHelper from './components/WindowHelper.vue';
 import { webView2Services } from './utils/utils';
 import { usePlayStore } from './stores/play';
+import LogoImage from './assets/images/logo.png';
+import { MusicConnection } from './stores/connection';
 const play = usePlayStore();
 document.addEventListener(
   'error',
@@ -15,10 +17,11 @@ document.addEventListener(
     const target = event.target as any;
     if (target.tagName !== 'IMG' && target.ignoreError) return;
     target.ignoreError = true;
-    target.src = 'https://y.qq.com/mediastyle/global/img/album_300.png';
+    target.src = LogoImage;
   },
   true
 );
+new MusicConnection(webView2Services.enabled);
 </script>
 
 <template>
@@ -57,7 +60,6 @@ document.addEventListener(
   height: 100vh;
   width: 100vw;
   overflow: auto;
-  background-color: var(--music-side-background);
   .el-main {
     padding: 0;
     margin-top: 5px;

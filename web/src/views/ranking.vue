@@ -2,16 +2,13 @@
 import { ref, onMounted, watch, Ref, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import * as api from '../utils/api/api';
-import MusicTypeEle from '../components/MusicType.vue';
 import RadioGroupEle from '../components/RadioGroup.vue';
 import MusicList from '../components/MusicList.vue';
 import { Music, MusicType, RankingType } from '../utils/type';
 import { usePlayStore } from '../stores/play';
 const { currentRoute, push, replace } = useRouter();
 const play = usePlayStore();
-const musicType: Ref<MusicType> = ref(
-  currentRoute.value.params.type as MusicType
-);
+const loading = ref(false);
 const total = ref(0);
 const musicList: Ref<Music[]> = ref([] as Music[]);
 const rankingTypes = ref([
@@ -37,7 +34,8 @@ function parseParams() {
   const type = currentRoute.value.params.type as MusicType;
   const ranking = currentRoute.value.params.ranking as RankingType;
   if (type in MusicType && ranking in RankingType) {
-    musicType.value = type as MusicType;
+    play.currentMusicType = type as MusicType;
+    play.currentMusicTypeShow = true;
     rankingType.value = ranking as RankingType;
     return true;
   } else if (type in MusicType) {
@@ -51,26 +49,27 @@ function parseParams() {
 }
 async function searchMusic() {
   if (!parseParams()) return;
-  if (musicType.value == MusicType.MiguMusic) {
+  if (play.currentMusicType == MusicType.MiguMusic) {
     rankingTypes.value[2].label = '原创榜';
   } else {
     rankingTypes.value[2].label = '飙升榜';
   }
-  var result = await api.ranking(musicType.value, rankingType.value);
+  loading.value = true;
+  var result = await api.ranking(play.currentMusicType, rankingType.value);
+  loading.value = false;
   total.value = result.total;
   musicList.value.splice(0, musicList.value.length);
   result.list.map((m: Music) => musicList.value.push(m));
 }
-function musicTypeChange(type: MusicType) {
-  musicType.value = type;
-  push(`/ranking/${musicType.value}/${rankingType.value}`);
-}
 function rankingTypeChange(type: RankingType) {
   rankingType.value = type;
-  push(`/ranking/${musicType.value}/${rankingType.value}`);
+  push(`/ranking/${play.currentMusicType}/${rankingType.value}`);
 }
 function favoritePlaylist() {
-  const playlistInfo = api.rankingPlaylist(musicType.value, rankingType.value);
+  const playlistInfo = api.rankingPlaylist(
+    play.currentMusicType,
+    rankingType.value
+  );
   playlistInfo &&
     play.addMyFavorite(
       [playlistInfo],
@@ -91,28 +90,43 @@ onUnmounted(unWatch);
           @change="rankingTypeChange" />
       </div>
       <div>
-        <MusicTypeEle
-          :value="musicType"
-          size="large"
-          @change="musicTypeChange"
-          style="margin-right: 12px" />
-        <el-button type="primary" @click="play.play(undefined, musicList)"
-          >播放全部</el-button
-        >
-        <el-button type="info" @click="favoritePlaylist">
+        <el-button-group>
+          <el-button
+            type="primary"
+            :disabled="loading"
+            @click="play.play(undefined, musicList)">
+            <span class="music-icon">播</span>
+            播放
+          </el-button>
+          <el-button
+            type="primary"
+            :disabled="loading"
+            @click="
+              play.add(musicList);
+              play.showCurrentListPopover();
+            "
+            title="添加到播放列表">
+            <span class="music-icon">添</span>
+          </el-button>
+        </el-button-group>
+        <el-button type="info" :disabled="loading" @click="favoritePlaylist">
           <span class="music-icon">
             {{
-              play.myFavorite[musicType + 'ranking' + rankingType] ? '藏' : '收'
+              play.myFavorite[play.currentMusicType + 'ranking' + rankingType]
+                ? '藏'
+                : '收'
             }}
           </span>
           {{
-            play.myFavorite[musicType + 'ranking' + rankingType] ? '已' : ''
+            play.myFavorite[play.currentMusicType + 'ranking' + rankingType]
+              ? '已'
+              : ''
           }}收藏
         </el-button>
       </div>
     </div>
     <el-scrollbar>
-      <MusicList :list="musicList" />
+      <MusicList :loading="loading" :list="musicList" />
     </el-scrollbar>
   </div>
 </template>

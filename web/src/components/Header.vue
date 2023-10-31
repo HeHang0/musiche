@@ -2,18 +2,21 @@
 import { Ref, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Search } from '@element-plus/icons-vue';
-import { parseMusicType } from '../utils/type';
-import { StorageKey, storage } from '../utils/storage';
-import WindowControls from './WindowControls.vue';
+
+import { usePlayStore } from '../stores/play';
+import { MusicType } from '../utils/type';
 import { webView2Services } from '../utils/utils';
+
+import MusicTypeEle from './MusicType.vue';
+import WindowControls from './WindowControls.vue';
+
 const { currentRoute, push, back } = useRouter();
 const searchKey = ref('');
+const play = usePlayStore();
 function startSearch() {
   if (!searchKey.value.trim()) return;
   push(
-    `/search/${parseMusicType(
-      storage.getValue(StorageKey.SearchMusicType)
-    )}/${encodeURIComponent(btoa(searchKey.value))}`
+    `/search/${play.currentMusicType}/${encodeURIComponent(searchKey.value)}`
   );
 }
 const canBack: Ref<boolean> = ref(Boolean(history.state.back));
@@ -21,19 +24,27 @@ const unWatch = watch(
   () => currentRoute.value.params,
   newValue => {
     if (newValue.keywords) {
-      searchKey.value = atob(newValue.keywords.toString());
+      searchKey.value = decodeURIComponent(newValue.keywords.toString() || '');
     }
     canBack.value = Boolean(history.state.back);
   }
 );
+function changeMusicType(type: MusicType) {
+  if (currentRoute.value.params.type) {
+    push({
+      ...currentRoute.value,
+      params: { ...currentRoute.value.params, type }
+    });
+  }
+}
 onUnmounted(unWatch);
 </script>
 <template>
   <el-header class="music-header">
-    <div>
+    <div style="display: flex">
       <el-button
         :disabled="!canBack"
-        class="music-button-pure music-icon music-page-back"
+        class="music-header-back music-button-pure music-icon"
         @click="back">
         <span style="opacity: 0.8">左</span>
       </el-button>
@@ -51,19 +62,20 @@ onUnmounted(unWatch);
           </el-icon>
         </template>
       </el-input>
+      <MusicTypeEle
+        v-show="play.currentMusicTypeShow"
+        :value="play.currentMusicType"
+        size="large"
+        @change="changeMusicType"
+        style="margin-right: 12px" />
     </div>
-    <WindowControls v-if="webView2Services.enabled" />
+    <div class="music-header-operate">
+      <span class="music-icon" @click="push('/setting')"> 设 </span>
+      <WindowControls v-if="webView2Services.enabled" />
+    </div>
   </el-header>
 </template>
 <style lang="less" scoped>
-.music-page-back {
-  &:hover {
-    span {
-      opacity: 1 !important;
-    }
-  }
-}
-
 .music-header {
   height: 80px;
   transition: padding 0.5s;
@@ -76,10 +88,27 @@ onUnmounted(unWatch);
   padding-top: 10px;
   padding-left: var(--music-page-padding-horizontal);
   padding-right: var(--music-page-padding-horizontal);
+  &-back {
+    &:hover {
+      span {
+        opacity: 1 !important;
+      }
+    }
+  }
   &-search {
     width: 320px;
     height: 37px;
     margin-left: 10px;
+    :deep(.el-input__wrapper) {
+      background: linear-gradient(
+        to right,
+        rgb(235, 240, 251),
+        rgb(248, 239, 241)
+      );
+      &.is-focus {
+        background: transparent;
+      }
+    }
     a {
       color: inherit;
       text-decoration: none;
@@ -88,6 +117,18 @@ onUnmounted(unWatch);
       cursor: pointer;
       &:hover {
         color: var(--music-text-color);
+      }
+    }
+  }
+  &-operate {
+    display: flex;
+    .music-icon {
+      cursor: pointer;
+      opacity: 0.8;
+      font-size: 15px;
+      // font-weight: bold;
+      &:hover {
+        opacity: 1;
       }
     }
   }

@@ -5,18 +5,24 @@ import * as api from '../utils/api/api';
 import { usePlayStore } from '../stores/play';
 import { Music, MusicType, Playlist } from '../utils/type';
 import MusicList from '../components/MusicList.vue';
-import DefaultImage from '../assets/images/default.png';
+import LogoImage from '../assets/images/logo.png';
+import { useSettingStore } from '../stores/setting';
 const { currentRoute, replace } = useRouter();
 const play = usePlayStore();
+const setting = useSettingStore();
 const musicList: Ref<Music[]> = ref([] as Music[]);
 const playlistInfo: Ref<Playlist | null> = ref({} as Playlist);
+const loading = ref(false);
+const playlistInfoShow = ref(false);
 const unWatch = watch(currentRoute, searchMusic);
 const pageKeys = ['album', 'playlist', 'lover', 'recent', 'created'];
 const hideFavoriteKeys = ['lover', 'created'];
 async function searchMusic() {
-  if (!pageKeys.includes(currentRoute.value.meta.key as string)) return false;
+  const routerKey = currentRoute.value.meta.key?.toString() || '';
+  if (!pageKeys.includes(routerKey)) return false;
   const localShow = Boolean(currentRoute.value.meta.localShow);
   const musicType: MusicType = currentRoute.value.params.type as any;
+  play.currentMusicTypeShow = false;
   const playlistId: string = currentRoute.value.params.id?.toString() ?? '';
   if (!localShow && !playlistId) {
     replace('/');
@@ -29,12 +35,21 @@ async function searchMusic() {
   };
   musicList.value = [];
   playlistInfo.value = null;
+  playlistInfoShow.value = routerKey !== 'recent';
   switch (currentRoute.value.meta.key) {
     case 'album':
+      loading.value = true;
       result = await api.albumDetail(musicType, playlistId);
+      loading.value = false;
       break;
     case 'playlist':
-      result = await api.playlistDetail(musicType, playlistId);
+      loading.value = true;
+      result = await api.playlistDetail(
+        musicType,
+        playlistId,
+        setting.userInfo[musicType]?.cookie
+      );
+      loading.value = false;
       break;
     case 'lover':
       result = {
@@ -72,6 +87,16 @@ async function searchMusic() {
   musicList.value = result.list;
   playlistInfo.value = result.playlist;
 }
+function addMyFavorite() {
+  if (playlistInfo.value) {
+    play.addMyFavorite(
+      [playlistInfo.value],
+      play.myFavorite[playlistInfo.value.type + playlistInfo.value.id]
+    );
+  } else {
+    play.beforeAddMyPlaylistsMusic(musicList.value);
+  }
+}
 onMounted(searchMusic);
 onUnmounted(unWatch);
 </script>
@@ -81,34 +106,48 @@ onUnmounted(unWatch);
     class="music-playlist"
     :class="playlistInfo ? 'music-playlist-info-show' : ''">
     <div class="music-playlist-header">
-      <div v-if="playlistInfo" class="music-playlist-header-image">
-        <img
-          :src="
-            playlistInfo.image ||
-            (playlistInfo.musicList &&
-              playlistInfo.musicList[0] &&
-              playlistInfo.musicList[0].image) ||
-            DefaultImage
-          " />
-      </div>
+      <img
+        class="music-playlist-header-image"
+        v-if="playlistInfoShow && !loading"
+        :src="
+          playlistInfo?.image ||
+          playlistInfo?.musicList?.at(0)?.image ||
+          LogoImage
+        " />
+      <el-skeleton
+        animated
+        :loading="loading"
+        class="music-playlist-header-image">
+        <template #template>
+          <el-skeleton-item variant="image" />
+        </template>
+      </el-skeleton>
       <div class="music-playlist-header-info">
-        <div v-if="playlistInfo">
-          <div class="music-playlist-header-info-name">
-            {{ playlistInfo.name || '' }}
+        <div v-if="playlistInfoShow" v-show="!loading">
+          <div class="music-playlist-header-info-name text-overflow-1">
+            {{ playlistInfo?.name || '' }}
           </div>
-          <div
-            class="music-playlist-header-info-desc"
-            v-html="playlistInfo.description || ''"></div>
+          <el-scrollbar class="music-playlist-header-info-desc">
+            <div v-html="playlistInfo?.description || ''"></div>
+          </el-scrollbar>
         </div>
+        <el-skeleton animated :loading="loading" :row="4"> </el-skeleton>
         <div>
           <el-button-group>
-            <el-button type="primary" @click="play.play(undefined, musicList)">
+            <el-button
+              type="primary"
+              :disabled="loading || musicList.length === 0"
+              @click="play.play(undefined, musicList)">
               <span class="music-icon">播</span>
-              播放全部
+              播放
             </el-button>
             <el-button
               type="primary"
-              @click="play.add(musicList)"
+              :disabled="loading || musicList.length === 0"
+              @click="
+                play.add(musicList);
+                play.showCurrentListPopover();
+              "
               title="添加到播放列表">
               <span class="music-icon">添</span>
             </el-button>
@@ -120,13 +159,7 @@ onUnmounted(unWatch);
               )
             "
             type="info"
-            @click="
-              playlistInfo &&
-                play.addMyFavorite(
-                  [playlistInfo],
-                  play.myFavorite[playlistInfo.type + playlistInfo.id]
-                )
-            ">
+            @click="addMyFavorite">
             <span class="music-icon">{{
               playlistInfo &&
               play.myFavorite[playlistInfo.type + playlistInfo.id]
@@ -144,7 +177,7 @@ onUnmounted(unWatch);
       </div>
     </div>
     <el-scrollbar>
-      <MusicList :list="musicList" />
+      <MusicList :loading="loading" :list="musicList" />
     </el-scrollbar>
   </div>
 </template>
@@ -162,11 +195,15 @@ onUnmounted(unWatch);
     }
     padding: 0 var(--music-page-padding-horizontal);
 
-    &-image > img {
+    &-image {
       width: 200px;
       height: 200px;
       border-radius: var(--music-border-radio);
       box-shadow: 0px 0px 8px 0px #9a94945c;
+      .el-skeleton__image {
+        width: 100%;
+        height: 100%;
+      }
     }
 
     &-info {
@@ -175,6 +212,7 @@ onUnmounted(unWatch);
       justify-content: space-between;
       margin-left: 20px;
       flex: 1;
+      min-width: 0;
       & > div {
         width: 100%;
       }
@@ -187,8 +225,8 @@ onUnmounted(unWatch);
         text-overflow: ellipsis;
       }
       &-desc {
-        height: 110px;
-        overflow-y: auto;
+        height: 100px;
+        margin-top: 10px;
       }
       button {
         height: 45px;
@@ -204,7 +242,7 @@ onUnmounted(unWatch);
     color: var(--el-text-color-placeholder);
     font-size: 13px;
   }
-  .el-scrollbar {
+  & > .el-scrollbar {
     margin-top: 5px;
     padding: 0 calc(var(--music-page-padding-horizontal) - 10px);
     height: auto;
@@ -218,7 +256,7 @@ onUnmounted(unWatch);
       height: 200px;
     }
   }
-  .el-scrollbar {
+  & > .el-scrollbar {
     margin-top: 5px;
     height: calc(100% - 225px);
     padding: 0 calc(var(--music-page-padding-horizontal) - 10px);

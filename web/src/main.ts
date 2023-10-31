@@ -5,8 +5,12 @@ import 'default-passive-events';
 import App from './App.vue';
 import router from './router';
 
-import './assets/main.css';
 import 'element-plus/theme-chalk/dark/css-vars.css';
+import 'element-plus/theme-chalk/el-message-box.css';
+import 'element-plus/theme-chalk/el-radio-group.css';
+import 'element-plus/theme-chalk/el-radio.css';
+import 'element-plus/theme-chalk/el-checkbox.css';
+import './assets/main.css';
 
 const app = createApp(App);
 

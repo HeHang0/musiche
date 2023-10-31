@@ -1,6 +1,28 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { MusicType } from '../utils/type';
+import CloudMusicImage from '../assets/images/cloud-music.webp';
+import QQMusicImage from '../assets/images/qq-music.png';
+import MiguMusicImage from '../assets/images/migu-music.webp';
+const musicTypeImages: any = {
+  cloud: CloudMusicImage,
+  qq: QQMusicImage,
+  migu: MiguMusicImage
+};
+const musicTypes = [
+  {
+    type: MusicType.CloudMusic,
+    title: '网易云音乐'
+  },
+  {
+    type: MusicType.QQMusic,
+    title: 'QQ音乐'
+  },
+  {
+    type: MusicType.MiguMusic,
+    title: '咪咕音乐'
+  }
+];
 interface Props {
   value: string;
   size?: string;
@@ -20,14 +42,15 @@ function valueChange(v: MusicType) {
 </script>
 <template>
   <el-radio-group :model-value="value" :size="props.size" @change="valueChange">
-    <el-radio-button :label="MusicType.CloudMusic" title="网易云音乐">
-      <img class="music-type-icon" src="../assets/images/cloud-music.webp" />
-    </el-radio-button>
-    <el-radio-button :label="MusicType.QQMusic" title="QQ音乐">
-      <img class="music-type-icon" src="../assets/images/qq-music.png" />
-    </el-radio-button>
-    <el-radio-button :label="MusicType.MiguMusic" title="咪咕音乐">
-      <img class="music-type-icon" src="../assets/images/migu-music.webp" />
+    <el-radio-button
+      v-for="musicType in musicTypes"
+      :label="musicType.type"
+      :title="musicType.title">
+      <img
+        v-if="musicTypeImages[musicType.type]"
+        class="music-type-icon"
+        :src="musicTypeImages[musicType.type]" />
+      <span v-else>{{ musicType.title }}</span>
     </el-radio-button>
   </el-radio-group>
 </template>
@@ -38,13 +61,16 @@ function valueChange(v: MusicType) {
   border-radius: 50%;
 }
 .el-radio-group {
-  border: 1px solid var(--music-button-info-border-color);
+  // border: 1px solid var(--el-input-border-color, var(--el-border-color));
+  box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color))
+    inset;
   border-radius: var(--music-border-radio);
-  width: 155px;
+  margin-right: 0;
+  margin-left: 10px;
 }
 
 :deep(.el-radio-button--large .el-radio-button__inner) {
-  padding: 8px 15px !important;
+  padding: 6.5px 15px !important;
   border: none;
   background-color: transparent;
   border-left: none !important;
@@ -64,6 +90,6 @@ function valueChange(v: MusicType) {
   background: var(--music-button-primary-background);
 }
 .el-radio-button + .el-radio-button {
-  border-left: 1px solid var(--music-button-info-border-color);
+  border-left: 1px solid var(--el-input-border-color, var(--el-border-color));
 }
 </style>

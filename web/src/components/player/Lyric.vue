@@ -2,7 +2,11 @@
 import { usePlayStore } from '../../stores/play';
 import { Ref, onMounted, onUnmounted, ref, watch } from 'vue';
 import { LyricLine } from '../../utils/type';
-import { duration2Millisecond, parseLyric } from '../../utils/utils';
+import {
+  duration2Millisecond,
+  scrollToElementId,
+  parseLyric
+} from '../../utils/utils';
 import { useRouter } from 'vue-router';
 import * as api from '../../utils/api/api';
 interface Props {
@@ -41,12 +45,7 @@ function activeLyricLine() {
     ) {
       if (currentLine.value != i) {
         currentLine.value = i;
-        const ele = document.getElementById(lyricLineIdPrefix + i);
-        ele &&
-          ele.scrollIntoView({
-            behavior: 'smooth', //顺滑的滚动
-            block: 'center' //容器上下的中间
-          });
+        scrollToElementId(lyricLineIdPrefix + i, true, true);
       }
       return;
     }
@@ -83,7 +82,7 @@ onUnmounted(() => {
 <template>
   <div class="music-lyric" :style="pure ? 'text-align: center' : ''">
     <div class="music-lyric-header">
-      <div class="music-lyric-name">
+      <div class="music-lyric-name text-overflow-1" :title="play.music.name">
         {{ play.music.name }}
       </div>
       <div
@@ -151,6 +150,7 @@ onUnmounted(() => {
   }
   &-content {
     flex: 1;
+    min-width: 0;
     overflow-y: auto;
     // text-align: center;
     &::-webkit-scrollbar-thumb {
