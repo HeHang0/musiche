@@ -2,15 +2,14 @@ import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import 'default-passive-events';
 
-import App from './App.vue';
-import router from './router';
-
 import 'element-plus/theme-chalk/dark/css-vars.css';
 import 'element-plus/theme-chalk/el-message-box.css';
 import 'element-plus/theme-chalk/el-radio-group.css';
 import 'element-plus/theme-chalk/el-radio.css';
 import 'element-plus/theme-chalk/el-checkbox.css';
-import './style/main.css';
+
+import App from './App.vue';
+import router from './router';
 
 const app = createApp(App);
 

@@ -3,16 +3,14 @@ import { Ref, h, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useDebounceFn } from '@vueuse/core';
 import { WarningFilled } from '@element-plus/icons-vue';
-import { scrollToElementId } from '../utils/utils';
+import { scrollToElementId, webView2Services } from '../utils/utils';
 import CloudMusicImage from '../assets/images/cloud-music.webp';
 import QQMusicImage from '../assets/images/qq-music.png';
 import MiguMusicImage from '../assets/images/migu-music.webp';
 import { useSettingStore } from '../stores/setting';
 import { CloseType, MusicType, ShortcutType } from '../utils/type';
 import { ElMessageBox } from 'element-plus';
-import CloudMusicLogin from '../components/login/CloudMusicLogin.vue';
-import MiguMusicLogin from '../components/login/MiguMusicLogin.vue';
-import QQMusicLogin from '../components/login/QQMusicLogin.vue';
+import Login from '../components/Login.vue';
 
 const { currentRoute, replace } = useRouter();
 const subItems = [
@@ -23,10 +21,6 @@ const subItems = [
   {
     name: '常规',
     id: 'general'
-  },
-  {
-    name: '系统',
-    id: 'system'
   },
   {
     name: '播放',
@@ -49,6 +43,12 @@ const subItems = [
     id: 'about'
   }
 ];
+if (webView2Services.enabled) {
+  subItems.splice(2, 0, {
+    name: '系统',
+    id: 'system'
+  });
+}
 
 const shortcutItems: { name: string; operate: ShortcutType }[] = [
   {
@@ -109,28 +109,6 @@ function setItemsIdTitle() {
 
 const onSettingScroll = useDebounceFn(checkSettingScroll, 300);
 
-// function elementInView(
-//   ele: Element | null,
-//   tableTop?: number,
-//   onlyTop?: boolean
-// ) {
-//   if (!ele || !tableEle.value) return false;
-//   if (tableTop == undefined) {
-//     tableTop =
-//       tableEle.value.parentElement?.parentElement?.getBoundingClientRect()
-//         ?.top || 0;
-//     const { top, bottom } = ele.getBoundingClientRect();
-//     if (onlyTop) return top <= tableTop && bottom > tableTop;
-//     else {
-//       const pageBottom =
-//         tableEle.value.parentElement?.parentElement?.getBoundingClientRect()
-//           ?.bottom || 0;
-//       return top >= tableTop && bottom <= pageBottom;
-//     }
-//   }
-//   return false;
-// }
-
 function checkSettingScroll() {
   if (scrollByRouter) {
     scrollByRouter = false;
@@ -159,20 +137,20 @@ function loginSuccess() {
 
 function login(type: MusicType) {
   let title = '网易云';
-  let components = null;
+  let text = '';
   switch (type) {
     case MusicType.QQMusic:
       title = 'QQ';
-      components = QQMusicLogin;
+      text = '从QQ音乐获取cookie并填写';
       break;
     case MusicType.MiguMusic:
       title = '咪咕';
-      components = MiguMusicLogin;
+      text = '打开 咪咕音乐app<br />点击顶部菜单图标,然后找到扫一扫并点击';
       break;
 
     default:
       title = '网易云';
-      components = CloudMusicLogin;
+      text = '使用 网易云音乐APP 扫码登录';
       break;
   }
   ElMessageBox({
@@ -181,7 +159,10 @@ function login(type: MusicType) {
     showCancelButton: false,
     showConfirmButton: false,
     closeOnClickModal: false,
-    message: h(components, {
+    message: h(Login, {
+      type,
+      qrcode: type != MusicType.QQMusic,
+      text,
       onLogon: loginSuccess
     })
   }).catch(() => {});
@@ -283,6 +264,7 @@ onUnmounted(unWatch);
               label="开机自动运行"
               size="large" />
             <el-checkbox
+              v-if="webView2Services.enabled"
               v-model="setting.pageValue.gpuAcceleration"
               @change="setting.setGpuAcceleration"
               size="large">
@@ -302,7 +284,7 @@ onUnmounted(unWatch);
             </el-checkbox>
           </td>
         </tr>
-        <tr>
+        <tr v-if="webView2Services.enabled">
           <td></td>
           <td class="music-setting-system">
             <el-checkbox
@@ -376,7 +358,7 @@ onUnmounted(unWatch);
                     @keyup="setting.registerShortCut(item.operate, $event)" />
                 </div>
               </div>
-              <div>
+              <div v-if="webView2Services.enabled">
                 <div>全局快捷键</div>
                 <div v-for="item in shortcutItems">
                   <el-input
@@ -393,6 +375,7 @@ onUnmounted(unWatch);
               </div>
             </div>
             <el-checkbox
+              v-if="webView2Services.enabled"
               v-model="setting.pageValue.globalShortcutUsed"
               @change="setting.setGlobalShortcutUsed"
               size="large">
@@ -400,6 +383,7 @@ onUnmounted(unWatch);
               <span class="music-setting-subtext"> (在后台时也能响应) </span>
             </el-checkbox>
             <el-checkbox
+              v-if="webView2Services.enabled"
               v-model="setting.pageValue.systemMediaShortcutUsed"
               @change="setting.setSystemMediaShortcutUsed"
               size="large">

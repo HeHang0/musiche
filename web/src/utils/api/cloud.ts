@@ -1,10 +1,26 @@
 import * as CryptoJS from 'crypto-js';
-import { Music, MusicType, Playlist, RankingType, UserInfo } from '../type';
+import {
+  Music,
+  MusicType,
+  Playlist,
+  RankingType,
+  UserInfo,
+  LoginStatus
+} from '../type';
 import { httpProxy } from '../http';
-import { millisecond2Duration } from '../utils';
+import { millisecond2Duration, parseCookie } from '../utils';
 import RankingHotImage from '../../assets/images/ranking-hot.jpg';
 import RankingNewImage from '../../assets/images/ranking-new.jpg';
 import RankingSoarImage from '../../assets/images/ranking-soar.jpg';
+const QRCode = () => import('qrcode');
+
+var qrcodeGenerate: (text: string) => Promise<string> = async (
+  text: string
+) => {
+  const qrcode = await QRCode();
+  qrcodeGenerate = qrcode.toDataURL as any;
+  return qrcodeGenerate(text);
+};
 
 function aesEncrypt(plain: string, key: string): string {
   var iv = '0102030405060708';
@@ -509,11 +525,7 @@ export async function musicById(id: string): Promise<Music | null> {
     method: 'POST',
     data: paramData,
     headers: {
-      // Cookie: 'os=ios;MUSIC_U=',
-      // Referer: 'https://music.163.com',
       ContentType: 'application/x-www-form-urlencoded'
-      // UserAgent:
-      //   'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1',
     }
   });
   const ret = await res.json();
@@ -559,8 +571,8 @@ export async function parseLink(link: string) {
 
 export async function qrCodeKey(): Promise<{
   key: string;
-  url?: string;
-}> {
+  url: string;
+} | null> {
   var url = 'https://music.163.com/weapi/login/qrcode/unikey?csrf_token=';
   const data = {
     type: 1,
@@ -585,14 +597,20 @@ export async function qrCodeKey(): Promise<{
     }
   });
   const ret = await res.json();
-  return {
-    key: (ret && ret.unikey) || ''
-  };
+  if (ret && ret.unikey) {
+    return {
+      key: ret.unikey,
+      url: await qrcodeGenerate(
+        'http://music.163.com/login?codekey=' + ret.unikey
+      )
+    };
+  }
+  return null;
 }
 
-export async function qrCodeState(key: string): Promise<{
-  state: number | string;
-  cookie: string;
+export async function loginStatus(key: string): Promise<{
+  status: LoginStatus;
+  user?: UserInfo;
 }> {
   var url = 'https://music.163.com/weapi/login/qrcode/client/login?csrf_token=';
   const data = {
@@ -620,10 +638,28 @@ export async function qrCodeState(key: string): Promise<{
     }
   });
   const ret = await res.json();
-  return {
-    state: (ret && ret.code) || 0,
-    cookie: res.headers.get('Set-Cookie-Renamed') || ''
-  };
+  switch (ret && ret.code) {
+    case 803:
+      const cookies = parseCookie(res.headers.get('Set-Cookie-Renamed') || '');
+      const user = await userInfo(cookies);
+      if (user && user.id) {
+        user.cookie = {
+          __csrf: cookies['__csrf'] || '',
+          MUSIC_U: cookies['MUSIC_U'] || '',
+          uid: user.id.toString()
+        };
+        return {
+          status: 'success',
+          user
+        };
+      }
+      break;
+    case 801:
+      return { status: 'waiting' };
+    case 802:
+      return { status: 'authorizing' };
+  }
+  return { status: 'fail' };
 }
 
 export async function userInfo(

@@ -149,8 +149,11 @@ export function parseCookie(cookie: string): Record<string, string> {
   return cookieObj;
 }
 
-export function formatCookies(cookies: Record<string, string>): string {
+export function formatCookies(
+  cookies: Record<string, string> | string
+): string {
   if (!cookies) return '';
+  if (typeof cookies === 'string') return cookies;
   return Object.keys(cookies)
     .map(m => `${m}=${cookies[m]}`)
     .join('; ');

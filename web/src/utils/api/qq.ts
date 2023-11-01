@@ -1,5 +1,12 @@
 import { httpProxy, parseHttpProxyAddress } from '../http';
-import { Music, Playlist, MusicType, RankingType, UserInfo } from '../type';
+import {
+  Music,
+  Playlist,
+  MusicType,
+  RankingType,
+  UserInfo,
+  LoginStatus
+} from '../type';
 import { formatCookies, generateGuid, millisecond2Duration } from '../utils';
 import RankingHotImage from '../../assets/images/ranking-hot.jpg';
 import RankingNewImage from '../../assets/images/ranking-new.jpg';
@@ -128,9 +135,7 @@ function removeExtJson(jsonStr: string) {
   return jsonStr;
 }
 
-export async function daily(
-  cookies: Record<string, string>
-): Promise<Playlist | null> {
+export async function daily(cookies: string): Promise<Playlist | null> {
   const cookie = formatCookies(cookies);
   var url = 'https://c.y.qq.com/node/musicmac/v6/index.html';
   var res = await httpProxy({
@@ -156,7 +161,7 @@ export async function daily(
   return null;
 }
 
-export async function yours(cookies: Record<string, string>): Promise<{
+export async function yours(cookies: string): Promise<{
   total: number;
   list: Playlist[];
 }> {
@@ -707,12 +712,25 @@ export async function parseLink(link: string) {
   return null;
 }
 
-export async function userInfo(
-  cookies: Record<string, string>
-): Promise<UserInfo | null> {
-  const cookie = Object.keys(cookies)
-    .map(m => `${m}=${cookies[m]}`)
-    .join('; ');
+export async function loginStatus(cookie: string): Promise<{
+  status: LoginStatus;
+  user?: UserInfo;
+}> {
+  const user = await userInfo(cookie);
+  if (user && user.id) {
+    user.cookie = cookie;
+    return {
+      status: 'success',
+      user
+    };
+  }
+  return {
+    status: 'fail'
+  };
+}
+
+export async function userInfo(cookies: string): Promise<UserInfo | null> {
+  const cookie = formatCookies(cookies);
   var res = await httpProxy({
     url: 'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg?cid=205360838&reqfrom=1',
     method: 'GET',

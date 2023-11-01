@@ -117,9 +117,11 @@ export interface ShortcutKey {
   status?: string;
 }
 
+export type LoginStatus = 'success' | 'fail' | 'waiting' | 'authorizing';
+
 export interface UserInfo {
   id: string;
   name?: string;
   image?: string;
-  cookie?: Record<string, string>;
+  cookie?: Record<string, string> | string;
 }

@@ -1,9 +1,17 @@
 import { httpProxy, parseHttpProxyAddress } from '../http';
-import { Music, MusicType, Playlist, RankingType, UserInfo } from '../type';
+import {
+  LoginStatus,
+  Music,
+  MusicType,
+  Playlist,
+  RankingType,
+  UserInfo
+} from '../type';
 import {
   duration2Millisecond,
   durationTrim,
   formatCookies,
+  parseCookie,
   second2Duration
 } from '../utils';
 import RankingHotImage from '../../assets/images/ranking-hot.jpg';
@@ -54,9 +62,7 @@ export async function search(keywords: string, offset: number) {
   };
 }
 
-export async function daily(
-  cookies: Record<string, string>
-): Promise<Playlist | null> {
+export async function daily(cookies: string): Promise<Playlist | null> {
   const user = await userInfo(cookies);
   return {
     id: 'daily',
@@ -67,7 +73,7 @@ export async function daily(
 }
 
 export async function yours(
-  cookies: Record<string, string>,
+  cookies: string,
   _offset: number
 ): Promise<{
   total: number;
@@ -162,7 +168,7 @@ export async function playlistInfo(id: string) {
   };
 }
 
-export async function dailyPlayList(cookies: Record<string, string>) {
+export async function dailyPlayList(cookies: string) {
   const headers: Record<string, string> = {
     Referer: 'https://music.migu.cn/v3',
     Cookie: formatCookies(cookies)
@@ -220,10 +226,7 @@ export async function dailyPlayList(cookies: Record<string, string>) {
   };
 }
 
-export async function digitalDetail(
-  id: string,
-  _cookies?: Record<string, string>
-) {
+export async function digitalDetail(id: string, _cookies?: string) {
   var url =
     'https://m.music.migu.cn/migumusic/h5/digitalAlbum/info?pageSize=500&digitalAlbumId=' +
     id;
@@ -273,10 +276,7 @@ export async function digitalDetail(
   };
 }
 
-export async function playlistDetail(
-  id: string,
-  cookies?: Record<string, string>
-) {
+export async function playlistDetail(id: string, cookies?: string) {
   if (id == 'daily') {
     return dailyPlayList(cookies!);
   }
@@ -610,9 +610,9 @@ export async function qrCodeKey(): Promise<{
   };
 }
 
-export async function qrCodeState(key: string): Promise<{
-  state: number | string;
-  cookie: string;
+export async function loginStatus(key: string): Promise<{
+  status: LoginStatus;
+  user?: UserInfo;
 }> {
   let res = await httpProxy({
     url: 'https://passport.migu.cn/api/qrcWeb/qrcquery',
@@ -624,8 +624,8 @@ export async function qrCodeState(key: string): Promise<{
     }
   });
   let ret = await res.json();
-  if (ret.status == 2000 && ret.result && ret.result.token) {
-    const lastCookie = res.headers.get('Set-Cookie-Renamed') || '';
+  if (ret && ret.status == 2000 && ret.result && ret.result.token) {
+    const lastCookie = parseCookie(res.headers.get('Set-Cookie-Renamed') || '');
     res = await httpProxy({
       url: ret.result.redirectURL + '?token=' + ret.result.token,
       method: 'GET',
@@ -635,21 +635,28 @@ export async function qrCodeState(key: string): Promise<{
       }
     });
     if (res.ok) {
-      return {
-        state: 2000,
-        cookie: lastCookie + ';' + res.headers.get('Set-Cookie-Renamed') || ''
-      };
+      const cookie = formatCookies({
+        ...lastCookie,
+        ...parseCookie(res.headers.get('Set-Cookie-Renamed') || '')
+      });
+      const user = await userInfo(cookie);
+      if (user && user.id) {
+        user.cookie = cookie;
+        return {
+          status: 'success',
+          user
+        };
+      }
     }
+  } else if (ret && ret.status == 4074) {
+    return { status: 'waiting' };
   }
   return {
-    state: ret.status,
-    cookie: ''
+    status: 'fail'
   };
 }
 
-export async function userInfo(
-  cookies: Record<string, string>
-): Promise<UserInfo | null> {
+export async function userInfo(cookies: string): Promise<UserInfo | null> {
   var res = await httpProxy({
     url: 'https://music.migu.cn/v3/api/user/getUserInfo',
     method: 'GET',

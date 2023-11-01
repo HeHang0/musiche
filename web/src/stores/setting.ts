@@ -437,7 +437,7 @@ export const useSettingStore = defineStore('setting', {
           const userInfo = userInfoCache[musicType as MusicType];
           if (this.userInfo[musicType as MusicType]) {
             this.userInfo[musicType as MusicType].cookie =
-              userInfo?.cookie || {};
+              userInfo?.cookie || '';
             this.setUserInfo(musicType as MusicType);
           }
         });

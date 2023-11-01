@@ -244,6 +244,10 @@ export const usePlayStore = defineStore('play', {
       const m = await api.musicDetail(music);
       if (!m || !m.url) {
         console.log('fail', music);
+        if (this.playStatus.playing) {
+          this.add([this.music]);
+          return;
+        }
         const musicIndex = this.musicList.findIndex(
           n => music && music.id == n.id && music.type == n.type
         );

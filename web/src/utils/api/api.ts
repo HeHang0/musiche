@@ -4,7 +4,8 @@ import {
   Playlist,
   RankingType,
   Lyric,
-  UserInfo
+  UserInfo,
+  LoginStatus
 } from '../type';
 import * as cloud from './cloud';
 import * as qq from './qq';
@@ -65,7 +66,7 @@ export async function recommend(
 export async function playlistDetail(
   type: MusicType,
   id: string,
-  cookies?: Record<string, string>
+  cookies?: Record<string, string> | string
 ): Promise<{
   total: number;
   list: Music[];
@@ -149,7 +150,7 @@ export async function musicDetail(music: Music): Promise<Music | null> {
 
 export async function qrCodeKey(type: MusicType): Promise<{
   key: string;
-  url?: string;
+  url: string;
 } | null> {
   const func = getFunction(type, 'qrCodeKey');
   try {
@@ -160,25 +161,25 @@ export async function qrCodeKey(type: MusicType): Promise<{
   return null;
 }
 
-export async function qrCodeState(
+export async function loginStatus(
   type: MusicType,
   key: string
 ): Promise<{
-  state: number | string;
-  cookie: string;
-} | null> {
-  const func = getFunction(type, 'qrCodeState');
+  status: LoginStatus;
+  user?: UserInfo;
+}> {
+  const func = getFunction(type, 'loginStatus');
   try {
     if (func) return await func(key);
   } catch (e) {
     console.error(e);
   }
-  return null;
+  return { status: 'fail' };
 }
 
 export async function userInfo(
   type: MusicType,
-  cookie: Record<string, string>
+  cookie: Record<string, string> | string
 ): Promise<UserInfo | null> {
   const func = getFunction(type, 'userInfo');
   try {
@@ -191,7 +192,7 @@ export async function userInfo(
 
 export async function yours(
   type: MusicType,
-  cookie: Record<string, string>,
+  cookie: Record<string, string> | string,
   offset: number
 ): Promise<{
   total: number;

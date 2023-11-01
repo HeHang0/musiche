@@ -1,15 +1,25 @@
 <script lang="ts" setup>
 import { onMounted, onUnmounted, ref } from 'vue';
-import QRCode from 'qrcode';
-import * as api from '../../utils/api/api';
-import { MusicType } from '../../utils/type';
-import { useSettingStore } from '../../stores/setting';
-import { parseCookie } from '../../utils/utils';
+import * as api from '../utils/api/api';
+import { MusicType } from '../utils/type';
+import { useSettingStore } from '../stores/setting';
+import { useDebounceFn } from '@vueuse/core';
+
+interface Props {
+  type: MusicType;
+  qrcode: boolean;
+  text?: string;
+  title?: string;
+}
+const props = withDefaults(defineProps<Props>(), {
+  type: MusicType.CloudMusic,
+  qrcode: true
+});
 
 const setting = useSettingStore();
 
 const qrCodeImage = ref<string>('');
-const loading = ref(true);
+const loading = ref(false);
 const authorizing = ref(false);
 
 var uniKeyTimeout: any = null;
@@ -19,43 +29,29 @@ const emit = defineEmits({
   logon: () => {}
 });
 let loaded = false;
-
-function qrcodeGenerate(text: string): Promise<string> {
-  return new Promise((resolve, _reject) => {
-    QRCode.toDataURL(text, (_err, url) => {
-      resolve(url);
-    });
-  });
-}
+const cookie = ref('');
+const cookieChange = useDebounceFn(checkQRCode, 500);
 
 async function checkQRCode(key: string) {
   if (!loaded) return;
-  const data = await api.qrCodeState(MusicType.CloudMusic, key);
-  const state = data?.state || 0;
-  if (state == 803) {
-    var cookieInfo = parseCookie(data!.cookie);
-    const userInfo = await api.userInfo(MusicType.CloudMusic, cookieInfo);
-    if (userInfo && userInfo.id) {
-      setting.userInfo.cloud.id = userInfo.id;
-      setting.userInfo.cloud.name = userInfo.name;
-      setting.userInfo.cloud.image = userInfo.image;
-      setting.userInfo.cloud.cookie = {
-        __csrf: cookieInfo['__csrf'] || '',
-        MUSIC_U: cookieInfo['MUSIC_U'] || '',
-        uid: userInfo.id.toString()
-      };
+  const data = await api.loginStatus(props.type, key);
+  switch (data.status) {
+    case 'success':
+      setting.userInfo[props.type].id = data!.user!.id;
+      setting.userInfo[props.type].name = data!.user!.name;
+      setting.userInfo[props.type].image = data!.user!.image;
+      setting.userInfo[props.type].cookie = data!.user!.cookie;
       emit('logon');
-    } else {
-      setQrCodeImage();
-    }
-  } else if (state == 801 || state == 802) {
-    if (state == 802) authorizing.value = true;
-    qrCodeTimeout = setTimeout(() => {
-      checkQRCode(key);
-    }, 1000);
-  } else {
-    setQrCodeImage();
+      return;
+    case 'authorizing':
+      authorizing.value = true;
+      qrCodeTimeout = setTimeout(checkQRCode.bind(null, key), 1000);
+      return;
+    case 'waiting':
+      qrCodeTimeout = setTimeout(checkQRCode.bind(null, key), 1000);
+      return;
   }
+  props.qrcode && setQrCodeImage();
 }
 
 async function setQrCodeImage() {
@@ -64,14 +60,15 @@ async function setQrCodeImage() {
   authorizing.value = false;
   clearTimeout(uniKeyTimeout);
   clearTimeout(qrCodeTimeout);
+  if (!props.qrcode) {
+    return;
+  }
   loading.value = true;
-  const uniKey = await api.qrCodeKey(MusicType.CloudMusic);
+  const uniKey = await api.qrCodeKey(props.type);
   if (!uniKey) {
     uniKeyTimeout = setTimeout(setQrCodeImage, 1000);
   } else {
-    qrCodeImage.value = await qrcodeGenerate(
-      'http://music.163.com/login?codekey=' + uniKey.key
-    );
+    qrCodeImage.value = uniKey.url;
     loading.value = false;
     qrCodeImage.value && checkQRCode(uniKey.key);
   }
@@ -88,11 +85,14 @@ onUnmounted(() => {
 </script>
 <template>
   <div class="music-cloud-login">
-    <p>扫码登录</p>
+    <p>{{ props.title || '扫码登录' }}</p>
     <img
       class="music-cloud-login-image"
       v-if="qrCodeImage && !loading"
       :src="qrCodeImage" />
+    <p v-if="!props.qrcode">
+      <el-input v-model="cookie" clearable @input="cookieChange"></el-input>
+    </p>
     <div class="music-cloud-login-authorizing" v-show="authorizing">
       <span>扫描成功</span>
       <span>请在手机上确认登录</span>
@@ -102,7 +102,7 @@ onUnmounted(() => {
         <el-skeleton-item variant="image" />
       </template>
     </el-skeleton>
-    <p>使用 网易云音乐APP 扫码登录</p>
+    <p v-if="props.text" v-html="props.text"></p>
   </div>
 </template>
 <style lang="less" scoped>
@@ -115,6 +115,9 @@ onUnmounted(() => {
   align-items: center;
   a {
     color: var(--music-primary-color);
+  }
+  .el-input {
+    margin-top: 40px;
   }
   &-image {
     width: 200px;
