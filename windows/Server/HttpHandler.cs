@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Mime;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,8 +16,10 @@ namespace Musiche.Server
     {
         private readonly Dictionary<string, MethodInfo> routers;
         private static readonly HashSet<string> installChineseFonts = new HashSet<string>();
+        private readonly FileHandler fileHandler;
         public HttpHandler(MainWindow window, AudioPlay audioPlay) : base(window, audioPlay)
         {
+            fileHandler = new FileHandler();
             routers = Utils.ReadRouter(this);
         }
 
@@ -45,7 +48,19 @@ namespace Musiche.Server
         [Router("*")]
         public async Task ClipboardIndex(HttpListenerContext ctx)
         {
-            await SendString(ctx, "哈哈哈", "text/html");
+            byte[] data = fileHandler.GetFile(ctx.Request.Url.AbsolutePath);
+            if(data != null)
+            {
+                string mimeType = fileHandler.GetMimeType(ctx.Request.Url.AbsolutePath);
+                ctx.Response.StatusCode = (int)HttpStatusCode.OK;
+                ctx.Response.ContentType = mimeType;
+                await WriteResponse(ctx, data);
+            }
+            else
+            {
+                ctx.Response.Headers.Set("Location", "/?redirect="+ctx.Request.Url.PathAndQuery);
+                ctx.Response.StatusCode = (int)HttpStatusCode.Redirect;
+            }
         }
 
         [Router("/title")]

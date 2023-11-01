@@ -243,5 +243,6 @@ ModelManifest.xml
 .fake/
 
 Resources/webview2
+Resources/web.zip
 
 FodyWeavers.*

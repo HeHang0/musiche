@@ -15,7 +15,6 @@ namespace Musiche.Webview2
     {
         private Window _parentWindow;
         private static readonly CoreWebView2Environment _coreEnvironment;
-        private static readonly string _userDataFolder = Path.Combine(Path.GetTempPath(), "WebView2");
 
         public event EventHandler<CoreWebView2WebMessageReceivedEventArgs> WebMessageReceived;
         public event EventHandler<CoreWebView2InitializationCompletedEventArgs> CoreWebView2InitializationCompleted;
@@ -44,7 +43,8 @@ namespace Musiche.Webview2
         {
             try
             {
-                _coreEnvironment = CoreWebView2Environment.CreateAsync(userDataFolder: _userDataFolder).Result;
+                SetLoaderDll();
+                _coreEnvironment = CoreWebView2Environment.CreateAsync(userDataFolder: Utils.File.Webview2Path).Result;
             }
             catch (Exception ex)
             {
@@ -168,6 +168,29 @@ namespace Musiche.Webview2
             _parentWindow.Top = normalTop;
             _parentWindow.Height = normalHeight;
             _parentWindow.Width = normalWidth;
+        }
+
+        private static void SetLoaderDll()
+        {
+            Utils.File.CreateDirectoryIFNotExists(Utils.File.Webview2Path);
+            string loaderPath = Path.Combine(Utils.File.Webview2Path, "WebView2Loader.dll");
+            if (!Utils.Processor.IsDotNetFramework()) return;
+            if (!File.Exists(loaderPath))
+            {
+                switch (Utils.Processor.GetArchitecture())
+                {
+                    case Utils.Processor.ProcessorArchitecture.ARM64:
+                        File.WriteAllBytes(loaderPath, Properties.Resources.WebView2Loader_arm64);
+                        break;
+                    case Utils.Processor.ProcessorArchitecture.x86:
+                        File.WriteAllBytes(loaderPath, Properties.Resources.WebView2Loader_x86);
+                        break;
+                    default:
+                        File.WriteAllBytes(loaderPath, Properties.Resources.WebView2Loader_x64);
+                        break;
+                }
+            }
+            CoreWebView2Environment.SetLoaderDllFolderPath(Utils.File.Webview2Path);
         }
     }
 }

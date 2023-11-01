@@ -30,7 +30,7 @@ namespace Musiche
             webview2 = new Webview2Control();
 #if DEBUG
             webServer = new WebServer(54621);
-            webview2.Control.Source = new Uri("http://127.0.0.1:5173");
+            webview2.Control.Source = new Uri("http://127.0.0.1:54621");
             string exeDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location);
             logStream = File.Open(Path.Combine(exeDirectory, "log."+DateTime.Now.ToString("yyyy-MM-dd")+".log"), FileMode.Append);
 #else

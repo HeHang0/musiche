@@ -119,5 +119,45 @@ namespace Musiche.Properties {
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
+        
+        /// <summary>
+        ///   查找 System.Byte[] 类型的本地化资源。
+        /// </summary>
+        internal static byte[] web {
+            get {
+                object obj = ResourceManager.GetObject("web", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   查找 System.Byte[] 类型的本地化资源。
+        /// </summary>
+        internal static byte[] WebView2Loader_arm64 {
+            get {
+                object obj = ResourceManager.GetObject("WebView2Loader_arm64", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   查找 System.Byte[] 类型的本地化资源。
+        /// </summary>
+        internal static byte[] WebView2Loader_x64 {
+            get {
+                object obj = ResourceManager.GetObject("WebView2Loader_x64", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   查找 System.Byte[] 类型的本地化资源。
+        /// </summary>
+        internal static byte[] WebView2Loader_x86 {
+            get {
+                object obj = ResourceManager.GetObject("WebView2Loader_x86", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
     }
 }

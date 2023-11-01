@@ -6,26 +6,9 @@ namespace Musiche.Webview2
 {
     public class FileAccessor
     {
-        private readonly string rootPath;
         public FileAccessor()
         {
-            string roming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string appName = System.Reflection.Assembly.GetExecutingAssembly()?.GetName()?.Name?.ToString() ?? "Musiche";
-            rootPath = Path.Combine(roming, appName, "Storage");
-
-
-            CreateDirectoryIFNotExists(rootPath);
-        }
-
-        private void CreateDirectoryIFNotExists(string path)
-        {
-            if (Directory.Exists(path))
-            {
-                return;
-            }
-            string parentDir = Path.GetDirectoryName(path) ?? string.Empty;
-            CreateDirectoryIFNotExists(parentDir);
-            Directory.CreateDirectory(path);
+            Utils.File.CreateDirectoryIFNotExists(Utils.File.StoragePath);
         }
 
 #pragma warning disable CS1998
@@ -34,9 +17,9 @@ namespace Musiche.Webview2
             try
             {
 #if NETFRAMEWORK
-                return File.ReadAllText(Path.Combine(rootPath, filePath));
+                return File.ReadAllText(Path.Combine(Utils.File.StoragePath, filePath));
 #else
-                return await File.ReadAllTextAsync(Path.Combine(rootPath, filePath));
+                return await File.ReadAllTextAsync(Path.Combine(Utils.File.StoragePath, filePath));
 #endif
             }
             catch (Exception)
@@ -50,9 +33,9 @@ namespace Musiche.Webview2
             try
             {
 #if NETFRAMEWORK
-                File.WriteAllText(Path.Combine(rootPath, filePath), text);
+                File.WriteAllText(Path.Combine(Utils.File.StoragePath, filePath), text);
 #else
-                await File.WriteAllTextAsync(Path.Combine(rootPath, filePath), text);
+                await File.WriteAllTextAsync(Path.Combine(Utils.File.StoragePath, filePath), text);
 #endif
             }
             catch (Exception)
@@ -64,7 +47,7 @@ namespace Musiche.Webview2
         {
             try
             {
-                File.Delete(Path.Combine(rootPath, filePath));
+                File.Delete(Path.Combine(Utils.File.StoragePath, filePath));
             }
             catch (Exception)
             {

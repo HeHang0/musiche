@@ -2,6 +2,7 @@
 
   <PropertyGroup Label="Globals">
     <WebView2LoaderPreference>Static</WebView2LoaderPreference>
+    <Platforms>AnyCPU;x64;x86</Platforms>
   </PropertyGroup>
 
   <PropertyGroup>
