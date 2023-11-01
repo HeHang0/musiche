@@ -1,6 +1,7 @@
 import {
   Music,
   MusicType,
+  PlatformAPI,
   Playlist,
   RankingType,
   Lyric,
@@ -11,18 +12,11 @@ import * as cloud from './cloud';
 import * as qq from './qq';
 import * as migu from './migu';
 
-const musicAPI: Map<MusicType, any> = new Map([
-  [MusicType.CloudMusic, cloud as any],
-  [MusicType.QQMusic, qq as any],
-  [MusicType.MiguMusic, migu as any]
+const musicAPI: Map<MusicType, PlatformAPI> = new Map([
+  ['cloud', cloud as PlatformAPI],
+  ['qq', qq as PlatformAPI],
+  ['migu', migu as PlatformAPI]
 ]);
-
-function getFunction(type: MusicType, funcName: string) {
-  if (musicAPI.has(type)) {
-    return musicAPI.get(type)[funcName];
-  }
-  return null;
-}
 
 export async function search(
   type: MusicType,
@@ -32,7 +26,7 @@ export async function search(
   total: number;
   list: Music[];
 }> {
-  const func = getFunction(type, 'search');
+  const func = musicAPI.get(type)?.search;
   try {
     if (func) return await func(keywords, offset);
   } catch (e) {
@@ -49,9 +43,9 @@ export async function recommend(
   offset: number
 ): Promise<{
   total: number;
-  list: Music[];
+  list: Playlist[];
 }> {
-  const func = getFunction(type, 'recommend');
+  const func = musicAPI.get(type)?.recommend;
   try {
     if (func) return await func(offset);
   } catch (e) {
@@ -72,7 +66,7 @@ export async function playlistDetail(
   list: Music[];
   playlist: Playlist | null;
 }> {
-  const func = getFunction(type, 'playlistDetail');
+  const func = musicAPI.get(type)?.playlistDetail;
   try {
     if (func) return await func(id, cookies);
   } catch (e) {
@@ -93,7 +87,7 @@ export async function albumDetail(
   list: Music[];
   playlist: Playlist | null;
 }> {
-  const func = getFunction(type, 'albumDetail');
+  const func = musicAPI.get(type)?.albumDetail;
   try {
     if (func) return await func(id);
   } catch (e) {
@@ -113,7 +107,7 @@ export async function ranking(
   total: number;
   list: Music[];
 }> {
-  const func = getFunction(type, 'ranking');
+  const func = musicAPI.get(type)?.ranking;
   try {
     if (func) return await func(ranking);
   } catch (e) {
@@ -129,7 +123,7 @@ export function rankingPlaylist(
   type: MusicType,
   ranking: RankingType
 ): Playlist | null {
-  const func = getFunction(type, 'rankingPlaylist');
+  const func = musicAPI.get(type)?.rankingPlaylist;
   try {
     if (func) return func(ranking);
   } catch (e) {
@@ -139,7 +133,7 @@ export function rankingPlaylist(
 }
 
 export async function musicDetail(music: Music): Promise<Music | null> {
-  const func = getFunction(music.type, 'musicDetail');
+  const func = musicAPI.get(music.type)?.musicDetail;
   try {
     if (func) return await func(music);
   } catch (e) {
@@ -152,7 +146,7 @@ export async function qrCodeKey(type: MusicType): Promise<{
   key: string;
   url: string;
 } | null> {
-  const func = getFunction(type, 'qrCodeKey');
+  const func = musicAPI.get(type)?.qrCodeKey;
   try {
     if (func) return await func();
   } catch (e) {
@@ -168,7 +162,7 @@ export async function loginStatus(
   status: LoginStatus;
   user?: UserInfo;
 }> {
-  const func = getFunction(type, 'loginStatus');
+  const func = musicAPI.get(type)?.loginStatus;
   try {
     if (func) return await func(key);
   } catch (e) {
@@ -181,7 +175,7 @@ export async function userInfo(
   type: MusicType,
   cookie: Record<string, string> | string
 ): Promise<UserInfo | null> {
-  const func = getFunction(type, 'userInfo');
+  const func = musicAPI.get(type)?.userInfo;
   try {
     if (func) return await func(cookie);
   } catch (e) {
@@ -196,9 +190,9 @@ export async function yours(
   offset: number
 ): Promise<{
   total: number;
-  list: Music[];
+  list: Playlist[];
 }> {
-  const func = getFunction(type, 'yours');
+  const func = musicAPI.get(type)?.yours;
   try {
     if (func) return await func(cookie, offset);
   } catch (e) {
@@ -214,7 +208,7 @@ export async function musicById(
   type: MusicType,
   id: string
 ): Promise<Music | null> {
-  const func = getFunction(type, 'musicById');
+  const func = musicAPI.get(type)?.musicById;
   try {
     if (func) return await func(id);
   } catch (e) {
@@ -230,7 +224,7 @@ export async function parseLink(link: string): Promise<{
 } | null> {
   try {
     for (let key of musicAPI.keys()) {
-      const func = getFunction(key as MusicType, 'parseLink');
+      const func = musicAPI.get(key)?.parseLink;
       if (func) {
         const result = await func(link);
         if (result) {
@@ -251,7 +245,7 @@ const lyricCache = new Map<string, Lyric>();
 export async function lyric(music: Music): Promise<Lyric | null> {
   const cache = lyricCache.get(music.type + music.id);
   if (cache) return cache;
-  const func = getFunction(music.type, 'lyric');
+  const func = musicAPI.get(music.type)?.lyric;
   if (func) {
     var text = '';
     for (let i = 0; i < 2; i++) {

@@ -22,7 +22,7 @@ async function searchMusic() {
   if (!pageKeys.includes(routerKey)) return false;
   const localShow = Boolean(currentRoute.value.meta.localShow);
   const musicType: MusicType = currentRoute.value.params.type as any;
-  play.currentMusicTypeShow = false;
+  setting.currentMusicTypeShow = false;
   const playlistId: string = currentRoute.value.params.id?.toString() ?? '';
   if (!localShow && !playlistId) {
     replace('/');

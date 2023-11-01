@@ -12,8 +12,6 @@ import LogoImage from './assets/images/logo.png';
 import LogoCircleImage from './assets/images/logo-circle.png';
 import { MusicConnection } from './stores/connection';
 
-import './style/main.css';
-
 const play = usePlayStore();
 document.addEventListener(
   'error',

@@ -28,11 +28,15 @@ export const useSettingStore = defineStore('setting', {
   state: () => ({
     maximized: false,
     fonts: null as string[] | null,
+    currentMusicType: 'cloud' as MusicType,
+    currentMusicTypeShow: true,
     pageValue: {
       closeType: CloseType.Hide,
       closeTypeNoRemind: false,
       font: '' as string,
+      fontBold: false,
       startup: false,
+      fadeIn: true,
       gpuAcceleration: true,
       disableAnimation: false,
       timeClose: false,
@@ -207,7 +211,12 @@ export const useSettingStore = defineStore('setting', {
       this.userInfo[type].name = userInfo.name;
       this.userInfo[type].image = userInfo.image;
     },
-    setFont(font: string, noSave?: boolean) {
+    setFadeIn(_value?: boolean, noSave?: boolean) {
+      if (typeof noSave !== 'boolean') noSave = false;
+      musicOperate('/fadein', this.pageValue.fadeIn ? '1' : undefined);
+      !noSave && this.saveSetting();
+    },
+    setFont(font: string, bold: boolean, noSave?: boolean) {
       this.pageValue.font = font || '';
       !(typeof noSave === 'boolean' && noSave) && this.saveSetting();
       let fontEle = document.getElementById('music-font-style');
@@ -220,7 +229,10 @@ export const useSettingStore = defineStore('setting', {
         fontEle.id = 'music-font-style';
         document.head.appendChild(fontEle);
       }
-      fontEle.innerText = `body{font-family:${this.pageValue.font}}`;
+      let styleText = `body{font-family:"${this.pageValue.font}";font-weight: ${
+        bold ? 'bold' : 'unset'
+      }}`;
+      fontEle.innerText = styleText;
     },
     setGpuAcceleration() {
       this.saveSetting();
@@ -448,7 +460,8 @@ export const useSettingStore = defineStore('setting', {
           this.fonts.push(...fonts);
         }
       });
-      this.setFont(this.pageValue.font, true);
+      this.setFadeIn(this.pageValue.fadeIn, true);
+      this.setFont(this.pageValue.font, this.pageValue.fontBold, true);
       this.setDisableAnimation(this.pageValue.disableAnimation, true);
       this.registerGlobalShortCutAll();
       this.registerGlobalShortCutMedia();

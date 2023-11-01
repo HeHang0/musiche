@@ -1,4 +1,5 @@
 import { webView2Services } from '../utils/utils';
+const useFileAccessor = false;
 export enum StorageKey {
   Language = 'language',
   AppTheme = 'app-theme',
@@ -12,6 +13,7 @@ export enum StorageKey {
   MyFavorites = 'my-favorites',
   MyPlaylists = 'my-playlists',
   Volume = 'volume',
+  Progress = 'progress',
   VolumeCache = 'volume-cache',
   Setting = 'setting',
   UserInfo = 'user-info'
@@ -24,7 +26,7 @@ async function setValue<T>(key: string, value: T) {
   } catch {
     result = `${value}`;
   }
-  if (webView2Services.enabled) {
+  if (useFileAccessor) {
     await webView2Services.fileAccessor?.WriteFile('musiche-' + key, result);
   } else {
     localStorage.setItem('musiche-' + key, result);
@@ -37,7 +39,7 @@ async function getValue<T>(
   type?: string
 ): Promise<T> {
   var value: any = '';
-  if (webView2Services.enabled) {
+  if (useFileAccessor) {
     value =
       (await webView2Services.fileAccessor?.ReadFile('musiche-' + key)) || '';
   } else {
@@ -55,7 +57,7 @@ async function getValue<T>(
 }
 
 async function removeKey(key: string) {
-  if (webView2Services.enabled) {
+  if (useFileAccessor) {
     await webView2Services.fileAccessor?.DeleteFile('musiche-' + key);
   } else {
     localStorage.removeItem('musiche-' + key);

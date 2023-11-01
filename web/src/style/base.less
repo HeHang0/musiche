@@ -201,7 +201,6 @@
   box-sizing: border-box;
   margin: 0;
   position: relative;
-  /* font-weight: normal; */
 }
 
 html,
@@ -261,9 +260,14 @@ body {
   }
 }
 
-.spinning {
+.rotation-animation {
   -webkit-animation: spin 30s linear 30s 5 alternate;
   animation: spin 30s linear infinite;
+  animation-play-state: paused;
+
+  &&-running {
+    animation-play-state: running;
+  }
 }
 
 .text-overflow-1 {

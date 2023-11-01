@@ -83,16 +83,7 @@ export class ThemeColor {
       let b = this.originalPixels.data[i + 2];
       let a = this.originalPixels.data[i + 3] / 255.0;
       //添加一个色值范围，让它能忽略一定无效的像素值
-      if (
-        a > 0
-        // &&
-        // r < 200 &&
-        // g < 200 &&
-        // b < 200 &&
-        // r > 50 &&
-        // g > 50 &&
-        // b > 50
-      ) {
+      if (a > 0 && r < 250 && g < 250 && b < 250 && r > 9 && g > 9 && b > 9) {
         // this.colorCountedSet.push(r, g, b, a);
         rMax += r;
         gMax += g;

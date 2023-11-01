@@ -1,39 +1,23 @@
 <script setup lang="ts">
-import { Ref, onUnmounted, ref, watch } from 'vue';
+import { Ref, ref } from 'vue';
 import { usePlayStore } from '../../stores/play';
 import LogoImage from '../../assets/images/logo.png';
 const play = usePlayStore();
 const discElement: Ref<HTMLImageElement | null> = ref(null);
-const spinningStyle: Ref<string> = ref('');
-var angle = 0;
-function setJukeboxAngle() {
-  if (discElement.value && !play.playStatus.playing) {
-    var style = window.getComputedStyle(discElement.value);
-    var transform = style.getPropertyValue('transform');
-    if (!transform || transform.length < 10) return;
-    // 解析 transform 属性以获取旋转角度
-    var values = transform.substring(7, transform.length - 1).split(',');
-    if (values.length < 2) return;
-    var a = parseFloat(values[0]);
-    var b = parseFloat(values[1]);
-    angle = Math.round(Math.atan2(b, a) * (180 / Math.PI));
-  }
-  spinningStyle.value = `--jukebox-spinning-start: ${angle}deg`;
-}
-const unWatch = watch(() => play.playStatus.playing, setJukeboxAngle);
-onUnmounted(unWatch);
 </script>
 <template>
-  <div class="music-jukebox" :style="spinningStyle">
+  <div class="music-jukebox">
     <div class="music-jukebox-disc">
       <img
         ref="discElement"
-        :class="play.playStatus.playing ? 'music-jukebox-spinning' : ''"
+        class="rotation-animation"
+        :class="play.playStatus.playing ? 'rotation-animation-running' : ''"
         src="../../assets/images/disc.png" />
     </div>
     <div class="music-jukebox-album">
       <img
-        :class="play.playStatus.playing ? 'music-jukebox-spinning' : ''"
+        class="rotation-animation"
+        :class="play.playStatus.playing ? 'rotation-animation-running' : ''"
         :src="play.music.image || LogoImage" />
     </div>
     <div class="music-jukebox-stylus">
@@ -48,7 +32,6 @@ onUnmounted(unWatch);
   position: relative;
   height: 100%;
   width: 100%;
-  --jukebox-spinning-start: 0deg;
   & > div {
     width: 100%;
     height: 100%;
@@ -89,22 +72,6 @@ onUnmounted(unWatch);
     img.music-jukebox-stylus-playing {
       transform: translateY(calc(-50% - 80px)) rotate(15deg);
     }
-  }
-}
-.music-jukebox-disc > img,
-.music-jukebox-album > img {
-  transform: rotate(var(--jukebox-spinning-start));
-}
-.music-jukebox-spinning {
-  -webkit-animation: jukebox-spinning 30s linear 30s 5 alternate;
-  animation: jukebox-spinning 30s linear infinite;
-}
-@keyframes jukebox-spinning {
-  from {
-    transform: rotate(var(--jukebox-spinning-start));
-  }
-  to {
-    transform: rotate(360deg);
   }
 }
 </style>

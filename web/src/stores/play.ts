@@ -1,23 +1,18 @@
 import { defineStore } from 'pinia';
 import * as api from '../utils/api/api';
-import { Music, MusicType, Playlist, SortType } from '../utils/type';
+import {
+  Music,
+  MusicType,
+  PlayStatus,
+  Playlist,
+  SortType
+} from '../utils/type';
 import { musicOperate } from '../utils/http';
 import { StorageKey, storage } from '../utils/storage';
 import { generateGuid, getRandomInt } from '../utils/utils';
 import { useTitle } from '@vueuse/core';
 
 const title = useTitle();
-
-interface PlayStatus {
-  currentTime: string;
-  playing: boolean;
-  stopped: boolean;
-  totalTime: string;
-  progress: number;
-  volume: number;
-  disableUpdateProgress?: boolean;
-  volumeCache: number;
-}
 
 export const usePlayStore = defineStore('play', {
   state: () => {
@@ -33,8 +28,6 @@ export const usePlayStore = defineStore('play', {
       sortType: SortType.Loop as SortType,
       musicHistory: [] as Music[],
       currentListShow: false,
-      currentMusicType: MusicType.CloudMusic as MusicType,
-      currentMusicTypeShow: true,
       playDetailShow: false,
       selectPlaylistShow: false,
       playerMode: '',
@@ -160,7 +153,7 @@ export const usePlayStore = defineStore('play', {
     ) {
       if (!musics || !Array.isArray(musics) || !playlistId) return;
       const playlist = this.myPlaylists.find(
-        m => m.id == playlistId && m.type == MusicType.Local
+        m => m.id == playlistId && m.type == 'local'
       );
       if (!playlist) return;
       if (!playlist.musicList) playlist.musicList = [];
@@ -183,7 +176,7 @@ export const usePlayStore = defineStore('play', {
         id: generateGuid(),
         name: name,
         image: '',
-        type: MusicType.Local,
+        type: 'local',
         musicList: []
       });
       storage.setValue(StorageKey.MyPlaylists, this.myPlaylists);
@@ -245,6 +238,7 @@ export const usePlayStore = defineStore('play', {
       if (!m || !m.url) {
         console.log('fail', music);
         if (this.playStatus.playing) {
+          this.preparePlay = false;
           this.add([this.music]);
           return;
         }
@@ -343,6 +337,7 @@ export const usePlayStore = defineStore('play', {
     async changeVolume(value: number) {
       if (value == null || isNaN(value) || value < 0 || value > 100) return;
       this.checkingStatus = true;
+      this.playStatus.disableUpdateVolume = false;
       var res = await musicOperate('/volume', value.toString());
       this.setStatus(res.data);
       storage.setValue(StorageKey.Volume, this.playStatus.volume);
@@ -373,7 +368,10 @@ export const usePlayStore = defineStore('play', {
         if (data.totalTime && this.playStatus.totalTime != data.totalTime) {
           this.playStatus.totalTime = data.totalTime;
         }
-        if (this.playStatus.volume != data.volume) {
+        if (
+          !this.playStatus.disableUpdateVolume &&
+          this.playStatus.volume != data.volume
+        ) {
           this.playStatus.volume = data.volume;
           storage.setValue(StorageKey.Volume, data.volume);
           if (this.playStatus.volumeCache != data.volume && data.volume > 0) {
@@ -385,6 +383,7 @@ export const usePlayStore = defineStore('play', {
           !this.playStatus.disableUpdateProgress &&
           this.playStatus.progress != data.progress
         ) {
+          localStorage.setItem(StorageKey.Progress, data.progress as any);
           this.playStatus.progress = data.progress || 0;
         }
       } catch {}
@@ -405,7 +404,9 @@ export const usePlayStore = defineStore('play', {
     },
     async initValue() {
       this.add(await storage.getValue(StorageKey.CurrentMusicList), true);
-      this.setCurrentMusic(await storage.getValue(StorageKey.CurrentMusic));
+      this.setCurrentMusic(
+        (await storage.getValue(StorageKey.CurrentMusic)) || this.musicList[0]
+      );
       this.addMyLove(await storage.getValue(StorageKey.MyLoves));
       this.addMyFavorite(await storage.getValue(StorageKey.MyFavorites));
       this.addMyPlaylists(await storage.getValue(StorageKey.MyPlaylists));

@@ -4,27 +4,32 @@ import { useRouter } from 'vue-router';
 import * as api from '../utils/api/api';
 import { MusicType, Playlist } from '../utils/type';
 import PlaylistEle from '../components/Playlist.vue';
-import { usePlayStore } from '../stores/play';
 import { useSettingStore } from '../stores/setting';
+import { musicTypeAll } from '../utils/platform';
 const { currentRoute, replace } = useRouter();
-const play = usePlayStore();
 const setting = useSettingStore();
 const playlist: Ref<Playlist[]> = ref([]);
 const loading = ref(false);
 const unWatch = watch(currentRoute, getPlaylist);
 let total = 0;
 async function getYoursList() {
-  const type = currentRoute.value.params.type?.toString();
-  if (!(type in MusicType)) {
-    replace('/yours/' + MusicType.CloudMusic);
+  const type = currentRoute.value.params.type?.toString() as MusicType;
+  if (!musicTypeAll.includes(type) || !setting.userInfo[type].cookie) {
+    for (let i = 0; i < musicTypeAll.length; i++) {
+      if (setting.userInfo[musicTypeAll[i]].cookie) {
+        replace('/yours/' + musicTypeAll[i]);
+        return;
+      }
+    }
+    replace('/');
     return;
   }
-  play.currentMusicType = type as MusicType;
-  play.currentMusicTypeShow = true;
+  setting.currentMusicType = type as MusicType;
+  setting.currentMusicTypeShow = true;
   loading.value = true;
   var result = await api.yours(
-    play.currentMusicType,
-    setting.userInfo[play.currentMusicType].cookie!,
+    setting.currentMusicType,
+    setting.userInfo[setting.currentMusicType].cookie!,
     0
   );
   loading.value = false;
@@ -39,14 +44,14 @@ async function getPlaylist() {
   }
   if (currentRoute.value.meta.key != 'recommend') return;
   const type = currentRoute.value.params.type?.toString();
-  if (!(type in MusicType)) {
-    replace('/recommend/' + MusicType.CloudMusic);
+  if (!musicTypeAll.includes(type as MusicType)) {
+    replace('/recommend/cloud');
     return;
   }
-  play.currentMusicType = type as MusicType;
-  play.currentMusicTypeShow = true;
+  setting.currentMusicType = type as MusicType;
+  setting.currentMusicTypeShow = true;
   loading.value = true;
-  var result = await api.recommend(play.currentMusicType, 0);
+  var result = await api.recommend(setting.currentMusicType, 0);
   loading.value = false;
   total = result.total;
   console.log(total);

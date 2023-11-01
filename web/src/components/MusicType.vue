@@ -1,36 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { MusicType } from '../utils/type';
-import CloudMusicImage from '../assets/images/cloud-music.webp';
-import QQMusicImage from '../assets/images/qq-music.png';
-import MiguMusicImage from '../assets/images/migu-music.webp';
-const musicTypeImages: any = {
-  cloud: CloudMusicImage,
-  qq: QQMusicImage,
-  migu: MiguMusicImage
-};
-const musicTypes = [
-  {
-    type: MusicType.CloudMusic,
-    title: '网易云音乐'
-  },
-  {
-    type: MusicType.QQMusic,
-    title: 'QQ音乐'
-  },
-  {
-    type: MusicType.MiguMusic,
-    title: '咪咕音乐'
-  }
-];
+import { musicTypeInfoAll } from '../utils/platform';
+import { useRouter } from 'vue-router';
+import { useSettingStore } from '../stores/setting';
 interface Props {
-  value: string;
+  value: MusicType;
   size?: string;
 }
 const props = withDefaults(defineProps<Props>(), {
-  value: MusicType.CloudMusic,
+  value: 'cloud',
   size: undefined
 });
+const { currentRoute } = useRouter();
+const setting = useSettingStore();
 const emit = defineEmits({
   change: (_value: MusicType) => true
 });
@@ -43,14 +26,14 @@ function valueChange(v: MusicType) {
 <template>
   <el-radio-group :model-value="value" :size="props.size" @change="valueChange">
     <el-radio-button
-      v-for="musicType in musicTypes"
-      :label="musicType.type"
-      :title="musicType.title">
-      <img
-        v-if="musicTypeImages[musicType.type]"
-        class="music-type-icon"
-        :src="musicTypeImages[musicType.type]" />
-      <span v-else>{{ musicType.title }}</span>
+      v-for="info in musicTypeInfoAll"
+      v-show="
+        currentRoute.meta.key !== 'yours' || setting.userInfo[info.type].id
+      "
+      :label="info.type"
+      :title="info.name">
+      <img class="music-type-icon" v-if="info.image" :src="info.image" />
+      <span v-else>{{ info.name }}</span>
     </el-radio-button>
   </el-radio-group>
 </template>

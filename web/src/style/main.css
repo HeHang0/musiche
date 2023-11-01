@@ -39,6 +39,7 @@ html.dark > body {
 .music-icon {
   font-family: 'icon-font';
   font-size: 20px;
+  font-weight: normal;
   cursor: pointer;
 }
 .is-disabled .music-icon {

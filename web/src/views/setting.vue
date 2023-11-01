@@ -4,13 +4,11 @@ import { useRouter } from 'vue-router';
 import { useDebounceFn } from '@vueuse/core';
 import { WarningFilled } from '@element-plus/icons-vue';
 import { scrollToElementId, webView2Services } from '../utils/utils';
-import CloudMusicImage from '../assets/images/cloud-music.webp';
-import QQMusicImage from '../assets/images/qq-music.png';
-import MiguMusicImage from '../assets/images/migu-music.webp';
 import { useSettingStore } from '../stores/setting';
 import { CloseType, MusicType, ShortcutType } from '../utils/type';
 import { ElMessageBox } from 'element-plus';
 import Login from '../components/Login.vue';
+import { musicTypeInfoAll } from '../utils/platform';
 
 const { currentRoute, replace } = useRouter();
 const subItems = [
@@ -77,7 +75,9 @@ const shortcutItems: { name: string; operate: ShortcutType }[] = [
   }
 ];
 
-const currentId = ref(currentRoute.value.hash.substring(1));
+const currentId = ref(
+  currentRoute.value.hash.substring(1) || 'music-header-account'
+);
 const tableEle: Ref<HTMLTableElement | null> = ref(null);
 const defaultFonts = ['宋体', '等线', '仿宋', '黑体', '楷体', '微软雅黑'];
 const setting = useSettingStore();
@@ -85,7 +85,7 @@ var scrollByRouter = false;
 const unWatch = watch(
   () => currentRoute.value.hash,
   hash => {
-    currentId.value = hash.substring(1);
+    currentId.value = hash.substring(1) || 'music-header-account';
     scrollByRouter = true;
     scrollToElementId(
       currentId.value,
@@ -96,6 +96,7 @@ const unWatch = watch(
 );
 
 function setItemsIdTitle() {
+  setting.currentMusicTypeShow = false;
   if (!tableEle.value) return;
   for (let i = 0; i < tableEle.value.children.length; i++) {
     const item = tableEle.value.children[i] as HTMLTableRowElement;
@@ -139,11 +140,11 @@ function login(type: MusicType) {
   let title = '网易云';
   let text = '';
   switch (type) {
-    case MusicType.QQMusic:
+    case 'qq':
       title = 'QQ';
       text = '从QQ音乐获取cookie并填写';
       break;
-    case MusicType.MiguMusic:
+    case 'migu':
       title = '咪咕';
       text = '打开 咪咕音乐app<br />点击顶部菜单图标,然后找到扫一扫并点击';
       break;
@@ -161,7 +162,7 @@ function login(type: MusicType) {
     closeOnClickModal: false,
     message: h(Login, {
       type,
-      qrcode: type != MusicType.QQMusic,
+      qrcode: type != 'qq',
       text,
       onLogon: loginSuccess
     })
@@ -193,45 +194,17 @@ onUnmounted(unWatch);
         <tr>
           <td></td>
           <td class="music-setting-account">
-            <div>
-              <img :src="CloudMusicImage" />
+            <div v-for="info in musicTypeInfoAll">
+              <img :src="info.image" />
               <img
-                v-if="setting.userInfo.cloud.image"
-                :src="setting.userInfo.cloud.image" />
-              <span v-if="setting.userInfo.cloud.name">
-                {{ setting.userInfo.cloud.name }}
+                v-if="setting.userInfo[info.type].image"
+                :src="setting.userInfo[info.type].image" />
+              <span v-if="setting.userInfo[info.type].name">
+                {{ setting.userInfo[info.type].name }}
               </span>
               <span
-                v-if="!setting.userInfo.cloud.id"
-                @click="login(MusicType.CloudMusic)">
-                登录
-              </span>
-            </div>
-            <div>
-              <img :src="QQMusicImage" />
-              <img
-                v-if="setting.userInfo.qq.image"
-                :src="setting.userInfo.qq.image" />
-              <span v-if="setting.userInfo.qq.name">
-                {{ setting.userInfo.qq.name }}
-              </span>
-              <span
-                v-if="!setting.userInfo.qq.id"
-                @click="login(MusicType.QQMusic)">
-                登录
-              </span>
-            </div>
-            <div>
-              <img :src="MiguMusicImage" />
-              <img
-                v-if="setting.userInfo.migu.image"
-                :src="setting.userInfo.migu.image" />
-              <span v-if="setting.userInfo.migu.name">
-                {{ setting.userInfo.migu.name }}
-              </span>
-              <span
-                v-if="!setting.userInfo.migu.id"
-                @click="login(MusicType.MiguMusic)">
+                v-if="!setting.userInfo[info.type].id"
+                @click="login(info.type)">
                 登录
               </span>
             </div>
@@ -244,7 +217,12 @@ onUnmounted(unWatch);
 
             <el-select
               v-model="setting.pageValue.font"
-              @change="setting.setFont">
+              @change="
+                setting.setFont(
+                  setting.pageValue.font,
+                  setting.pageValue.fontBold
+                )
+              ">
               <el-option key="" label="默认" value="" />
               <el-option
                 v-for="item in setting.fonts || defaultFonts"
@@ -252,13 +230,27 @@ onUnmounted(unWatch);
                 :label="item"
                 :title="item"
                 :value="item">
-                <div class="text-overflow-1" style="width: 120px">
+                <div
+                  class="text-overflow-1"
+                  style="width: 120px"
+                  :style="{ fontFamily: `${item}` }">
                   {{ item }}
                 </div>
               </el-option>
             </el-select>
-            <!-- v-if="webView2Services.enabled" -->
             <el-checkbox
+              v-model="setting.pageValue.fontBold"
+              v-show="setting.pageValue.font"
+              @change="
+                setting.setFont(
+                  setting.pageValue.font,
+                  setting.pageValue.fontBold
+                )
+              "
+              label="字体加粗"
+              size="large" />
+            <el-checkbox
+              v-if="webView2Services.enabled"
               v-model="setting.pageValue.startup"
               @change="setting.setStartup"
               label="开机自动运行"
@@ -325,6 +317,11 @@ onUnmounted(unWatch);
               v-model="setting.pageValue.savePlayProgress"
               @change="setting.setSavePlayProgress"
               label="程序启动时记住上一次播放进度"
+              size="large" />
+            <el-checkbox
+              v-model="setting.pageValue.fadeIn"
+              @change="setting.setFadeIn"
+              label="开启音乐淡入"
               size="large" />
             <div>
               <span>播放列表</span>
@@ -441,7 +438,7 @@ onUnmounted(unWatch);
         content: '';
         position: absolute;
         left: 50%;
-        bottom: -3px;
+        bottom: -5px;
         transform: translateX(-50%);
         width: 80%;
         height: 3px;
@@ -474,6 +471,11 @@ onUnmounted(unWatch);
         & > td:first-child {
           width: 130px;
           font-weight: bold;
+        }
+      }
+      & > tr:last-child {
+        & > td {
+          padding-bottom: 40px;
         }
       }
     }

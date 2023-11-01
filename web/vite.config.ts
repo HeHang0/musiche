@@ -12,13 +12,13 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks(id, meta) {
-          if (path.resolve(id).includes(path.resolve('./src/views'))) {
-            return 'views';
-          } else if (path.resolve(id).includes('node_modules')) {
-            return 'node_modules';
-          }
-        }
+        // manualChunks(id, meta) {
+        //   if (path.resolve(id).includes(path.resolve('./src/views'))) {
+        //     return 'views';
+        //   } else if (path.resolve(id).includes('node_modules')) {
+        //     return 'node_modules';
+        //   }
+        // }
       }
     }
   },

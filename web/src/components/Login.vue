@@ -12,7 +12,7 @@ interface Props {
   title?: string;
 }
 const props = withDefaults(defineProps<Props>(), {
-  type: MusicType.CloudMusic,
+  type: 'cloud',
   qrcode: true
 });
 

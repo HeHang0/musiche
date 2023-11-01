@@ -75,7 +75,6 @@ function createMyPlaylists() {
             play.musicHistory.length > 0 || play.myLoves.length > 0
           "></el-divider>
         <el-menu-item
-          v-if="play.myLoves.length > 0"
           index="/lover"
           id="lover"
           :class="route.path == 'lover' ? 'is-active' : ''">
@@ -83,19 +82,18 @@ function createMyPlaylists() {
           <span>我喜欢的音乐</span>
         </el-menu-item>
         <el-menu-item
-          v-if="play.musicHistory.length > 0"
           index="/recent"
           id="recent"
           :class="route.path == 'recent' ? 'is-active' : ''">
           <span class="music-icon">时</span>
           <span>最近播放</span>
         </el-menu-item>
-        <el-divider v-if="play.myFavorites.length > 0"></el-divider>
-        <el-sub-menu index="favorite" v-if="play.myFavorites.length > 0">
+        <el-divider></el-divider>
+        <el-sub-menu index="favorite">
           <template #title>
             <el-menu-item>
               <span class="music-icon">藏</span>
-              <span>收藏的歌单</span>
+              <span>收藏的歌单({{ play.myFavorites.length }})</span>
             </el-menu-item>
           </template>
           <el-menu-item
@@ -108,12 +106,12 @@ function createMyPlaylists() {
             <div class="text-overflow-2">{{ item.name }}</div>
           </el-menu-item>
         </el-sub-menu>
-        <el-divider v-if="play.myPlaylists.length > 0"></el-divider>
-        <el-sub-menu index="created" v-if="play.myPlaylists.length > 0">
+        <el-divider></el-divider>
+        <el-sub-menu index="created">
           <template #title>
             <el-menu-item>
               <span class="music-icon">编</span>
-              <span>创建的歌单</span>
+              <span>创建的歌单({{ play.myPlaylists.length }})</span>
             </el-menu-item>
           </template>
           <el-menu-item

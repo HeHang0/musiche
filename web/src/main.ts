@@ -11,6 +11,8 @@ import 'element-plus/theme-chalk/el-checkbox.css';
 import App from './App.vue';
 import router from './router';
 
+import './style/main.css';
+
 const app = createApp(App);
 
 app.use(createPinia());

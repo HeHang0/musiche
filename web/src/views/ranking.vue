@@ -6,8 +6,11 @@ import RadioGroupEle from '../components/RadioGroup.vue';
 import MusicList from '../components/MusicList.vue';
 import { Music, MusicType, RankingType } from '../utils/type';
 import { usePlayStore } from '../stores/play';
+import { useSettingStore } from '../stores/setting';
+import { musicTypeAll } from '../utils/platform';
 const { currentRoute, push, replace } = useRouter();
 const play = usePlayStore();
+const setting = useSettingStore();
 const loading = ref(false);
 const total = ref(0);
 const musicList: Ref<Music[]> = ref([] as Music[]);
@@ -33,29 +36,30 @@ function parseParams() {
   if (currentRoute.value.meta.key != 'ranking') return false;
   const type = currentRoute.value.params.type as MusicType;
   const ranking = currentRoute.value.params.ranking as RankingType;
-  if (type in MusicType && ranking in RankingType) {
-    play.currentMusicType = type as MusicType;
-    play.currentMusicTypeShow = true;
+  const inTypeAll = musicTypeAll.includes(type);
+  if (inTypeAll && ranking in RankingType) {
+    setting.currentMusicType = type as MusicType;
+    setting.currentMusicTypeShow = true;
     rankingType.value = ranking as RankingType;
     return true;
-  } else if (type in MusicType) {
+  } else if (inTypeAll) {
     replace(`/ranking/${type}/${RankingType.Hot}`);
   } else if (ranking in RankingType) {
-    replace(`/ranking/${MusicType.CloudMusic}/${ranking}`);
+    replace(`/ranking/cloud/${ranking}`);
   } else {
-    replace(`/ranking/${MusicType.CloudMusic}/${RankingType.Hot}`);
+    replace(`/ranking/cloud/${RankingType.Hot}`);
   }
   return false;
 }
 async function searchMusic() {
   if (!parseParams()) return;
-  if (play.currentMusicType == MusicType.MiguMusic) {
+  if (setting.currentMusicType === 'migu') {
     rankingTypes.value[2].label = '原创榜';
   } else {
     rankingTypes.value[2].label = '飙升榜';
   }
   loading.value = true;
-  var result = await api.ranking(play.currentMusicType, rankingType.value);
+  var result = await api.ranking(setting.currentMusicType, rankingType.value);
   loading.value = false;
   total.value = result.total;
   musicList.value.splice(0, musicList.value.length);
@@ -63,11 +67,11 @@ async function searchMusic() {
 }
 function rankingTypeChange(type: RankingType) {
   rankingType.value = type;
-  push(`/ranking/${play.currentMusicType}/${rankingType.value}`);
+  push(`/ranking/${setting.currentMusicType}/${rankingType.value}`);
 }
 function favoritePlaylist() {
   const playlistInfo = api.rankingPlaylist(
-    play.currentMusicType,
+    setting.currentMusicType,
     rankingType.value
   );
   playlistInfo &&
@@ -112,13 +116,15 @@ onUnmounted(unWatch);
         <el-button type="info" :disabled="loading" @click="favoritePlaylist">
           <span class="music-icon">
             {{
-              play.myFavorite[play.currentMusicType + 'ranking' + rankingType]
+              play.myFavorite[
+                setting.currentMusicType + 'ranking' + rankingType
+              ]
                 ? '藏'
                 : '收'
             }}
           </span>
           {{
-            play.myFavorite[play.currentMusicType + 'ranking' + rankingType]
+            play.myFavorite[setting.currentMusicType + 'ranking' + rankingType]
               ? '已'
               : ''
           }}收藏

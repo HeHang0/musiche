@@ -4,19 +4,37 @@ export class AudioPlayer {
   audio: HTMLAudioElement;
   onMessage?: (data: any) => void;
   progressTemp?: number;
+  fadeIn: boolean = false;
+  fadeInVolume?: number;
+  lastProgress?: number;
   constructor() {
     this.audio = new Audio();
-    this.audio.addEventListener('play', this.statusChange.bind(this));
-    this.audio.addEventListener('pause', this.statusChange.bind(this));
+    this.audio.addEventListener(
+      'play',
+      this.statusChange.bind(this, undefined)
+    );
+    this.audio.addEventListener(
+      'pause',
+      this.statusChange.bind(this, undefined)
+    );
     this.audio.addEventListener('ended', this.audioEnded.bind(this));
-    this.audio.addEventListener('volumechange', this.statusChange.bind(this));
-    this.audio.addEventListener('timeupdate', this.statusChange.bind(this));
+    this.audio.addEventListener(
+      'volumechange',
+      this.statusChange.bind(this, undefined)
+    );
+    this.audio.addEventListener('timeupdate', this.timeUpdate.bind(this));
+  }
+
+  setFadeIn(fadeIn: boolean) {
+    this.fadeIn = fadeIn;
   }
 
   async process(type: string, data?: string) {
     switch (type) {
       case 'play':
         return this.play(data);
+      case 'fadein':
+        return this.setFadeIn(Boolean(data));
       case 'pause':
         return this.pause();
       case 'progress':
@@ -37,6 +55,12 @@ export class AudioPlayer {
       return this.status();
     }
     try {
+      if (this.fadeIn) {
+        this.fadeInVolume = this.audio.volume;
+        this.audio.volume = 0;
+      } else {
+        this.fadeInVolume = undefined;
+      }
       await this.audio.play();
     } catch {}
 
@@ -66,19 +90,22 @@ export class AudioPlayer {
     this.audio.volume = volume / 100;
     return this.status();
   }
-  status() {
+  status(progress?: number) {
+    if (typeof progress !== 'number') progress = undefined;
+    this.lastProgress =
+      this.progressTemp ||
+      progress ||
+      Math.round(
+        (1000 * (this.audio.currentTime || 0)) / (this.audio.duration || 1)
+      );
     return {
       data: {
-        volume: Math.round(this.audio.volume * 100),
+        volume: Math.round((this.fadeInVolume || this.audio.volume) * 100),
         currentTime: second2Duration(this.audio.currentTime),
         totalTime: second2Duration(this.audio.duration),
         playing: !this.audio.paused,
         stopped: this.audio.ended || !this.audio.src,
-        progress:
-          this.progressTemp ||
-          Math.round(
-            (1000 * (this.audio.currentTime || 0)) / (this.audio.duration || 1)
-          )
+        progress: this.lastProgress
       },
       type: 'status'
     };
@@ -86,8 +113,23 @@ export class AudioPlayer {
   setOnMessage(onMessage: (status: any) => void) {
     this.onMessage = onMessage;
   }
-  statusChange() {
-    this.onMessage && this.onMessage(this.status());
+  statusChange(progress?: number) {
+    this.onMessage && this.onMessage(this.status(progress));
+  }
+  timeUpdate() {
+    if (
+      this.fadeInVolume &&
+      this.fadeInVolume > this.audio.volume &&
+      this.fadeInVolume <= 1
+    ) {
+      this.audio.volume = Math.min(this.audio.volume + 0.1, this.fadeInVolume);
+    } else if (this.fadeInVolume != null) {
+      this.fadeInVolume = undefined;
+    }
+    const progress = Math.round(
+      (1000 * (this.audio.currentTime || 0)) / (this.audio.duration || 1)
+    );
+    if (this.lastProgress !== progress) this.statusChange(progress);
   }
   audioEnded() {
     this.onMessage &&

@@ -1,4 +1,5 @@
 import { CommunicationClient, wsClient } from '../utils/http';
+import { StorageKey } from '../utils/storage';
 import { ShortcutKey, ShortcutType } from '../utils/type';
 import { webView2Services } from '../utils/utils';
 import { usePlayStore } from './play';
@@ -23,6 +24,16 @@ export class MusicConnection {
     );
     if (interval) {
       setInterval(this.sendWsStatus.bind(this), 500);
+    }
+    if (this.setting.pageValue.savePlayProgress) {
+      try {
+        const progress = parseInt(
+          localStorage.getItem(StorageKey.Progress) || '0'
+        );
+        if (progress > 0 && progress < 1000) {
+          this.play.changeProgress(progress);
+        }
+      } catch {}
     }
     if (this.setting.pageValue.playAtRun) {
       this.play.play();

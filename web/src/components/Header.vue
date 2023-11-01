@@ -3,7 +3,7 @@ import { Ref, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Search } from '@element-plus/icons-vue';
 
-import { usePlayStore } from '../stores/play';
+import { useSettingStore } from '../stores/setting';
 import { MusicType } from '../utils/type';
 import { webView2Services } from '../utils/utils';
 
@@ -12,11 +12,11 @@ import WindowControls from './WindowControls.vue';
 
 const { currentRoute, push, back } = useRouter();
 const searchKey = ref('');
-const play = usePlayStore();
+const setting = useSettingStore();
 function startSearch() {
   if (!searchKey.value.trim()) return;
   push(
-    `/search/${play.currentMusicType}/${encodeURIComponent(searchKey.value)}`
+    `/search/${setting.currentMusicType}/${encodeURIComponent(searchKey.value)}`
   );
 }
 const canBack: Ref<boolean> = ref(Boolean(history.state.back));
@@ -63,14 +63,16 @@ onUnmounted(unWatch);
         </template>
       </el-input>
       <MusicTypeEle
-        v-show="play.currentMusicTypeShow"
-        :value="play.currentMusicType"
+        v-show="setting.currentMusicTypeShow"
+        :value="setting.currentMusicType"
         size="large"
         @change="changeMusicType"
         style="margin-right: 12px" />
     </div>
     <div class="music-header-operate">
-      <span class="music-icon" @click="push('/setting')"> 设 </span>
+      <span class="music-icon" @click="push('/setting')" title="设置">
+        设
+      </span>
       <WindowControls v-if="webView2Services.enabled" />
     </div>
   </el-header>
@@ -126,7 +128,7 @@ onUnmounted(unWatch);
       cursor: pointer;
       opacity: 0.8;
       font-size: 15px;
-      // font-weight: bold;
+      font-weight: bold;
       &:hover {
         opacity: 1;
       }

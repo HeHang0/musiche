@@ -18,6 +18,8 @@ import RankingHotImage from '../../assets/images/ranking-hot.jpg';
 import RankingNewImage from '../../assets/images/ranking-new.jpg';
 import RankingSoarImage from '../../assets/images/ranking-original.jpg';
 
+const musicType: MusicType = 'migu';
+
 function padProtocol(url: string) {
   return url && url.startsWith('//') ? 'https:' + url : url;
 }
@@ -53,7 +55,7 @@ export async function search(keywords: string, offset: number) {
       duration: '',
       vip: (m.vipFlag || (m.fullSong && m.fullSong.vipFlag)) == 1,
       remark: m.fullSong.productId,
-      type: MusicType.MiguMusic
+      type: musicType
     });
   });
   return {
@@ -68,7 +70,7 @@ export async function daily(cookies: string): Promise<Playlist | null> {
     id: 'daily',
     name: '你会喜欢',
     image: (user && user.image) || '',
-    type: MusicType.MiguMusic
+    type: musicType
   };
 }
 
@@ -80,8 +82,6 @@ export async function yours(
   list: Playlist[];
 }> {
   const list: Playlist[] = [];
-  const dailyPlaylist = await daily(cookies);
-  if (dailyPlaylist) list.push(dailyPlaylist);
 
   const cookie = formatCookies(cookies);
   const urls = [
@@ -100,17 +100,22 @@ export async function yours(
       }
     });
     const ret = await res.json();
-    var retList = ret.playLists || ret.data.items || ret.data;
-    retList.map((m: any) => {
-      let image = m.playListPic || m.image || m.picUrl;
-      if (image.startsWith('//')) image = 'https://' + image;
-      list.push({
-        id: m.id || m.playListId,
-        name: m.playListName || m.name,
-        image: image,
-        type: MusicType.MiguMusic
+    var retList = ret.playLists || (ret.data && ret.data.items);
+    if (retList) {
+      retList.map((m: any) => {
+        let image = m.playListPic || m.image || m.picUrl;
+        if (image.startsWith('//')) image = 'https://' + image;
+        list.push({
+          id: m.id || m.playListId,
+          name: m.playListName || m.name,
+          image: image,
+          type: musicType
+        });
       });
-    });
+
+      const dailyPlaylist = await daily(cookies);
+      if (dailyPlaylist) list.unshift(dailyPlaylist);
+    }
   }
 
   return {
@@ -135,7 +140,7 @@ export async function recommend(offset: number) {
       id: m.logEvent.contentId,
       name: m.title,
       image: m.imageUrl.replace('http://', 'https://'),
-      type: MusicType.MiguMusic
+      type: musicType
     });
   });
   return {
@@ -164,7 +169,7 @@ export async function playlistInfo(id: string) {
     name: ret.data.playListName,
     description: ret.data.summary && ret.data.summary.replace(/\n+/g, '<br />'),
     image: padProtocol(ret.data.image),
-    type: MusicType.MiguMusic
+    type: musicType
   };
 }
 
@@ -214,7 +219,7 @@ export async function dailyPlayList(cookies: string) {
         length: duration2Millisecond(m.length),
         vip: m.vipFlag == 1,
         remark: m.songId || '',
-        type: MusicType.MiguMusic
+        type: musicType
       });
     });
   }
@@ -250,7 +255,7 @@ export async function digitalDetail(id: string, _cookies?: string) {
       ret.data.detailInfo.mediumPic || ret.data.detailInfo.smallPic
     ),
     description: ret.data.detailInfo.intro,
-    type: MusicType.MiguMusic
+    type: musicType
   };
   ret.data.songs.items.map((m: any) => {
     list.push({
@@ -266,7 +271,7 @@ export async function digitalDetail(id: string, _cookies?: string) {
       length: duration2Millisecond(m.length),
       vip: (m.vipFlag || (m.fullSong && m.fullSong.vipFlag)) == 1,
       remark: (m.fullSong && m.fullSong.productId) || '',
-      type: MusicType.MiguMusic
+      type: musicType
     });
   });
   return {
@@ -332,7 +337,7 @@ export async function playlistDetail(id: string, cookies?: string) {
       length: duration2Millisecond(m.duration),
       vip: (m.vipFlag || (m.fullSong && m.fullSong.vipFlag)) == 1,
       remark: (m.fullSong && m.fullSong.productId) || '',
-      type: MusicType.MiguMusic
+      type: musicType
     });
   });
   return {
@@ -362,7 +367,7 @@ export async function albumDetail(id: string) {
     name: ret.data.detailInfo.name,
     image: ret.data.detailInfo.mediumPic,
     description: ret.data.detailInfo.albumDesc,
-    type: MusicType.MiguMusic
+    type: musicType
   };
   playlist.description = playlist.description?.replace(/\n+/g, '<br />');
   const total: number = ret.data.songs.items.length;
@@ -380,7 +385,7 @@ export async function albumDetail(id: string) {
       length: duration2Millisecond(m.duration),
       vip: (m.vipFlag || (m.fullSong && m.fullSong.vipFlag)) == 1,
       remark: (m.fullSong && m.fullSong.productId) || '',
-      type: MusicType.MiguMusic
+      type: musicType
     });
   });
   return {
@@ -423,7 +428,7 @@ export function rankingPlaylist(ranking: RankingType): Playlist {
     name: '咪咕音乐' + name,
     image,
     description: desc,
-    type: MusicType.MiguMusic
+    type: musicType
   };
 }
 
@@ -465,7 +470,7 @@ export async function ranking(ranking: RankingType) {
       length: duration2Millisecond(m.length),
       vip: (m.vipFlag || (m.fullSong && m.fullSong.vipFlag)) == 1,
       remark: m.contentId,
-      type: MusicType.MiguMusic
+      type: musicType
     });
   });
   return {
@@ -525,7 +530,7 @@ export async function singerSongs(id: string) {
   return null;
 }
 
-export async function lyric(music: Music) {
+export async function lyric(music: Music): Promise<string> {
   if (!music.lyricUrl) return '';
   const res = await fetch(parseHttpProxyAddress(music.lyricUrl));
   return await res.text();
@@ -559,7 +564,7 @@ export async function musicById(id: string): Promise<Music | null> {
       length: m.duration * 1000,
       vip: m.downloadTags && m.downloadTags.includes('vip'),
       remark: m.contentId,
-      type: MusicType.MiguMusic
+      type: musicType
     };
   }
   return null;

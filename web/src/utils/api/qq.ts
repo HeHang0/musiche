@@ -12,6 +12,8 @@ import RankingHotImage from '../../assets/images/ranking-hot.jpg';
 import RankingNewImage from '../../assets/images/ranking-new.jpg';
 import RankingSoarImage from '../../assets/images/ranking-soar.jpg';
 
+const musicType: MusicType = 'qq';
+
 function parseAlbumImage(music: any) {
   const albumPMId =
     (music.album && music.album.pmid) || music.albumpmid || music.pmid;
@@ -119,7 +121,7 @@ export async function search(
       length: m.size128 / 16,
       vip: Boolean(m.pay && m.pay.payplay),
       remark: '',
-      type: MusicType.QQMusic
+      type: musicType
     });
   });
   return {
@@ -155,7 +157,7 @@ export async function daily(cookies: string): Promise<Playlist | null> {
       id: matchId[1],
       name: '今日私享',
       image: matchImage[1],
-      type: MusicType.QQMusic
+      type: musicType
     };
   }
   return null;
@@ -185,7 +187,7 @@ export async function yours(cookies: string): Promise<{
       list.push({
         id: m.dissid || m.id,
         name: m.title,
-        type: MusicType.QQMusic,
+        type: musicType,
         image: m.picurl && parseHttpProxyAddress(m.picurl)
       });
     });
@@ -221,7 +223,7 @@ export async function recommend(offset: number) {
     list.push({
       id: m.dissid,
       name: m.dissname,
-      type: MusicType.QQMusic,
+      type: musicType,
       image: m.imgurl
         .toString()
         .replace('600?n=1', '150?n=1')
@@ -252,7 +254,7 @@ export async function playlistDetail1(id: string) {
     name: ret.dissname,
     description: ret.desc && ret.desc.replace(/\n+/g, '<br />'),
     image: ret.logo,
-    type: MusicType.QQMusic
+    type: musicType
   };
   const total: number = ret.total_song_num;
   ret.songlist.map((m: any) => {
@@ -269,7 +271,7 @@ export async function playlistDetail1(id: string) {
       length: m.size128 / 16,
       vip: Boolean(m.pay && m.pay.payplay),
       remark: '',
-      type: MusicType.QQMusic
+      type: musicType
     });
   });
   return {
@@ -339,7 +341,7 @@ export async function playlistDetail(id: string) {
     description:
       resData.dirinfo.desc && resData.dirinfo.desc.replace(/\n+/g, '<br />'),
     image: resData.dirinfo.picurl,
-    type: MusicType.QQMusic
+    type: musicType
   };
   const total: number = resData.dirinfo.songnum;
   resData.songlist.map((m: any) => {
@@ -357,7 +359,7 @@ export async function playlistDetail(id: string) {
       length: size,
       vip: Boolean(m.pay && (m.pay.payplay || m.pay.pay_play)),
       remark: '',
-      type: MusicType.QQMusic
+      type: musicType
     });
   });
   return {
@@ -391,7 +393,7 @@ export async function albumDetail(id: string) {
     name: ret.data.name,
     description: ret.data.desc,
     image: albumImage,
-    type: MusicType.QQMusic
+    type: musicType
   };
   playlist.description = playlist.description?.replace(/\n+/g, '<br />');
   const total: number = ret.data.total_song_num;
@@ -409,7 +411,7 @@ export async function albumDetail(id: string) {
       length: m.size128 / 16,
       vip: Boolean(m.pay && m.pay.payplay),
       remark: '',
-      type: MusicType.QQMusic
+      type: musicType
     });
   });
   return {
@@ -446,7 +448,7 @@ export function rankingPlaylist(ranking: RankingType): Playlist {
     name: 'QQ音乐' + name,
     image,
     description: desc,
-    type: MusicType.QQMusic
+    type: musicType
   };
 }
 
@@ -499,7 +501,7 @@ export async function ranking(ranking: RankingType) {
       length: m.size128 / 16,
       vip: Boolean(m.pay && m.pay.payplay),
       remark: '',
-      type: MusicType.QQMusic
+      type: musicType
     });
   });
   return {
@@ -686,7 +688,7 @@ function decodeBase64(e: string) {
   })(s));
 }
 
-export async function lyric(music: Music) {
+export async function lyric(music: Music): Promise<string> {
   if (!music.id) return '';
   const res = await httpProxy({
     url:

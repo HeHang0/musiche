@@ -5,8 +5,10 @@ import * as api from '../utils/api/api';
 import MusicList from '../components/MusicList.vue';
 import { Music, MusicType } from '../utils/type';
 import { usePlayStore } from '../stores/play';
+import { useSettingStore } from '../stores/setting';
 const { currentRoute, replace } = useRouter();
 const play = usePlayStore();
+const setting = useSettingStore();
 const searchTextShow = ref(true);
 const total = ref(0);
 const musicList: Ref<Music[]> = ref([] as Music[]);
@@ -15,8 +17,8 @@ const loading = ref(false);
 const unWatch = watch(currentRoute, searchMusic);
 async function searchMusic() {
   if (currentRoute.value.meta.key != 'search') return;
-  play.currentMusicType = currentRoute.value.params.type as MusicType;
-  play.currentMusicTypeShow = true;
+  setting.currentMusicType = currentRoute.value.params.type as MusicType;
+  setting.currentMusicTypeShow = true;
   const kw = decodeURIComponent(
     currentRoute.value.params?.keywords?.toString() || ''
   );
@@ -26,7 +28,7 @@ async function searchMusic() {
   }
   keywords.value = kw;
   searchTextShow.value = true;
-  var result = await api.search(play.currentMusicType, keywords.value, 0);
+  var result = await api.search(setting.currentMusicType, keywords.value, 0);
   total.value = result.total;
   musicList.value.splice(0, musicList.value.length);
   result.list.map((m: Music) => musicList.value.push(m));
@@ -40,13 +42,13 @@ async function checkLink(link: string) {
 async function checkLinkCloud(link: string): Promise<boolean> {
   var dataParsed = await api.parseLink(link);
   if (dataParsed != null) {
-    if (play.currentMusicType != dataParsed.type) {
+    if (setting.currentMusicType != dataParsed.type) {
       replace(`/search/${dataParsed.type}/${encodeURIComponent(link)}`);
     } else {
       if (dataParsed.linkType === 'playlist') {
         replace(`/playlist/${dataParsed.type}/${dataParsed.id}`);
       } else {
-        setMusic(await api.musicById(play.currentMusicType, dataParsed.id));
+        setMusic(await api.musicById(setting.currentMusicType, dataParsed.id));
       }
       return true;
     }

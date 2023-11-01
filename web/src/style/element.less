@@ -131,6 +131,8 @@
 }
 
 .el-radio {
+    --el-radio-font-weight: inherit;
+
     .el-radio__input {
         .el-radio__inner {
             border-color: var(--music-button-info-border-color-hover);
@@ -168,8 +170,9 @@
 .el-checkbox {
     --el-checkbox-checked-bg-color: var(--music-primary-color);
     --el-checkbox-checked-input-border-color: var(--music-primary-color);
+    --el-checkbox-font-weight: inherit;
 
-    .el-checkbox__inner::after {
+    &__inner::after {
         border-width: 3px;
         border-radius: 1px;
     }
@@ -189,6 +192,8 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            font-family: inherit;
+            font-weight: inherit;
         }
     }
 

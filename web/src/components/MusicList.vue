@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { usePlayStore } from '../stores/play';
-import { Music, MusicType } from '../utils/type';
+import { Music } from '../utils/type';
 import LogoImage from '../assets/images/logo.png';
 import CloudMusicImage from '../assets/images/cloud-music.webp';
 import QQMusicImage from '../assets/images/qq-music.png';
@@ -98,15 +98,9 @@ const setting = useSettingStore();
         <div class="music-list-item-image">
           <img :src="item.image || LogoImage" />
           <div class="music-list-item-image-type">
-            <img
-              v-if="item.type == MusicType.CloudMusic"
-              :src="CloudMusicImage" />
-            <img
-              v-else-if="item.type == MusicType.QQMusic"
-              :src="QQMusicImage" />
-            <img
-              v-else-if="item.type == MusicType.MiguMusic"
-              :src="MiguMusicImage" />
+            <img v-if="item.type == 'cloud'" :src="CloudMusicImage" />
+            <img v-else-if="item.type == 'qq'" :src="QQMusicImage" />
+            <img v-else-if="item.type == 'migu'" :src="MiguMusicImage" />
           </div>
           <div class="music-list-item-image-single" v-if="props.single">
             <span

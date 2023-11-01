@@ -37,7 +37,11 @@ const play = usePlayStore();
         <div
           class="music-footer-image"
           @click="play.playDetailShow = true"
-          :class="play.playStatus.playing ? 'spinning' : ''">
+          :class="
+            play.playStatus.playing
+              ? 'rotation-animation rotation-animation-running'
+              : ''
+          ">
           <img :src="play.music.image || LogoImage" />
         </div>
         <div class="music-footer-title">
@@ -147,6 +151,7 @@ const play = usePlayStore();
         </span>
         <el-slider
           v-model="play.playStatus.volume"
+          @mousedown="play.playStatus.disableUpdateVolume = true"
           @change="play.changeVolume"
           :show-tooltip="false"
           style="width: 70px" />
@@ -268,6 +273,9 @@ const play = usePlayStore();
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.3s linear;
+    transform: rotate(0deg);
+    animation-play-state: paused;
     img {
       width: 42px;
       height: 42px;

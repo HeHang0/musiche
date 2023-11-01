@@ -14,6 +14,8 @@ import RankingNewImage from '../../assets/images/ranking-new.jpg';
 import RankingSoarImage from '../../assets/images/ranking-soar.jpg';
 const QRCode = () => import('qrcode');
 
+const musicType: MusicType = 'cloud';
+
 var qrcodeGenerate: (text: string) => Promise<string> = async (
   text: string
 ) => {
@@ -89,7 +91,7 @@ export async function search(keywords: string, offset: number) {
       length: m.dt,
       vip: m.privilege && m.privilege.fee == 1,
       remark: '',
-      type: MusicType.CloudMusic
+      type: musicType
     });
   });
   return {
@@ -108,7 +110,7 @@ export async function daily(
       now.getMonth() + 1
     }-${now.getDate()}`,
     image: '',
-    type: MusicType.CloudMusic
+    type: musicType
   };
 }
 
@@ -162,7 +164,7 @@ export async function yours(
       image:
         m.coverImgUrl.toString().replace('http://', 'https://') +
         '?param=200y200',
-      type: MusicType.CloudMusic
+      type: musicType
     });
   });
 
@@ -212,7 +214,7 @@ export async function recommend(offset: number) {
       image:
         m.coverImgUrl.toString().replace('http://', 'https://') +
         '?param=200y200',
-      type: MusicType.CloudMusic
+      type: musicType
     });
   });
   return {
@@ -264,7 +266,7 @@ export async function dailyPlayList(cookies: Record<string, string>) {
         length: m.duration,
         vip: m.privilege && m.privilege.fee == 1,
         remark: '',
-        type: MusicType.CloudMusic
+        type: musicType
       });
     });
   }
@@ -342,7 +344,7 @@ export async function playlistDetail(
       ret.playlist.description &&
       ret.playlist.description.replace(/\n+/g, '<br />'),
     image: ret.playlist.coverImgUrl,
-    type: MusicType.CloudMusic
+    type: musicType
   };
   const total: number = ret.playlist.tracks.length;
   ret.playlist.tracks.map((m: any) => {
@@ -357,7 +359,7 @@ export async function playlistDetail(
       length: m.dt,
       vip: m.privilege && m.privilege.fee == 1,
       remark: '',
-      type: MusicType.CloudMusic
+      type: musicType
     });
   });
   return {
@@ -400,7 +402,7 @@ export async function albumDetail(id: string) {
       ret.album.artist.name ||
       '',
     image: ret.album.picUrl,
-    type: MusicType.CloudMusic
+    type: musicType
   };
   const total: number = ret.songs.length;
   ret.songs.map((m: any) => {
@@ -415,7 +417,7 @@ export async function albumDetail(id: string) {
       length: m.dt,
       vip: m.privilege && m.privilege.fee == 1,
       remark: '',
-      type: MusicType.CloudMusic
+      type: musicType
     });
   });
   return {
@@ -468,7 +470,7 @@ export function rankingPlaylist(ranking: RankingType): Playlist {
     id,
     name: '网易云' + name,
     image,
-    type: MusicType.CloudMusic
+    type: musicType
   };
 }
 
@@ -541,13 +543,13 @@ export async function musicById(id: string): Promise<Music | null> {
       duration: millisecond2Duration(m.dt),
       length: m.dt,
       vip: m.privilege && m.privilege.fee == 1,
-      type: MusicType.CloudMusic
+      type: musicType
     };
   }
   return null;
 }
 
-export async function lyric(music: Music) {
+export async function lyric(music: Music): Promise<string> {
   if (!music.id) return '';
   const res = await httpProxy({
     url: 'https://music.163.com/api/song/lyric?lv=-1&id=' + music.id,

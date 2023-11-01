@@ -46,7 +46,6 @@ function prepareClose() {
             'model-value': closeType,
             onChange: (val: boolean | string | number) => {
               closeType.value = val as CloseType;
-              console.log('值变了', closeType.value);
             },
             class: 'radio-group-vertical'
           },
@@ -61,7 +60,6 @@ function prepareClose() {
             checked: closeTypeNoRemind,
             onChange: (val: string | number | boolean) => {
               closeTypeNoRemind = Boolean(val);
-              console.log('值变了', setting.pageValue.closeTypeNoRemind);
             },
             style: {
               position: 'absolute',
@@ -84,15 +82,24 @@ function prepareClose() {
 </script>
 <template>
   <div class="music-window-controls">
-    <span class="music-icon" @click="setting.minimize"> 小 </span>
+    <span class="music-icon" @click="setting.minimize" title="最小化">
+      小
+    </span>
     <span
       v-if="setting.maximized"
       class="music-icon"
-      @click="setting.maximize(false)">
+      @click="setting.maximize(false)"
+      title="向下还原">
       原
     </span>
-    <span v-else class="music-icon" @click="setting.maximize(true)"> 大 </span>
-    <span class="music-icon" @click="prepareClose"> 关 </span>
+    <span
+      v-else
+      class="music-icon"
+      @click="setting.maximize(true)"
+      title="最大化">
+      大
+    </span>
+    <span class="music-icon" @click="prepareClose" title="关闭"> 关 </span>
   </div>
 </template>
 <style lang="less">

@@ -1,13 +1,4 @@
-export enum MusicType {
-  CloudMusic = 'cloud',
-  QQMusic = 'qq',
-  MiguMusic = 'migu',
-  Local = 'local',
-  cloud = 'cloud',
-  qq = 'qq',
-  migu = 'migu',
-  local = 'local'
-}
+export type MusicType = 'cloud' | 'qq' | 'migu' | 'local';
 
 export enum RankingType {
   Hot = 'hot',
@@ -23,6 +14,18 @@ export enum SortType {
   Single = 'single',
   Random = 'random',
   Order = 'order'
+}
+
+export interface PlayStatus {
+  currentTime: string;
+  playing: boolean;
+  stopped: boolean;
+  totalTime: string;
+  progress: number;
+  volume: number;
+  disableUpdateProgress?: boolean;
+  disableUpdateVolume?: boolean;
+  volumeCache: number;
 }
 
 export interface Music {
@@ -92,18 +95,6 @@ export interface WindowInfo {
   maximized: boolean;
 }
 
-export function parseMusicType(type: any) {
-  switch (type) {
-    case MusicType.MiguMusic:
-      return MusicType.MiguMusic;
-    case MusicType.QQMusic:
-      return MusicType.QQMusic;
-
-    default:
-      return MusicType.CloudMusic;
-  }
-}
-
 export type ShortcutType = 'play' | 'last' | 'next' | 'plus' | 'minus' | 'love';
 
 export interface ShortcutKey {
@@ -124,4 +115,60 @@ export interface UserInfo {
   name?: string;
   image?: string;
   cookie?: Record<string, string> | string;
+}
+
+export interface PlatformAPI {
+  search?(
+    keywords: string,
+    offset: number
+  ): Promise<{
+    total: number;
+    list: Music[];
+  }>;
+  recommend?(offset: number): Promise<{
+    total: number;
+    list: Playlist[];
+  }>;
+  playlistDetail?(
+    id: string,
+    cookies?: Record<string, string> | string
+  ): Promise<{
+    total: number;
+    list: Music[];
+    playlist: Playlist | null;
+  }>;
+  albumDetail?(id: string): Promise<{
+    total: number;
+    list: Music[];
+    playlist: Playlist | null;
+  }>;
+  ranking?(ranking: RankingType): Promise<{
+    total: number;
+    list: Music[];
+  }>;
+  rankingPlaylist?(ranking: RankingType): Playlist | null;
+  musicDetail?(music: Music): Promise<Music | null>;
+  qrCodeKey?(): Promise<{
+    key: string;
+    url: string;
+  } | null>;
+  loginStatus?(key: string): Promise<{
+    status: LoginStatus;
+    user?: UserInfo;
+  }>;
+  userInfo?(cookie: Record<string, string> | string): Promise<UserInfo | null>;
+  yours?(
+    cookie: Record<string, string> | string,
+    offset: number
+  ): Promise<{
+    total: number;
+    list: Playlist[];
+  }>;
+  musicById?(id: string): Promise<Music | null>;
+  parseLink?(link: string): Promise<{
+    type: MusicType;
+    linkType: 'playlist' | 'music';
+    id: string;
+  } | null>;
+  lyric?(music: Music): Promise<string>;
 }
