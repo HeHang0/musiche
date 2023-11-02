@@ -1,12 +1,6 @@
 import { defineStore } from 'pinia';
 import * as api from '../utils/api/api';
-import {
-  Music,
-  MusicType,
-  PlayStatus,
-  Playlist,
-  SortType
-} from '../utils/type';
+import { Music, PlayStatus, Playlist, SortType } from '../utils/type';
 import { musicOperate } from '../utils/http';
 import { StorageKey, storage } from '../utils/storage';
 import { generateGuid, getRandomInt } from '../utils/utils';

@@ -6,31 +6,22 @@ import AutoImport from 'unplugin-auto-import/vite';
 import Components from 'unplugin-vue-components/vite';
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 
+import { ZipPlugin } from './zip';
+
+const plugins = [
+  vue(),
+  AutoImport({
+    resolvers: [ElementPlusResolver()]
+  }),
+  Components({
+    resolvers: [ElementPlusResolver()]
+  })
+];
+process.env.BUILD_ZIP === '1' && plugins.push(ZipPlugin());
 // https://vitejs.dev/config/
 export default defineConfig({
   base: './',
-  build: {
-    rollupOptions: {
-      output: {
-        // manualChunks(id, meta) {
-        //   if (path.resolve(id).includes(path.resolve('./src/views'))) {
-        //     return 'views';
-        //   } else if (path.resolve(id).includes('node_modules')) {
-        //     return 'node_modules';
-        //   }
-        // }
-      }
-    }
-  },
-  plugins: [
-    vue(),
-    AutoImport({
-      resolvers: [ElementPlusResolver()]
-    }),
-    Components({
-      resolvers: [ElementPlusResolver()]
-    })
-  ],
+  plugins,
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
