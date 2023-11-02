@@ -1,6 +1,25 @@
 import path from 'path';
 import fs from 'fs';
 import JSZip from 'jszip';
+import { execSync } from 'child_process';
+
+function buildVersion(output: string = null) {
+  if (!output) output = path.resolve('dist');
+  const csProj = path.resolve('../windows/Musiche.csproj');
+  const text = fs.existsSync(csProj)
+    ? fs.readFileSync(csProj, {
+        encoding: 'utf8'
+      })
+    : '';
+  const regex = /<Version>(.*)<\/Version>/;
+  const match = regex.exec(text);
+  const version = (match && match[1]) || '2.0.0';
+  const outFile = path.resolve(output, 'version');
+  const commitHash = execSync('git rev-parse --short HEAD', {
+    encoding: 'utf8'
+  });
+  fs.writeFileSync(outFile, `${version}-${commitHash}`);
+}
 
 export const ZipPlugin = function (
   fileName: string = 'web',
@@ -53,6 +72,7 @@ export const ZipPlugin = function (
     name: 'vite-plugin-auto-zip',
     apply: 'build',
     closeBundle() {
+      buildVersion();
       makeZip();
     }
   };

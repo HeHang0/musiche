@@ -44,15 +44,6 @@ jobs:
           cd ..
           copy windows\bin\Release\net472\Musiche.exe web\dist\Musiche.exe
           copy windows\bin\Publish\net6.0-windows\Musiche.exe web\dist\Musiche.net6.exe
-          $versionMatch = (Get-Content -Path windows\Musiche.csproj | Select-String -Pattern '<Versaion>(.*?)</Version>').Matches
-          if ($versionMatch.Count -eq 0) {
-              $version = "2.0.0"
-          } else {
-              $version = $versionMatch[0].Groups[1].Value
-          }
-          $commitHash = git rev-parse --short HEAD
-          $combinedVersion = "$version-$commitHash"
-          $combinedVersion | Out-File -FilePath web\dist\version
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
