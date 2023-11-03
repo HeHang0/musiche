@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Net.Mime;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -49,7 +48,7 @@ namespace Musiche.Server
         public async Task ClipboardIndex(HttpListenerContext ctx)
         {
             byte[] data = fileHandler.GetFile(ctx.Request.Url.AbsolutePath);
-            if(data != null)
+            if (data != null)
             {
                 string mimeType = fileHandler.GetMimeType(ctx.Request.Url.AbsolutePath);
                 ctx.Response.StatusCode = (int)HttpStatusCode.OK;
@@ -58,7 +57,7 @@ namespace Musiche.Server
             }
             else
             {
-                ctx.Response.Headers.Set("Location", "/?redirect="+ctx.Request.Url.PathAndQuery);
+                ctx.Response.Headers.Set("Location", "/?redirect=" + ctx.Request.Url.PathAndQuery);
                 ctx.Response.StatusCode = (int)HttpStatusCode.Redirect;
             }
         }
@@ -70,6 +69,49 @@ namespace Musiche.Server
             window.Dispatcher.Invoke(() =>
             {
                 window.SetTitle(title);
+            });
+            await SendString(ctx, "");
+        }
+
+        [Router("/fadein")]
+        public async Task SetFadeIn(HttpListenerContext ctx)
+        {
+            string fadeIn = ctx.Request.DataAsString();
+            audioPlay.Dispatcher.Invoke(() =>
+            {
+                audioPlay.SetFadeIn(!string.IsNullOrWhiteSpace(fadeIn));
+            });
+            await SendString(ctx, "");
+        }
+
+        [Router("/delayExit")]
+        public async Task SetDelayExit(HttpListenerContext ctx)
+        {
+            string queryShutdown = ctx.Request.QueryString.Get("shutdown");
+            bool shutdown = queryShutdown == "true" || queryShutdown == "1";
+            int.TryParse(ctx.Request.DataAsString(), out int delayMinute);
+            window.Dispatcher.Invoke(() =>
+            {
+                window.DelayExit(delayMinute, shutdown);
+            });
+            await SendString(ctx, "");
+        }
+
+        [Router("/gpu")]
+        public async Task SetGPU(HttpListenerContext ctx)
+        {
+            string disableGPU = ctx.Request.DataAsString();
+            window.Dispatcher.Invoke(() =>
+            {
+                string disableGPUPath = Path.Combine(Musiche.Utils.File.Webview2Path, Musiche.Utils.File.DisableGPUName);
+                if (!string.IsNullOrWhiteSpace(disableGPU))
+                {
+                    File.WriteAllText(disableGPUPath, "");
+                }
+                else if (File.Exists(disableGPUPath))
+                {
+                    File.Delete(disableGPUPath);
+                }
             });
             await SendString(ctx, "");
         }
@@ -257,7 +299,7 @@ namespace Musiche.Server
             Logger.Logger.Debug("HttpProxy", proxyData.Method, proxyData.Url);
             proxyResData = await HttpProxy.Request(proxyData);
             Logger.Logger.Debug("HttpProxy", proxyData.Url, proxyResData.Data.Length, proxyResData.ContentLength);
-            if(proxyResData.StatusCode > 300 && proxyResData.StatusCode < 310)
+            if (proxyResData.StatusCode > 300 && proxyResData.StatusCode < 310)
             {
                 ctx.Response.StatusCode = 200;
                 ctx.Response.ContentType = "application/json";
@@ -360,7 +402,7 @@ namespace Musiche.Server
             }
             HttpListenerResponse response = context.Response;
             string router = context.Request.Url?.LocalPath.TrimEnd('/') ?? "*";
-            routers.TryGetValue(router, out MethodInfo methodInfo);
+            routers.TryGetValue(router.ToUpper(), out MethodInfo methodInfo);
             if (methodInfo == null)
             {
                 methodInfo = routers["*"];

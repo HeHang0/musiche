@@ -1,7 +1,6 @@
 ﻿using Musiche.Audio;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.Windows;
 
 namespace Musiche.Server
 {

@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Musiche.Server
@@ -41,7 +39,7 @@ namespace Musiche.Server
                 {
                     resHeaders.Add(item, response.Headers.Get(item) ?? string.Empty);
                 }
-                if(data.SetCookieRename && resHeaders.ContainsKey("Set-Cookie"))
+                if (data.SetCookieRename && resHeaders.ContainsKey("Set-Cookie"))
                 {
                     resHeaders.Add("Set-Cookie-Renamed", resHeaders["Set-Cookie"]);
                 }

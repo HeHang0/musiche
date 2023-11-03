@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO.Compression;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO.Compression;
 
 namespace Musiche.Server
 {
@@ -59,7 +55,7 @@ namespace Musiche.Server
 
         public string GetMimeType(string filePath)
         {
-            switch(Path.GetExtension(filePath))
+            switch (Path.GetExtension(filePath))
             {
                 case ".html":
                     return "text/html";

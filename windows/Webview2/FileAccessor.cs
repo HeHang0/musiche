@@ -1,5 +1,8 @@
-﻿using System;
+﻿using Microsoft.WindowsAPICodePack.Dialogs;
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Musiche.Webview2
@@ -8,7 +11,7 @@ namespace Musiche.Webview2
     {
         public FileAccessor()
         {
-            Utils.File.CreateDirectoryIFNotExists(Utils.File.StoragePath);
+            //Utils.File.CreateDirectoryIFNotExists(Utils.File.StoragePath);
         }
 
 #pragma warning disable CS1998
@@ -26,6 +29,65 @@ namespace Musiche.Webview2
             {
                 return string.Empty;
             }
+        }
+
+#pragma warning disable CS1998
+        public async Task<string[]> ShowSelectedDirectory()
+        {
+            CommonOpenFileDialog dialog = new CommonOpenFileDialog();
+            dialog.IsFolderPicker = true;
+            dialog.Multiselect = true;
+            if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
+            {
+                return dialog.FileNames.ToArray();
+            }
+            return Array.Empty<string>();
+        }
+
+        public async Task<string[]> ListAllFiles(string filePath, bool recursive, bool onlyAudio = false)
+        {
+            return ListFilesRecursively(filePath, recursive, onlyAudio).ToArray();
+        }
+
+        public async Task<string> GetMyMusicDirectory()
+        {
+            return Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
+        }
+
+        private static readonly string[] AudioExtensions = new string[] { ".mp3", ".aiff", ".avi", ".mpg", ".mov", ".wav", ".flac", ".wma", ".ape", ".m4a" };
+        private List<string> ListFilesRecursively(string filePath, bool recursive, bool onlyAudio)
+        {
+            List<string> pathList = new List<string>();
+            if (!Directory.Exists(filePath)) return pathList;
+            try
+            {
+                foreach (string fileName in Directory.GetFiles(filePath))
+                {
+                    if (!onlyAudio || AudioExtensions.Contains(Path.GetExtension(fileName)))
+                    {
+                        pathList.Add(fileName);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Logger.Error("ListFilesRecursively GetFiles Error: ", ex);
+            }
+            if (recursive)
+            {
+                try
+                {
+                    foreach (string directoryName in Directory.GetDirectories(filePath))
+                    {
+                        pathList.AddRange(ListFilesRecursively(directoryName, recursive, onlyAudio));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Logger.Error("ListFilesRecursively GetDirectories Error: ", ex);
+                }
+            }
+            return pathList;
         }
 
         public async Task WriteFile(string filePath, string text)
@@ -54,6 +116,18 @@ namespace Musiche.Webview2
             }
 
             return Task.CompletedTask;
+        }
+
+        public async Task<bool> FileExists(string filePath)
+        {
+            try
+            {
+                return File.Exists(filePath);
+            }
+            catch (Exception)
+            {
+            }
+            return false;
         }
 #pragma warning restore CS1998
     }

@@ -7,14 +7,35 @@ namespace Musiche.Audio
     public delegate void PlatStateChangedEventHandler(object sender, PlaybackState state);
     public class AudioPlay
     {
-        MediaFoundationReader mediaFoundationReader = null;
+        AudioFileReader mediaFoundationReader = null;
         WaveOut wasapiOut = null;
         public event PlatStateChangedEventHandler PlatStateChanged;
         public Dispatcher Dispatcher;
+        readonly DispatcherTimer fadeInTimer;
+        float fadeInVolume = 0;
+        bool fadeIn = false;
         public AudioPlay()
         {
             Dispatcher = Dispatcher.CurrentDispatcher;
+            fadeInTimer = new DispatcherTimer();
+            fadeInTimer.Interval = TimeSpan.FromMilliseconds(100);
+            fadeInTimer.Tick += OnFadeInTimerTick;
             wasapiOut = new WaveOut();
+        }
+
+        private void OnFadeInTimerTick(object sender, EventArgs e)
+        {
+            if (fadeInVolume > 0 && fadeInVolume > wasapiOut.Volume && fadeInVolume <= 1)
+            {
+                wasapiOut.Volume = (float)Math.Min(fadeInVolume, wasapiOut.Volume + 0.1);
+                Logger.Logger.Debug("设置淡入声音", wasapiOut.Volume);
+            }
+            else
+            {
+                fadeInVolume = 0;
+                (sender as DispatcherTimer).Stop();
+                Logger.Logger.Debug("结束淡入声音", fadeInVolume);
+            }
         }
 
         private void WasapiOut_PlaybackStopped(object sender, StoppedEventArgs e)
@@ -38,11 +59,11 @@ namespace Musiche.Audio
             wasapiOut?.Dispose();
             try
             {
-                mediaFoundationReader = new MediaFoundationReader(url);
+                mediaFoundationReader = new AudioFileReader(url);
                 wasapiOut = new WaveOut();
-                Volume = _volume;
                 wasapiOut.PlaybackStopped += WasapiOut_PlaybackStopped;
                 wasapiOut.Init(mediaFoundationReader);
+                RunFadeIn();
                 wasapiOut?.Play();
                 if (_progress > 0)
                 {
@@ -55,13 +76,34 @@ namespace Musiche.Audio
             PlatStateChanged?.Invoke(this, wasapiOut?.PlaybackState ?? PlaybackState.Stopped);
         }
 
+        private void RunFadeIn()
+        {
+            if (fadeIn)
+            {
+                fadeInVolume = _volume * 1.0f / 100;
+                wasapiOut.Volume = 0;
+                fadeInTimer.Start();
+                Logger.Logger.Debug("开始淡入声音", fadeInVolume);
+            }
+            else
+            {
+                Volume = _volume;
+            }
+        }
+
         public void Play()
         {
             if (mediaFoundationReader != null)
             {
+                RunFadeIn();
                 wasapiOut?.Play();
                 PlatStateChanged?.Invoke(this, wasapiOut?.PlaybackState ?? PlaybackState.Stopped);
             }
+        }
+
+        public void SetFadeIn(bool fadeIn)
+        {
+            this.fadeIn = fadeIn;
         }
 
         public void Pause()
@@ -108,6 +150,7 @@ namespace Musiche.Audio
         {
             get
             {
+                if (fadeInVolume > 0) return (int)(fadeInVolume * 100);
                 return _volume;
             }
             set

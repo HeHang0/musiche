@@ -1,5 +1,4 @@
 ﻿using NHotkey;
-using NHotkey.Wpf;
 using System;
 using System.Linq;
 using System.Windows.Input;
@@ -22,7 +21,7 @@ namespace Musiche.Hotkey
 
         public static ShortcutType ParseType(string typeString)
         {
-            if(string.IsNullOrEmpty(typeString)) return ShortcutType.None;
+            if (string.IsNullOrEmpty(typeString)) return ShortcutType.None;
             typeString = typeString.First().ToString().ToUpper() + typeString.Substring(1);
             if (Enum.TryParse(typeString, out ShortcutType shortcutType))
             {

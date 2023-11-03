@@ -10,6 +10,7 @@ namespace Musiche.Utils
         public static readonly string DataPath;
         public static readonly string StoragePath;
         public static readonly string Webview2Path;
+        public static readonly string DisableGPUName = "--disable-gpu";
 
         static File()
         {

@@ -1,15 +1,15 @@
-﻿using System.Drawing.Drawing2D;
+﻿using System;
 using System.Drawing;
-using System.Windows.Forms;
+using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
-using System;
+using System.Windows.Forms;
 
 namespace Musiche.NotifyIcon
 {
     public class ModernToolStripRenderer : ToolStripProfessionalRenderer
     {
-        private Font iconFont;
-        private System.Drawing.Text.PrivateFontCollection privateFonts;
+        private readonly Font iconFont;
+        private readonly System.Drawing.Text.PrivateFontCollection privateFonts;
         public ModernToolStripRenderer()
         {
             int length = Properties.Resources.iconfont.Length;
@@ -125,7 +125,7 @@ namespace Musiche.NotifyIcon
 
         protected override void OnRenderItemImage(ToolStripItemImageRenderEventArgs e)
         {
-            if(e.Item.Tag != null)
+            if (e.Item.Tag != null)
             {
                 e.Graphics.DrawString(e.Item.Tag.ToString(), iconFont, new SolidBrush(e.Item.ForeColor), e.ImageRectangle.X + 5, e.ImageRectangle.Y + 5);
             }

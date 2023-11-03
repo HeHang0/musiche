@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Threading;
 
 namespace Musiche.Logger
@@ -16,8 +14,8 @@ namespace Musiche.Logger
             Error, Warning, Info, Debug
         }
 
-        private static HashSet<Stream> streams = new HashSet<Stream>();
-        private static Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
+        private static readonly HashSet<Stream> streams = new HashSet<Stream>();
+        private static readonly Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
 
         public static void Error(params object[] message)
         {

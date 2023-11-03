@@ -3,9 +3,12 @@ using Musiche.NotifyIcon;
 using Musiche.Server;
 using Musiche.Webview2;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace Musiche
@@ -15,7 +18,7 @@ namespace Musiche
     /// </summary>
     public partial class MainWindow : Window
     {
-        readonly Webview2Control webview2;
+        //readonly Webview2Control webview2;
         readonly AudioPlay audioPlay;
         readonly WebServer webServer;
         readonly WebSocketHandler webSocketHandler;
@@ -27,12 +30,13 @@ namespace Musiche
         {
             InitializeComponent();
             audioPlay = new AudioPlay();
-            webview2 = new Webview2Control();
+            InitWebview2();
+            WindowState = WindowState.Minimized;
 #if DEBUG
             webServer = new WebServer(54621);
-            webview2.Control.Source = new Uri("http://127.0.0.1:54621");
+            webview2.Control.Source = new Uri("http://127.0.0.1:5173");
             string exeDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location);
-            logStream = File.Open(Path.Combine(exeDirectory, "log."+DateTime.Now.ToString("yyyy-MM-dd")+".log"), FileMode.Append);
+            logStream = System.IO.File.Open(Path.Combine(exeDirectory, "log." + DateTime.Now.ToString("yyyy-MM-dd") + ".log"), FileMode.Append);
 #else
             int port = GetAvailablePort();
             webServer = new WebServer(port);
@@ -40,7 +44,6 @@ namespace Musiche
 #endif
             webSocketHandler = new WebSocketHandler(this, audioPlay);
             httpHandler = new HttpHandler(this, audioPlay);
-            InitWebview2();
             StateChanged += MainWindow_StateChanged;
             Closing += MainWindow_Closing;
             SourceInitialized += MainWindow_SourceInitialized;
@@ -101,13 +104,55 @@ namespace Musiche
         {
             if (Webview2Control.Available)
             {
-                Content = webview2;
+                //Content = webview2;
+                //Hide();
+                webview2.CoreWebView2DOMContentLoaded += Webview2_CoreWebView2DOMContentLoaded;
             }
             else
             {
                 MessageBox.Show("调用Webview2失败");
                 Application.Current.Shutdown();
             }
+        }
+
+        private void Webview2_CoreWebView2DOMContentLoaded(object sender, Microsoft.Web.WebView2.Core.CoreWebView2DOMContentLoadedEventArgs e)
+        {
+            webview2.CoreWebView2DOMContentLoaded -= Webview2_CoreWebView2DOMContentLoaded;
+            Left = (SystemParameters.PrimaryScreenWidth / 2) - (ActualWidth / 2);
+            Top = (SystemParameters.PrimaryScreenHeight / 2) - (ActualHeight / 2);
+            WindowState = WindowState.Normal;
+        }
+
+        private CancellationTokenSource deleyExitTaskCancel = null;
+        private bool delayExitShutdown = false;
+        public void DelayExit(int minute, bool shutdown)
+        {
+            delayExitShutdown = shutdown;
+            deleyExitTaskCancel?.Cancel();
+            deleyExitTaskCancel?.Dispose();
+            deleyExitTaskCancel = null;
+            if (minute > 0)
+            {
+                deleyExitTaskCancel = new CancellationTokenSource();
+                Task.Delay(minute * 60 * 1000, deleyExitTaskCancel.Token).ContinueWith(ExitOnDelay);
+            }
+        }
+
+        private void ExitOnDelay(Task sender)
+        {
+            if (sender.IsCanceled) return;
+            Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    if (delayExitShutdown) Process.Start(new ProcessStartInfo("shutdown", "/s /t 30") { UseShellExecute = true });
+                }
+                catch (Exception ex)
+                {
+                    Logger.Logger.Error("Shutdown Error: ", ex);
+                }
+                ExitApp(null, null);
+            });
         }
 
         private static int GetAvailablePort()

@@ -18,7 +18,7 @@ namespace Musiche.Server
 
                 foreach (RouterAttribute attribute in attributes)
                 {
-                    routers.Add(attribute.Router, method);
+                    routers.Add(attribute.Router.ToUpper(), method);
                 }
             }
             return routers;

@@ -70,7 +70,7 @@ namespace Musiche.Server
                         foreach (var message in messageList)
                         {
                             var commands = message.Split(',');
-                            routers.TryGetValue(commands[0], out MethodInfo methodInfo);
+                            routers.TryGetValue(commands[0].ToUpper(), out MethodInfo methodInfo);
                             if (methodInfo != null)
                             {
                                 var task = methodInfo.Invoke(this, new object[] { webSocket, commands }) as Task;

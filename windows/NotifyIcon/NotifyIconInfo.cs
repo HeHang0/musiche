@@ -1,5 +1,4 @@
-﻿using Musiche.Audio;
-using Musiche.Server;
+﻿using Musiche.Server;
 using NAudio.Wave;
 using System;
 using System.Drawing;
@@ -104,7 +103,7 @@ namespace Musiche.NotifyIcon
                 case "顺": loopType = "order"; break;
             }
             if (menuItem == null) return;
-            webSocketHandler.SendMessage("{\"type\": \"loop\",\"data\":\""+ loopType + "\"}");
+            webSocketHandler.SendMessage("{\"type\": \"loop\",\"data\":\"" + loopType + "\"}");
         }
 
         public void Dispose()
@@ -119,7 +118,7 @@ namespace Musiche.NotifyIcon
                 case "single": loopType = "单"; break;
                 case "random": loopType = "随"; break;
                 case "order": loopType = "顺"; break;
-                    default : loopType = "环"; break;
+                default: loopType = "环"; break;
             }
             loopTypeMenu.Tag = loopType;
             loopTypeMenu.Image = new Bitmap(1, 1);

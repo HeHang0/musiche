@@ -29,6 +29,7 @@ namespace Musiche.Webview2
             Unloaded += WebView2_Unloaded;
             Loaded += Webview2Control_Loaded;
             InitWebViewCore();
+            Logger.Logger.Info("webview2创建================================");
         }
 
         private async void InitWebViewCore()
@@ -37,6 +38,7 @@ namespace Musiche.Webview2
             webview2.CoreWebView2InitializationCompleted += OnCoreWebView2InitializationCompleted;
             webview2.WebMessageReceived += OnWebMessageReceived;
             await webview2.EnsureCoreWebView2Async(_coreEnvironment);
+            Logger.Logger.Info("webview2初始化================================");
         }
 
         static Webview2Control()
@@ -44,7 +46,12 @@ namespace Musiche.Webview2
             try
             {
                 SetLoaderDll();
-                _coreEnvironment = CoreWebView2Environment.CreateAsync(userDataFolder: Utils.File.Webview2Path).Result;
+                CoreWebView2EnvironmentOptions environmentOptions = new CoreWebView2EnvironmentOptions();
+                if (File.Exists(Path.Combine(Utils.File.Webview2Path, Utils.File.DisableGPUName)))
+                {
+                    environmentOptions.AdditionalBrowserArguments = "--disable-gpu";
+                }
+                _coreEnvironment = CoreWebView2Environment.CreateAsync(userDataFolder: Utils.File.Webview2Path, options: environmentOptions).Result;
             }
             catch (Exception ex)
             {
@@ -93,11 +100,13 @@ namespace Musiche.Webview2
             webview2.CoreWebView2.ContainsFullScreenElementChanged += CoreWebView2_ContainsFullScreenElementChanged;
             webview2.CoreWebView2.DOMContentLoaded += CoreWebView2_DOMContentLoaded;
             CoreWebView2InitializationCompleted?.Invoke(sender, e);
+            Logger.Logger.Info("webview2 核心初始化================================");
         }
 
         private void CoreWebView2_DOMContentLoaded(object sender, CoreWebView2DOMContentLoadedEventArgs e)
         {
             CoreWebView2DOMContentLoaded?.Invoke(sender, e);
+            Logger.Logger.Info("webview2 文档加载================================");
         }
 
         private WindowState normalWindowState = WindowState.Normal;

@@ -3,10 +3,7 @@ using NHotkey;
 using NHotkey.Wpf;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -33,7 +30,7 @@ namespace Musiche.Hotkey
                 return registerMedia();
             }
             ShortcutType shortcutType = shortcutKey.ParseType();
-            if(shortcutType == ShortcutType.None) return "热键注册类型不能为空";
+            if (shortcutType == ShortcutType.None) return "热键注册类型不能为空";
             ModifierKeys modifierKeys = shortcutKey.ParseModifierKeys();
             Key key = shortcutKey.ParseKey();
             if (modifierKeys == ModifierKeys.None) return "修饰键不能为空";
