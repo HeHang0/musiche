@@ -38,11 +38,9 @@ const props = withDefaults(defineProps<Props>(), {
 .music-play-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  padding-right: 5px;
   grid-column-gap: 5px;
   grid-row-gap: 10px;
   width: 100%;
-  height: 100%;
   padding-bottom: 10px;
   & > a {
     padding: 2px;
@@ -53,7 +51,7 @@ const props = withDefaults(defineProps<Props>(), {
     height: 180px;
     position: relative;
     color: white;
-    border-radius: var(--music-border-radio);
+    border-radius: var(--music-border-radius);
     // outline: 2px solid rgba(85, 85, 85, 0.1);
     overflow: hidden;
     box-shadow: 0px 0px 2px 0px #9a94945c;

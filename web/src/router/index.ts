@@ -56,19 +56,31 @@ const routers: RouteRecordRaw[] = [
   {
     path: '/lover',
     name: '我喜欢的音乐',
-    meta: { key: 'lover', show: false, localShow: true },
+    meta: {
+      key: 'lover',
+      show: true,
+      icon: '爱',
+      localShow: true,
+      divider: true
+    },
     component: () => import(`../views/playlist.vue`)
   },
   {
     path: '/recent',
     name: '最近播放',
-    meta: { key: 'recent', show: false, localShow: true },
+    meta: { key: 'recent', icon: '时', localShow: true },
     component: () => import(`../views/playlist.vue`)
+  },
+  {
+    path: '/local',
+    name: '本地音乐',
+    meta: { key: 'local', icon: '乐' },
+    component: () => import(`../views/local.vue`)
   },
   {
     path: '/created/:id',
     name: '创建的歌单',
-    meta: { key: 'created', show: false, localShow: true },
+    meta: { key: 'created', show: false, localShow: true, divider: true },
     component: () => import(`../views/playlist.vue`)
   },
   {

@@ -45,7 +45,6 @@ export class MusicConnection {
   }
 
   onKeyUp(event: KeyboardEvent) {
-    console.log('keyup', event);
     const target = event.target as HTMLElement;
     if (target?.tagName == 'INPUT' || target?.tagName == 'TEXTAREA') return;
     if (

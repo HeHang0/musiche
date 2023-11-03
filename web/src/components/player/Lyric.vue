@@ -87,6 +87,7 @@ onUnmounted(() => {
       </div>
       <div
         class="music-lyric-desc"
+        v-show="play.music.album || play.music.singer"
         :style="pure ? 'justify-content: center' : ''">
         <div v-if="!props.pure">
           <span>专辑：</span
@@ -102,7 +103,7 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-    <div class="music-lyric-content">
+    <div class="music-lyric-content" v-show="musicLyric.length > 0">
       <div
         v-for="(line, index) in musicLyric"
         :id="lyricLineIdPrefix + index"
@@ -120,6 +121,7 @@ onUnmounted(() => {
   color: white;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   &-header {
     height: 100px;
     font-size: 26px;

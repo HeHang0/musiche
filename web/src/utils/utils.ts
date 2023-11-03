@@ -1,4 +1,4 @@
-import { LyricLine } from './type';
+import { LyricLine, MusicFileInfo } from './type';
 
 interface SpecialService {
   MouseDownDrag: () => void;
@@ -10,6 +10,14 @@ interface FileAccessor {
   ReadFile: (path: string) => Promise<string>;
   WriteFile: (path: string, text: string) => Promise<void>;
   DeleteFile: (path: string) => Promise<void>;
+  FileExists: (path: string) => Promise<boolean>;
+  ShowSelectedDirectory: () => Promise<string[]>;
+  GetMyMusicDirectory: () => Promise<string>;
+  ListAllFiles: (
+    path: string,
+    recursive: boolean,
+    onlyAudio: boolean
+  ) => Promise<string[]>;
 }
 
 export const webView2Services = {
@@ -157,4 +165,106 @@ export function formatCookies(
   return Object.keys(cookies)
     .map(m => `${m}=${cookies[m]}`)
     .join('; ');
+}
+
+export async function checkReadPermission(
+  handle: FileSystemHandle
+): Promise<'granted' | 'denied' | 'prompt'> {
+  const options = { mode: 'read' };
+  let permission = await (handle as any).queryPermission(options);
+  if (permission === 'granted') return 'granted';
+  permission = await (handle as any).requestPermission({
+    mode: 'read'
+  });
+  if (permission === 'granted') return 'granted';
+  return 'prompt';
+}
+
+export async function readAudioFiles(
+  handle: FileSystemDirectoryHandle,
+  prefix: string
+) {
+  const files: MusicFileInfo[] = [];
+  try {
+    for await (const entry of (handle as any).entries() as [
+      string,
+      FileSystemDirectoryHandle | FileSystemFileHandle
+    ][]) {
+      try {
+        const filePath = prefix + '/' + entry[0];
+        if (entry[1].kind === 'directory') {
+          files.splice(
+            0,
+            0,
+            ...(await readAudioFiles(
+              entry[1] as FileSystemDirectoryHandle,
+              filePath
+            ))
+          );
+        }
+        const file = await (entry[1] as FileSystemFileHandle).getFile();
+        if (file instanceof File && file.type.includes('audio')) {
+          files.push({
+            path: filePath,
+            file
+          });
+        }
+      } catch {}
+    }
+  } catch {}
+  return files;
+}
+
+export function getFileName(filePath: string) {
+  if (!filePath || typeof filePath !== 'string') return '';
+  const fileNames = filePath.split(/[\\\/]/g);
+  return fileNames[fileNames.length - 1].replace(/\.[a-zA-Z\d]+$/, '');
+}
+
+export function clearArray(array: any[]) {
+  if (Array.isArray(array)) {
+    array.splice(0, array.length);
+  }
+}
+
+export async function imageToDataUrl(
+  imageUrl: string,
+  maxWidth?: number,
+  maxHeight?: number
+): Promise<string> {
+  var image = new Image();
+  image.crossOrigin = 'Anonymous';
+  image.src = imageUrl;
+  await new Promise(resolve => {
+    image.onload = resolve;
+  });
+  let width = image.width;
+  let height = image.height;
+
+  if (maxWidth && maxWidth < width) {
+    height = (maxWidth * height) / width;
+    width = maxWidth;
+  }
+  if (maxHeight && maxHeight < height) {
+    width = (maxHeight * width) / height;
+    height = maxHeight;
+  }
+
+  image.width = width;
+  image.height = height;
+
+  let canvas = document.createElement('canvas');
+  canvas.setAttribute('width', `${width}px`);
+  canvas.setAttribute('height', `${height}px`);
+  var ctx = canvas.getContext('2d');
+  if (!ctx) {
+    image.remove();
+    canvas.remove();
+    return '';
+  }
+  ctx.drawImage(image, 0, 0, image.width, image.height);
+  const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
+  image.remove();
+  canvas.remove();
+  return dataUrl;
 }

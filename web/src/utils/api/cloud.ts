@@ -16,6 +16,8 @@ const QRCode = () => import('qrcode');
 
 const musicType: MusicType = 'cloud';
 
+var cloudCookie: Record<string, string> = {};
+
 var qrcodeGenerate: (text: string) => Promise<string> = async (
   text: string
 ) => {
@@ -476,10 +478,12 @@ export function rankingPlaylist(ranking: RankingType): Playlist {
 
 export async function musicDetail(music: Music) {
   var url = 'http://music.163.com/weapi/song/enhance/player/url?csrf_token=';
+  const csrfToken = cloudCookie['__csrf'] || '';
+  const musicU = cloudCookie['MUSIC_U'] || '';
   const data = {
     ids: [music.id],
     br: 320000,
-    csrf_token: ''
+    csrf_token: csrfToken
   };
   var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
   param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
@@ -492,7 +496,7 @@ export async function musicDetail(music: Music) {
     method: 'POST',
     data: paramData,
     headers: {
-      Cookie: 'os=ios;MUSIC_U=',
+      Cookie: 'os=ios;MUSIC_U=' + musicU,
       Referer: 'https://music.163.com',
       ContentType: 'application/x-www-form-urlencoded',
       UserAgent:
@@ -694,6 +698,7 @@ export async function userInfo(
   });
   const ret = await res.json();
   if (!ret || !ret.profile || !ret.profile.userId) return null;
+  cloudCookie = cookie;
   return {
     id: ret.profile.userId,
     name: ret.profile.nickname,

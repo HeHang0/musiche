@@ -62,6 +62,9 @@ export class AudioPlayer {
         this.fadeInVolume = undefined;
       }
       await this.audio.play();
+      if (this.audio.src?.startsWith('blob')) {
+        URL.revokeObjectURL(this.audio.src);
+      }
     } catch {}
 
     if (this.progressTemp && !isNaN(this.audio.duration)) {

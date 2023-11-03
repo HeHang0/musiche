@@ -1,11 +1,45 @@
 :root {
     --el-skeleton-color: var(--music-skeleton-color);
     --el-color-primary: var(--music-color-primary);
+    --el-border-color: var(--music-button-info-border-color);
+}
+
+.el-switch {
+    --el-switch-on-color: var(--music-primary-color);
+
+    &.is-checked .el-switch__core,
+    .el-switch__core {
+        border-color: transparent !important;
+    }
+
+    &.is-checked .el-switch__core {
+        background-color: var(--music-primary-color) !important;
+    }
+}
+
+.el-input {
+
+    .el-input__wrapper,
+    .el-textarea__inner {
+        border-radius: var(--music-border-radius);
+        background-color: transparent;
+    }
+
+    .el-textarea__inner {
+        box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color)) inset;
+    }
+
+    .el-textarea__inner.is-focus,
+    .el-textarea__inner:hover,
+    .el-input__wrapper.is-focus,
+    .el-input__wrapper:hover {
+        box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color)) inset;
+    }
 }
 
 .el-button {
     height: 37px;
-    border-radius: var(--music-border-radio);
+    border-radius: var(--music-border-radius);
     border: 1px solid var(--music-button-info-border-color);
     background: var(--music-button-background);
     outline: none !important;
@@ -39,7 +73,7 @@
 }
 
 .el-dialog {
-    border-radius: var(--music-border-radio);
+    border-radius: var(--music-border-radius);
 }
 
 .el-dialog__header {
@@ -48,7 +82,7 @@
 }
 
 .el-message-box {
-    border-radius: var(--music-border-radio);
+    border-radius: var(--music-border-radius);
 
     .el-message-box__header {
         font-weight: bold;
@@ -97,7 +131,7 @@
 
         button {
             width: 140px;
-            border-radius: calc(var(--music-infinity) * 1px);
+            border-radius: var(--music-infinity);
         }
 
         button:nth-child(2) {
@@ -108,7 +142,7 @@
 
 .el-button--info {
     height: 37px;
-    border-radius: var(--music-border-radio);
+    border-radius: var(--music-border-radius);
     border-color: var(--music-button-info-border-color);
 
     &,
@@ -128,6 +162,19 @@
 .el-button-group+.el-button,
 .el-button+.el-button {
     margin-left: var(--music-button-margin);
+}
+
+.el-overlay {
+    background-color: transparent;
+}
+
+.radio-group-vertical {
+    flex-direction: column;
+    align-items: flex-start;
+
+    .el-radio {
+        margin: 0;
+    }
 }
 
 .el-radio {
@@ -171,16 +218,23 @@
     --el-checkbox-checked-bg-color: var(--music-primary-color);
     --el-checkbox-checked-input-border-color: var(--music-primary-color);
     --el-checkbox-font-weight: inherit;
+    --el-checkbox-checked-text-color: inherit;
+    --el-checkbox-input-border-color-hover: var(--music-button-info-border-color-hover);
+    --el-checkbox-disabled-input-fill: var(--music-side-background);
+
 
     &__inner::after {
         border-width: 3px;
         border-radius: 1px;
+        left: 3.4px;
+        top: 0;
     }
 }
 
 .el-select {
-    border-radius: calc(var(--music-infinity) * 1px);
-    box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color)) inset;
+    border-radius: var(--music-infinity);
+    box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color)) inset !important;
+    --el-select-input-focus-border-color: transparent !important;
 
     .el-input {
         &__wrapper {
@@ -200,6 +254,92 @@
     &__popper {
         .el-select-dropdown__item {
             padding: 0 10px;
+        }
+    }
+}
+
+.el-slider {
+    height: 20px;
+
+    .el-slider__runway {
+        height: 100%;
+        position: relative;
+        display: flex;
+        align-items: center;
+        background-color: transparent;
+        cursor: default;
+
+        &::before {
+            content: ' ';
+            width: 100%;
+            height: var(--music-progress-height);
+            position: absolute;
+            left: 0;
+            top: calc(50% - calc(var(--music-progress-height) / 2));
+            border-radius: var(--el-slider-border-radius);
+            background-color: #7c7c7c33;
+        }
+
+        .el-slider__button-wrapper {
+            cursor: default;
+            top: -2px;
+            display: none;
+            height: 20px;
+            width: 20px;
+        }
+    }
+
+    .el-slider__bar {
+        height: var(--music-progress-height);
+        cursor: default;
+        transition: width 0.5s;
+        background-color: var(--music-slider-color);
+        border-radius: var(--el-slider-border-radius);
+    }
+
+    .el-slider__button {
+        height: 10px;
+        width: 10px;
+        border: none;
+        box-shadow: 0px 0px 4px 0px #9a94945c;
+        cursor: default;
+        transform: none;
+    }
+
+    &:hover {
+        .el-slider__bar {
+            background: var(--music-slider-hover-color);
+        }
+
+        .el-slider__button-wrapper {
+            display: block;
+        }
+    }
+
+    &.music-slider-primary .el-slider__bar {
+        background: var(--music-slider-primary-color);
+    }
+
+    &.music-slider-primary:hover .el-slider__bar {
+        background-color: var(--music-slider-primary-hover-color);
+    }
+}
+
+.el-scrollbar {
+    .el-scrollbar__view {
+        height: 100%;
+        width: 100%;
+    }
+}
+
+.wide-scrollbar {
+    .el-scrollbar__bar {
+        &.is-horizontal {
+            height: 16px;
+        }
+
+        &.is-vertical {
+            width: 16px;
         }
     }
 }
@@ -239,5 +379,5 @@
     min-width: unset !important;
     --el-popover-padding: 2px 3px;
     --el-popover-font-size: 13px;
-    --el-popover-border-radius: var(--music-border-radio);
+    --el-popover-border-radius: var(--music-border-radius);
 }

@@ -31,7 +31,7 @@ export async function musicOperate(
   data?: string,
   headers?: HeadersInit
 ): Promise<string | any> {
-  if (useLocalAudio) {
+  if (useLocalAudio && url !== '/version') {
     const route = url.substring(1);
     try {
       return localAudio?.process(route, data);

@@ -1,14 +1,24 @@
 <script lang="ts" setup>
+import { ElMessageBox } from 'element-plus';
 import { Ref, h, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useDebounceFn } from '@vueuse/core';
-import { WarningFilled } from '@element-plus/icons-vue';
-import { scrollToElementId, webView2Services } from '../utils/utils';
-import { useSettingStore } from '../stores/setting';
-import { CloseType, MusicType, ShortcutType } from '../utils/type';
-import { ElMessageBox } from 'element-plus';
+import { WarningFilled, PictureFilled } from '@element-plus/icons-vue';
+
 import Login from '../components/Login.vue';
+
+import { useSettingStore } from '../stores/setting';
+import { musicOperate } from '../utils/http';
 import { musicTypeInfoAll } from '../utils/platform';
+import { AppTheme, CloseType, MusicType, ShortcutType } from '../utils/type';
+import {
+  imageToDataUrl,
+  scrollToElementId,
+  webView2Services
+} from '../utils/utils';
+
+import LogoImageCircle from '../assets/images/logo-circle.png';
+import { ThemeColor } from '../utils/color';
 
 const { currentRoute, replace } = useRouter();
 const subItems = [
@@ -19,6 +29,10 @@ const subItems = [
   {
     name: '常规',
     id: 'general'
+  },
+  {
+    name: '主题',
+    id: 'theme'
   },
   {
     name: '播放',
@@ -42,7 +56,7 @@ const subItems = [
   }
 ];
 if (webView2Services.enabled) {
-  subItems.splice(2, 0, {
+  subItems.splice(3, 0, {
     name: '系统',
     id: 'system'
   });
@@ -81,6 +95,30 @@ const currentId = ref(
 const tableEle: Ref<HTMLTableElement | null> = ref(null);
 const defaultFonts = ['宋体', '等线', '仿宋', '黑体', '楷体', '微软雅黑'];
 const setting = useSettingStore();
+const currentVersion = ref('');
+const remoteVersion = ref('');
+const delayMinute = ref(0);
+const delaySecond = ref(0);
+const delayExit = ref(false);
+const delayShutdown = ref(false);
+const themes = ref([
+  {
+    id: '',
+    name: '默认',
+    color: 'white'
+  },
+  {
+    id: 'dark',
+    name: '深色',
+    color: 'black'
+  },
+  setting.customTheme,
+  {
+    id: 'red',
+    name: '红',
+    color: 'rgb(255,58,58)'
+  }
+] as AppTheme[]);
 var scrollByRouter = false;
 const unWatch = watch(
   () => currentRoute.value.hash,
@@ -169,7 +207,91 @@ function login(type: MusicType) {
   }).catch(() => {});
 }
 
-onMounted(setItemsIdTitle);
+async function checkLocalVersion() {
+  currentVersion.value = await musicOperate('/version');
+}
+
+async function checkRemoveVersion() {
+  const res = await fetch('https://hehang0.github.io/musiche/version');
+  remoteVersion.value = await res.text();
+}
+
+function delayExitChange() {
+  console.log(
+    '关闭',
+    delayMinute.value * 60 + delaySecond.value,
+    delayExit.value,
+    delayShutdown.value
+  );
+  if (delayShutdown.value && !delayExit.value) {
+    delayShutdown.value = false;
+  }
+  musicOperate(
+    '/delayExit?shutdown=' + (delayShutdown.value ? 'true' : ''),
+    (delayExit.value
+      ? delayMinute.value * 60 + delaySecond.value
+      : 0
+    ).toString()
+  );
+}
+
+function getCardBackground(appTheme: AppTheme) {
+  if (appTheme.image) {
+    return `background: url(${appTheme.image}) 50% 50% / cover`;
+  } else if (appTheme.color) {
+    return 'background: ' + appTheme.color;
+  }
+  return 'background: var(--el-fill-color-light)';
+}
+
+async function setCustomTheme() {
+  const image: FileSystemFileHandle[] = await (
+    window as any
+  ).showOpenFilePicker({
+    multiple: false,
+    excludeAcceptAllOption: true,
+    types: [
+      {
+        description: '图像',
+        accept: {
+          'image/*': ['.png', '.gif', '.jpeg', '.jpg', '.bmp', '.webp', '.tif']
+        }
+      }
+    ]
+  });
+  if (!image || image.length === 0) return;
+  const file = await image[0].getFile();
+  const fileUrl = URL.createObjectURL(file);
+  const dataUrl = await imageToDataUrl(fileUrl, 1920);
+  URL.revokeObjectURL(fileUrl);
+  new ThemeColor(dataUrl, (_: string, dark?: boolean) => {
+    setting.setCustomTheme({
+      id: 'custom ' + (dark ? 'dark' : ''),
+      image: dataUrl
+    });
+    if (setting.customTheme.image) {
+      setting.setAppTheme(setting.customTheme);
+    }
+  });
+}
+
+function setAppTheme(theme: AppTheme) {
+  if (
+    theme.id?.startsWith('custom') &&
+    (!theme.image || setting.appTheme.id === setting.customTheme.id)
+  ) {
+    setCustomTheme();
+    return;
+  }
+  if (theme.id === setting.appTheme.id) return;
+  setting.setAppTheme(theme);
+}
+
+onMounted(() => {
+  setItemsIdTitle();
+  checkLocalVersion();
+  checkRemoveVersion();
+});
 onUnmounted(unWatch);
 </script>
 <template>
@@ -258,12 +380,10 @@ onUnmounted(unWatch);
             <el-checkbox
               v-if="webView2Services.enabled"
               v-model="setting.pageValue.gpuAcceleration"
-              @change="setting.setGpuAcceleration"
+              @change="setting.setGpuAcceleration()"
               size="large">
-              开启GPU加速
-              <span class="music-setting-subtext">
-                (若软件黑屏，尝试关闭GPU加速功能解决)
-              </span>
+              使用硬件加速模式
+              <span class="music-setting-subtext">（如果可用）</span>
             </el-checkbox>
             <el-checkbox
               v-model="setting.pageValue.disableAnimation"
@@ -276,18 +396,73 @@ onUnmounted(unWatch);
             </el-checkbox>
           </td>
         </tr>
+        <tr>
+          <td></td>
+          <td class="music-setting-theme">
+            <span>
+              <el-switch
+                v-model="setting.autoAppTheme"
+                @change="setting.autoAppThemeChanged()"></el-switch>
+              跟随系统
+            </span>
+            <div
+              class="music-setting-theme-container"
+              v-if="!setting.autoAppTheme">
+              <div
+                class="music-setting-theme-card"
+                v-for="theme in themes"
+                @click="setAppTheme(theme)">
+                <div
+                  class="music-setting-theme-card-color"
+                  :style="getCardBackground(theme)">
+                  <el-icon v-if="!theme.color && !theme.image"
+                    ><PictureFilled
+                  /></el-icon>
+                  <img :src="LogoImageCircle" />
+                  <el-checkbox
+                    v-if="setting.appTheme.id == theme.id"
+                    checked></el-checkbox>
+                </div>
+                <span class="music-setting-theme-card-name">{{
+                  theme.name
+                }}</span>
+              </div>
+            </div>
+          </td>
+        </tr>
         <tr v-if="webView2Services.enabled">
           <td></td>
           <td class="music-setting-system">
             <el-checkbox
-              v-model="setting.pageValue.timeClose"
-              @change="setting.setStartup"
+              v-model="delayExit"
+              @change="delayExitChange"
               label="开启定时关闭软件"
               size="large" />
+            <span>
+              剩余关闭时间
+              <el-select v-model="delayMinute" @change="delayExitChange">
+                <el-option
+                  v-for="(_, index) in new Array(24)"
+                  :key="index"
+                  :label="index"
+                  :value="index">
+                </el-option>
+              </el-select>
+              小时
+              <el-select v-model="delaySecond" @change="delayExitChange">
+                <el-option
+                  v-for="(_, index) in new Array(60)"
+                  :key="index"
+                  :label="index"
+                  :value="index">
+                </el-option>
+              </el-select>
+              分钟
+            </span>
             <el-checkbox
-              v-model="setting.pageValue.timeCloseAndShutdown"
-              @change="setting.setStartup"
-              :disabled="!setting.pageValue.timeClose"
+              v-model="delayShutdown"
+              @change="delayExitChange"
+              :disabled="!delayExit"
               label="关闭软件同时关机"
               size="large" />
             <div>
@@ -320,7 +495,7 @@ onUnmounted(unWatch);
               size="large" />
             <el-checkbox
               v-model="setting.pageValue.fadeIn"
-              @change="setting.setFadeIn"
+              @change="setting.setFadeIn()"
               label="开启音乐淡入"
               size="large" />
             <div>
@@ -393,15 +568,36 @@ onUnmounted(unWatch);
         </tr>
         <tr>
           <td></td>
-          <td>我是账号</td>
+          <td></td>
         </tr>
         <tr>
           <td></td>
-          <td>我是账号</td>
+          <td></td>
         </tr>
         <tr>
           <td></td>
-          <td>我是账号</td>
+          <td class="music-setting-about">
+            <span> 当前版本 {{ currentVersion }} </span>
+            <span v-if="currentVersion != remoteVersion">
+              最新版本 {{ remoteVersion }}
+            </span>
+            <span
+              v-if="
+                !webView2Services.enabled && currentVersion != remoteVersion
+              ">
+              Windows:
+              <a
+                href="https://hehang0.github.io/musiche/Musiche.exe"
+                target="_blank"
+                >Musiche.exe</a
+              >
+              <a
+                href="https://hehang0.github.io/musiche/Musiche.net6.exe"
+                target="_blank"
+                >Musiche.exe[NET6.0]</a
+              >
+            </span>
+          </td>
         </tr>
       </table>
     </el-scrollbar>
@@ -520,6 +716,60 @@ onUnmounted(unWatch);
       font-weight: bold;
     }
   }
+  &-theme {
+    display: flex;
+    flex-direction: column;
+    &-container {
+      display: flex;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    &-card {
+      width: 150px;
+      height: 130px;
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+      border-radius: var(--music-border-radius);
+      margin: 0 10px 10px 0;
+      &:hover {
+        background: var(--music-button-info-border-color);
+      }
+      &-color {
+        border-radius: var(--music-border-radius);
+        border: 1px solid var(--music-button-info-border-color);
+        flex: 1;
+        background-size: cover;
+        & > * {
+          position: absolute;
+        }
+        img {
+          width: 30px;
+          height: 30px;
+          left: 10px;
+          top: 10px;
+        }
+        .el-checkbox {
+          right: 5px;
+          bottom: 5px;
+          height: unset;
+          :deep(.el-checkbox__inner) {
+            border-radius: var(--music-border-radius);
+            outline: 2px solid white;
+          }
+        }
+        .el-icon {
+          font-size: 35px;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%);
+        }
+      }
+      &-name {
+        margin: 5px 10px;
+      }
+    }
+  }
   &-system {
     display: flex;
     flex-direction: column;
@@ -533,6 +783,10 @@ onUnmounted(unWatch);
       .el-checkbox {
         margin-left: 32px;
       }
+    }
+    .el-select {
+      width: 120px;
+      margin: 0 6px;
     }
   }
   &-play {
@@ -548,6 +802,13 @@ onUnmounted(unWatch);
       .el-checkbox {
         margin-left: 32px;
       }
+    }
+  }
+  &-about {
+    display: flex;
+    flex-direction: column;
+    a {
+      margin-left: 20px;
     }
   }
   &-shortcut {
@@ -571,7 +832,7 @@ onUnmounted(unWatch);
         .el-input {
           padding-right: 40px;
           :deep(.el-input__wrapper) {
-            border-radius: calc((var(--music-infinity) * 1px));
+            border-radius: var(--music-infinity);
           }
         }
 

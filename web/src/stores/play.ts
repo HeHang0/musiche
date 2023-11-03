@@ -3,7 +3,12 @@ import * as api from '../utils/api/api';
 import { Music, PlayStatus, Playlist, SortType } from '../utils/type';
 import { musicOperate } from '../utils/http';
 import { StorageKey, storage } from '../utils/storage';
-import { generateGuid, getRandomInt } from '../utils/utils';
+import {
+  duration2Millisecond,
+  generateGuid,
+  getRandomInt,
+  millisecond2Duration
+} from '../utils/utils';
 import { useTitle } from '@vueuse/core';
 
 const title = useTitle();
@@ -356,11 +361,20 @@ export const usePlayStore = defineStore('play', {
         if (this.playStatus.stopped != data.stopped) {
           this.playStatus.stopped = data.stopped;
         }
-        if (this.playStatus.currentTime != data.currentTime) {
+        if (
+          this.playStatus.currentTime != data.currentTime &&
+          data.currentTime
+        ) {
           this.playStatus.currentTime = data.currentTime || '00:00';
         }
         if (data.totalTime && this.playStatus.totalTime != data.totalTime) {
           this.playStatus.totalTime = data.totalTime;
+          if (!this.music.length) {
+            this.music.length = duration2Millisecond(data.totalTime);
+          }
+          if (!this.music.duration) {
+            this.music.duration = data.totalTime;
+          }
         }
         if (
           !this.playStatus.disableUpdateVolume &&
@@ -379,6 +393,16 @@ export const usePlayStore = defineStore('play', {
         ) {
           localStorage.setItem(StorageKey.Progress, data.progress as any);
           this.playStatus.progress = data.progress || 0;
+          if (
+            data.progress &&
+            !data.currentTime &&
+            this.music.length &&
+            this.playStatus.currentTime == '00:00'
+          ) {
+            this.playStatus.currentTime = millisecond2Duration(
+              (this.music.length * data.progress) / 1000
+            );
+          }
         }
       } catch {}
     },

@@ -2,6 +2,7 @@
 import { usePlayStore } from '../stores/play';
 import { SortType } from '../utils/type';
 import LogoImage from '../assets/images/logo.png';
+import { webView2Services } from '../utils/utils';
 interface Props {
   full?: boolean;
 }
@@ -14,149 +15,158 @@ const play = usePlayStore();
   <el-footer
     v-show="play.musicList.length > 0"
     class="music-footer"
-    :class="props.full ? 'music-footer-full' : ''">
-    <div class="music-footer-layout">
-      <div v-if="props.full" class="music-footer-layout-left">
-        <span
-          class="music-icon"
-          style="color: red"
-          v-if="play.myLover[play.music.type + play.music.id]"
-          @click="play.addMyLove([play.music], true)">
-          爱
-        </span>
-        <span class="music-icon" v-else @click="play.addMyLove([play.music])">
-          恨
-        </span>
-        <span class="music-footer-second-text" style="margin-left: 20px">
-          {{ play.playStatus.currentTime }}
-          &nbsp;/&nbsp;
-          {{ play.playStatus.totalTime || play.music.duration }}
-        </span>
-      </div>
-      <div v-else class="music-footer-layout-left">
-        <div
-          class="music-footer-image"
-          @click="play.playDetailShow = true"
-          :class="
-            play.playStatus.playing
-              ? 'rotation-animation rotation-animation-running'
-              : ''
-          ">
-          <img :src="play.music.image || LogoImage" />
+    :class="props.full ? ' music-footer-full' : ''">
+    <el-scrollbar :class="webView2Services.enabled ? 'wide-scrollbar' : ''">
+      <div class="music-footer-layout">
+        <div v-if="props.full" class="music-footer-layout-left">
+          <span
+            class="music-icon"
+            style="color: red"
+            v-if="play.myLover[play.music.type + play.music.id]"
+            @click="play.addMyLove([play.music], true)">
+            爱
+          </span>
+          <span class="music-icon" v-else @click="play.addMyLove([play.music])">
+            恨
+          </span>
+          <span class="music-footer-second-text" style="margin-left: 20px">
+            {{ play.playStatus.currentTime }}
+            &nbsp;/&nbsp;
+            {{ play.playStatus.totalTime || play.music.duration }}
+          </span>
         </div>
-        <div class="music-footer-title">
-          <div class="music-footer-title-name" :title="play.music.name">
-            {{ play.music.name || '' }}
+        <div v-else class="music-footer-layout-left">
+          <div
+            class="music-footer-image"
+            @click="play.playDetailShow = true"
+            :class="
+              play.playStatus.playing
+                ? 'rotation-animation rotation-animation-running'
+                : ''
+            ">
+            <img :src="play.music.image || LogoImage" />
           </div>
-          <div class="music-footer-title-singer">
-            <span class="music-list-item-vip music-icon" v-if="play.music.vip">
-              V
-            </span>
-            <div :title="play.music.singer">
-              {{ play.music.singer || '' }}
+          <div class="music-footer-title">
+            <div class="music-footer-title-name" :title="play.music.name">
+              {{ play.music.name || '' }}
+            </div>
+            <div class="music-footer-title-singer">
+              <span
+                class="music-list-item-vip music-icon"
+                v-if="play.music.vip">
+                V
+              </span>
+              <div :title="play.music.singer">
+                {{ play.music.singer || '' }}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <div class="music-footer-layout-center">
-        <div class="music-footer-layout-center-operate">
-          <span
-            v-if="play.sortType == SortType.Order"
-            class="music-icon"
-            title="顺序播放"
-            @click="play.setSortType(SortType.Random)">
-            顺
-          </span>
-          <span
-            v-else-if="play.sortType == SortType.Random"
-            class="music-icon"
-            title="随机播放"
-            @click="play.setSortType(SortType.Single)">
-            随
-          </span>
-          <span
-            v-else-if="play.sortType == SortType.Single"
-            class="music-icon"
-            title="单曲循环"
-            @click="play.setSortType(SortType.Loop)">
-            单
-          </span>
-          <span
-            v-else
-            class="music-icon"
-            title="列表循环"
-            @click="play.setSortType(SortType.Order)">
-            环
-          </span>
-          <span class="music-icon opacity-8" @click="play.last" title="上一首">
-            前
-          </span>
-          <span
-            v-if="play.playStatus.playing"
-            class="music-icon music-footer-play"
-            title="暂停"
-            @click="play.pause">
-            停
-          </span>
-          <span
-            v-else
-            class="music-icon music-footer-play"
-            @click="play.play()"
-            title="播放">
-            播
-          </span>
-          <span class="music-icon" @click="play.next" title="下一首"> 后 </span>
-          <span class="music-icon" title="桌面歌词" style="opacity: 0">
-            词
-          </span>
-        </div>
-        <div class="music-footer-layout-center-progress">
-          <span v-if="!props.full" class="music-footer-second-text">{{
-            play.playStatus.currentTime
-          }}</span>
-          <el-slider
-            class="music-slider-primary"
-            :class="
-              props.full ? 'music-footer-layout-center-progress-full' : ''
-            "
-            v-model="play.playStatus.progress"
-            :show-tooltip="false"
-            :max="1000"
-            @mousedown="play.playStatus.disableUpdateProgress = true"
-            @change="play.changeProgress" />
-          <span v-if="!props.full" class="music-footer-second-text">{{
-            play.playStatus.totalTime || play.music.duration
-          }}</span>
-        </div>
-      </div>
-      <div class="music-footer-layout-right">
-        <el-popover
-          :visible="play.currentListPopover.show"
-          placement="bottom"
-          width="130"
-          popper-class="music-footer-popover"
-          content="已添加至播放列表"
-          :auto-close="2000">
-          <template #reference>
+        <div class="music-footer-layout-center">
+          <div class="music-footer-layout-center-operate">
             <span
+              v-if="play.sortType == SortType.Order"
               class="music-icon"
-              @click="play.currentListShow = !play.currentListShow"
-              @mouseup.stop>
-              表
+              title="顺序播放"
+              @click="play.setSortType(SortType.Random)">
+              顺
             </span>
-          </template>
-        </el-popover>
-        <span class="music-icon" title="静音" @click="play.mute">
-          {{ play.playStatus.volume > 0 ? '音' : '静' }}
-        </span>
-        <el-slider
-          v-model="play.playStatus.volume"
-          @mousedown="play.playStatus.disableUpdateVolume = true"
-          @change="play.changeVolume"
-          :show-tooltip="false"
-          style="width: 70px" />
+            <span
+              v-else-if="play.sortType == SortType.Random"
+              class="music-icon"
+              title="随机播放"
+              @click="play.setSortType(SortType.Single)">
+              随
+            </span>
+            <span
+              v-else-if="play.sortType == SortType.Single"
+              class="music-icon"
+              title="单曲循环"
+              @click="play.setSortType(SortType.Loop)">
+              单
+            </span>
+            <span
+              v-else
+              class="music-icon"
+              title="列表循环"
+              @click="play.setSortType(SortType.Order)">
+              环
+            </span>
+            <span
+              class="music-icon opacity-8"
+              @click="play.last"
+              title="上一首">
+              前
+            </span>
+            <span
+              v-if="play.playStatus.playing"
+              class="music-icon music-footer-play"
+              title="暂停"
+              @click="play.pause">
+              停
+            </span>
+            <span
+              v-else
+              class="music-icon music-footer-play"
+              @click="play.play()"
+              title="播放">
+              播
+            </span>
+            <span class="music-icon" @click="play.next" title="下一首">
+              后
+            </span>
+            <span class="music-icon" title="桌面歌词" style="opacity: 0">
+              词
+            </span>
+          </div>
+          <div class="music-footer-layout-center-progress">
+            <span v-if="!props.full" class="music-footer-second-text">{{
+              play.playStatus.currentTime
+            }}</span>
+            <el-slider
+              class="music-slider-primary"
+              :class="
+                props.full ? 'music-footer-layout-center-progress-full' : ''
+              "
+              v-model="play.playStatus.progress"
+              :show-tooltip="false"
+              :max="1000"
+              @mousedown="play.playStatus.disableUpdateProgress = true"
+              @change="play.changeProgress" />
+            <span v-if="!props.full" class="music-footer-second-text">{{
+              play.playStatus.totalTime || play.music.duration
+            }}</span>
+          </div>
+        </div>
+        <div class="music-footer-layout-right">
+          <el-popover
+            :visible="play.currentListPopover.show"
+            placement="bottom"
+            width="130"
+            popper-class="music-footer-popover"
+            content="已添加至播放列表"
+            :auto-close="2000">
+            <template #reference>
+              <span
+                class="music-icon"
+                @click="play.currentListShow = !play.currentListShow"
+                @mouseup.stop>
+                表
+              </span>
+            </template>
+          </el-popover>
+          <span class="music-icon" title="静音" @click="play.mute">
+            {{ play.playStatus.volume > 0 ? '音' : '静' }}
+          </span>
+          <el-slider
+            v-model="play.playStatus.volume"
+            @mousedown="play.playStatus.disableUpdateVolume = true"
+            @change="play.changeVolume"
+            :show-tooltip="false"
+            style="width: 70px" />
+        </div>
       </div>
-    </div>
+    </el-scrollbar>
   </el-footer>
 </template>
 <style lang="less" scoped>
@@ -171,9 +181,11 @@ const play = usePlayStore();
   opacity: 0.8;
 }
 .music-footer {
-  background-color: var(--el-fill-color-lighter);
+  background-color: var(--music-footer-background);
   height: 80px;
   border-top: 1px solid var(--el-border-color);
+  overflow-x: auto;
+  padding: 0;
   &-play {
     display: inline-block;
     width: 38px;
@@ -192,12 +204,15 @@ const play = usePlayStore();
   }
   &-second-text {
     font-size: 10px;
-    color: var(--el-text-color-placeholder);
+    // color: var(--el-text-color-placeholder);
+    opacity: 0.6;
   }
   &-layout {
     display: flex;
     align-items: center;
     height: 100%;
+    min-width: 880px;
+    padding: var(--el-footer-padding);
     &-left,
     &-right {
       width: 300px;
@@ -311,9 +326,15 @@ const play = usePlayStore();
       }
       div {
         font-size: 13px;
-        color: var(--el-text-color-placeholder);
+        opacity: 0.6;
       }
     }
+  }
+  :deep(.el-scrollbar__view) {
+    overflow-y: hidden;
+  }
+  :deep(.el-scrollbar__bar.is-vertical) {
+    display: none !important;
   }
 }
 </style>

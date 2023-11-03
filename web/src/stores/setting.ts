@@ -5,10 +5,14 @@ import {
   ShortcutType,
   ShortcutKey,
   MusicType,
-  UserInfo
+  UserInfo,
+  DirectoryInfo,
+  AppTheme
 } from '../utils/type';
 import { StorageKey, storage } from '../utils/storage';
 import * as api from '../utils/api/api';
+import { webView2Services } from '../utils/utils';
+import { useDark } from '@vueuse/core';
 const controlKeys = [
   'ctrl',
   'control',
@@ -24,12 +28,22 @@ const controlKeys = [
   'altright',
   'metaright'
 ];
+const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 export const useSettingStore = defineStore('setting', {
   state: () => ({
     maximized: false,
     fonts: null as string[] | null,
     currentMusicType: 'cloud' as MusicType,
     currentMusicTypeShow: true,
+    localDirectories: [] as DirectoryInfo[],
+    autoAppTheme: false,
+    appTheme: {
+      id: ''
+    } as AppTheme,
+    customTheme: {
+      id: 'custom ',
+      name: '自定义'
+    } as AppTheme,
     pageValue: {
       closeType: CloseType.Hide,
       closeTypeNoRemind: false,
@@ -39,9 +53,6 @@ export const useSettingStore = defineStore('setting', {
       fadeIn: true,
       gpuAcceleration: true,
       disableAnimation: false,
-      timeClose: false,
-      timeCloseValue: 0,
-      timeCloseAndShutdown: false,
       playAtRun: false,
       savePlayProgress: false,
       onlyAddMusicListAtDbClick: false,
@@ -197,6 +208,41 @@ export const useSettingStore = defineStore('setting', {
     minimize() {
       musicOperate('/minimize');
     },
+    autoAppThemeChanged(noSave?: boolean) {
+      if (this.autoAppTheme) {
+        darkModeMediaQuery.addEventListener('change', this.handleThemeChange);
+        this.handleThemeChange();
+      } else {
+        darkModeMediaQuery.removeEventListener(
+          'change',
+          this.handleThemeChange
+        );
+      }
+      !noSave && storage.setValue(StorageKey.AutoAppTheme, this.autoAppTheme);
+    },
+    handleThemeChange() {
+      this.setAppTheme({ id: darkModeMediaQuery.matches ? 'dark' : '' });
+    },
+    setAppTheme(appTheme?: AppTheme) {
+      this.appTheme.id = appTheme?.id || '';
+      this.appTheme.color = appTheme?.color || '';
+      this.appTheme.image =
+        this.appTheme.id == this.customTheme.id ? this.customTheme.image : '';
+      document.documentElement.className = this.appTheme.id;
+      storage.setValue(StorageKey.AppTheme, {
+        id: this.appTheme.id,
+        name: this.appTheme.name
+      });
+    },
+    setCustomTheme(appTheme?: AppTheme) {
+      this.customTheme.id = appTheme?.id || 'custom ';
+      this.customTheme.image = appTheme?.image || '';
+      this.customTheme.name = '自定义';
+      storage.setValue(StorageKey.CustomTheme, this.customTheme);
+    },
+    saveLocalDirectories() {
+      storage.setValue(StorageKey.LocalDirectories, this.localDirectories);
+    },
     saveSetting() {
       storage.setValue(StorageKey.Setting, this.pageValue);
     },
@@ -234,8 +280,9 @@ export const useSettingStore = defineStore('setting', {
       }}`;
       fontEle.innerText = styleText;
     },
-    setGpuAcceleration() {
-      this.saveSetting();
+    setGpuAcceleration(_value?: boolean, noSave?: boolean) {
+      musicOperate('/gpu', this.pageValue.fadeIn ? '1' : undefined);
+      !noSave && this.saveSetting();
     },
     setStartup() {
       this.saveSetting();
@@ -393,6 +440,15 @@ export const useSettingStore = defineStore('setting', {
       fontEle.innerText = `*{animation: none !important;transition: none !important}`;
     },
     async initValue() {
+      this.setCustomTheme(await storage.getValue(StorageKey.CustomTheme));
+      this.autoAppTheme = Boolean(
+        await storage.getValue(StorageKey.AutoAppTheme)
+      );
+      if (this.autoAppTheme) {
+        this.autoAppThemeChanged(true);
+      } else {
+        this.setAppTheme(await storage.getValue(StorageKey.AppTheme));
+      }
       const settingCache: any = await storage.getValue(StorageKey.Setting);
       const ignoreKeys = [
         'shortcut',
@@ -454,6 +510,23 @@ export const useSettingStore = defineStore('setting', {
           }
         });
       }
+      const localDirectories: DirectoryInfo[] = await storage.getValue(
+        StorageKey.LocalDirectories
+      );
+      if (Array.isArray(localDirectories)) {
+        this.localDirectories.splice(0, 0, ...localDirectories);
+      }
+      if (this.localDirectories.length === 0 && webView2Services.enabled) {
+        const myMusic =
+          await webView2Services.fileAccessor!.GetMyMusicDirectory();
+        if (myMusic) {
+          this.localDirectories.push({
+            name: '我的音乐',
+            path: myMusic,
+            selected: true
+          });
+        }
+      }
       musicOperate('/fonts').then(fonts => {
         if (Array.isArray(fonts)) {
           this.fonts = [];
@@ -461,6 +534,7 @@ export const useSettingStore = defineStore('setting', {
         }
       });
       this.setFadeIn(this.pageValue.fadeIn, true);
+      this.setGpuAcceleration(this.pageValue.gpuAcceleration, true);
       this.setFont(this.pageValue.font, this.pageValue.fontBold, true);
       this.setDisableAnimation(this.pageValue.disableAnimation, true);
       this.registerGlobalShortCutAll();

@@ -43,9 +43,9 @@ function clear() {
         </span>
       </span>
     </div>
-    <div class="music-current-list-content">
+    <el-scrollbar class="music-current-list-content">
       <MusicList :list="play.musicList" single />
-    </div>
+    </el-scrollbar>
   </el-drawer>
 </template>
 <style lang="less" scoped>
@@ -67,8 +67,9 @@ function clear() {
     height: 60px;
     display: flex;
     align-items: center;
-    margin: 0 20px;
+    padding: 0 20px;
     justify-content: space-between;
+    background-color: var(--music-sub-background);
     &-title {
       font-size: 20px;
       font-weight: bold;
@@ -81,8 +82,7 @@ function clear() {
 
   &-content {
     height: calc(100% - 60px);
-    margin-right: 3px;
-    overflow-y: auto;
+    background-color: var(--music-sub-background);
   }
 }
 </style>
@@ -90,8 +90,7 @@ function clear() {
 .music-current-list {
   width: 400px !important;
   height: calc(100% - 192px) !important;
-  background-color: white;
-  border-radius: var(--music-border-radio);
+  border-radius: var(--music-border-radius);
   margin-top: 95px;
   .el-drawer__body {
     padding: 0;

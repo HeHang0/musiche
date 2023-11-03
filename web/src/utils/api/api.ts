@@ -11,11 +11,13 @@ import {
 import * as cloud from './cloud';
 import * as qq from './qq';
 import * as migu from './migu';
+import * as local from './local';
 
 const musicAPI: Map<MusicType, PlatformAPI> = new Map([
   ['cloud', cloud as PlatformAPI],
   ['qq', qq as PlatformAPI],
-  ['migu', migu as PlatformAPI]
+  ['migu', migu as PlatformAPI],
+  ['local', local as PlatformAPI]
 ]);
 
 export async function search(

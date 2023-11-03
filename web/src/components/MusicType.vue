@@ -47,7 +47,7 @@ function valueChange(v: MusicType) {
   // border: 1px solid var(--el-input-border-color, var(--el-border-color));
   box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color))
     inset;
-  border-radius: var(--music-border-radio);
+  border-radius: var(--music-border-radius);
   margin-right: 0;
   margin-left: 10px;
 }

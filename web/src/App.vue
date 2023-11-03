@@ -7,12 +7,14 @@ import CurrentList from './components/CurrentList.vue';
 import PlayDetail from './components/PlayDetail.vue';
 import WindowHelper from './components/WindowHelper.vue';
 import { webView2Services } from './utils/utils';
-import { usePlayStore } from './stores/play';
 import LogoImage from './assets/images/logo.png';
 import LogoCircleImage from './assets/images/logo-circle.png';
 import { MusicConnection } from './stores/connection';
+import { usePlayStore } from './stores/play';
+import { useSettingStore } from './stores/setting';
 
 const play = usePlayStore();
+const setting = useSettingStore();
 document.addEventListener(
   'error',
   function (event: ErrorEvent) {
@@ -34,46 +36,47 @@ new MusicConnection(webView2Services.enabled);
   <el-container
     class="music-layout"
     direction="vertical"
-    :class="webView2Services.enabled ? 'webview-host' : ''">
-    <el-scrollbar class="music-root">
-      <el-container
-        class="music-layout-top"
-        :class="play.musicList.length > 0 ? '' : 'music-layout-top-full'">
-        <SideMenu />
+    :class="webView2Services.enabled ? 'webview-host' : ''"
+    :style="
+      setting.appTheme.image
+        ? `background: url(${setting.appTheme.image}) 50% 50% / cover`
+        : ''
+    ">
+    <el-container
+      class="music-layout-top"
+      :class="play.musicList.length > 0 ? '' : 'music-layout-top-full'">
+      <SideMenu />
 
-        <el-container class="music-layout-right" direction="vertical">
-          <Header />
-          <el-main class="music-main">
-            <RouterView />
-            <CurrentList />
-          </el-main>
-        </el-container>
+      <el-container class="music-layout-right" direction="vertical">
+        <Header />
+        <el-main class="music-main">
+          <RouterView />
+          <CurrentList />
+        </el-main>
       </el-container>
-      <Footer />
-    </el-scrollbar>
+    </el-container>
+    <Footer />
     <PlayDetail />
     <WindowHelper v-if="webView2Services.enabled" />
   </el-container>
 </template>
 
 <style lang="less" scoped>
-.music-root {
-  max-height: 100vh;
-  max-width: 100vw;
-  overflow: auto;
-}
 .music-layout {
   height: 100vh;
   width: 100vw;
-  overflow: auto;
+  overflow: hidden;
+  background: var(--music-background);
   .el-main {
     padding: 0;
     margin-top: 5px;
   }
+  &-right {
+    background: var(--music-sub-background);
+  }
   &-top {
     overflow: hidden;
     height: calc(100vh - 80px);
-    min-height: 600px;
     &-full {
       height: 100vh;
     }
@@ -81,10 +84,6 @@ new MusicConnection(webView2Services.enabled);
   &-top,
   .music-footer {
     width: 100vw;
-    min-width: 880px;
-  }
-  &-right {
-    background-color: var(--music-background);
   }
 }
 .music-main {
@@ -97,13 +96,5 @@ new MusicConnection(webView2Services.enabled);
 .music-main > .el-scrollbar > .el-scrollbar__wrap > .el-scrollbar__view {
   position: relative;
   min-height: 100%;
-}
-.webview-host .music-root > .el-scrollbar__bar {
-  &.is-horizontal {
-    height: 16px;
-  }
-  &.is-vertical {
-    width: 16px;
-  }
 }
 </style>

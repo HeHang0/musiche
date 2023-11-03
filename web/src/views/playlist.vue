@@ -198,7 +198,7 @@ onUnmounted(unWatch);
     &-image {
       width: 200px;
       height: 200px;
-      border-radius: var(--music-border-radio);
+      border-radius: var(--music-border-radius);
       box-shadow: 0px 0px 8px 0px #9a94945c;
       .el-skeleton__image {
         width: 100%;

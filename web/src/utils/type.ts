@@ -73,6 +73,19 @@ export interface LyricLine {
   text: string;
 }
 
+export interface DirectoryInfo {
+  name: string;
+  path: string;
+  selected: boolean;
+}
+
+export interface AppTheme {
+  id: string;
+  name?: string;
+  image?: string;
+  color?: string;
+}
+
 export interface ProxyRequestData {
   url: string;
   method?: string;
@@ -109,6 +122,13 @@ export interface ShortcutKey {
 }
 
 export type LoginStatus = 'success' | 'fail' | 'waiting' | 'authorizing';
+
+export type StoreType = 'file-handles-store';
+
+export interface MusicFileInfo {
+  path: string;
+  file: File;
+}
 
 export interface UserInfo {
   id: string;

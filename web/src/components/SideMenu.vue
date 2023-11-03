@@ -19,7 +19,8 @@ options.routes.forEach(item => {
       name: item.name,
       key: item.meta?.key,
       show: item.meta?.show,
-      icon: item.meta?.icon
+      icon: item.meta?.icon,
+      divider: item.meta?.divider
     });
   }
 });
@@ -40,54 +41,25 @@ function createMyPlaylists() {
       <el-menu
         ref="menuRef"
         class="music-aside-menu"
-        style="margin-top: 20px"
         router
         :default-openeds="['favorite']"
         :default-active="route.path">
-        <el-menu-item
-          index="/recommend"
-          id="/recommend"
-          :class="route.meta.key == 'recommend' ? 'is-active' : ''">
-          <span class="music-icon">荐</span>
-          <span>发现音乐</span>
-        </el-menu-item>
-        <el-menu-item
-          v-if="
-            setting.userInfo.cloud.id ||
-            setting.userInfo.qq.id ||
-            setting.userInfo.migu.id
-          "
-          index="/yours"
-          id="/yours"
-          :class="route.meta.key == 'yours' ? 'is-active' : ''">
-          <span class="music-icon">我</span>
-          <span>我的歌单</span>
-        </el-menu-item>
-        <el-menu-item
-          index="/ranking"
-          id="/ranking"
-          :class="route.meta.key == 'ranking' ? 'is-active' : ''">
-          <span class="music-icon">顶</span>
-          <span>音乐榜单</span>
-        </el-menu-item>
-        <el-divider
-          v-if="
-            play.musicHistory.length > 0 || play.myLoves.length > 0
-          "></el-divider>
-        <el-menu-item
-          index="/lover"
-          id="lover"
-          :class="route.path == 'lover' ? 'is-active' : ''">
-          <span class="music-icon">爱</span>
-          <span>我喜欢的音乐</span>
-        </el-menu-item>
-        <el-menu-item
-          index="/recent"
-          id="recent"
-          :class="route.path == 'recent' ? 'is-active' : ''">
-          <span class="music-icon">时</span>
-          <span>最近播放</span>
-        </el-menu-item>
+        <template v-for="item in menus">
+          <el-divider v-if="item.divider"></el-divider>
+          <el-menu-item
+            :index="'/' + item.key"
+            :id="'/' + item.key"
+            v-if="
+              item.key !== 'yours' ||
+              setting.userInfo.cloud.id ||
+              setting.userInfo.qq.id ||
+              setting.userInfo.migu.id
+            "
+            :class="route.meta.key == item.key ? 'is-active' : ''">
+            <span class="music-icon">{{ item.icon }}</span>
+            <span>{{ item.name }}</span>
+          </el-menu-item>
+        </template>
         <el-divider></el-divider>
         <el-sub-menu index="favorite">
           <template #title>
@@ -219,6 +191,7 @@ function createMyPlaylists() {
 .music-aside {
   width: 205px;
   background-color: var(--music-side-background);
+  color: var(--music-side-text-color);
   .music-icon {
     margin-right: 5px;
   }
@@ -247,9 +220,12 @@ function createMyPlaylists() {
   &-menu {
     background-color: transparent;
     border-right: none;
+    --el-menu-item-height: 35px;
+    padding-top: 20px;
     .el-divider {
       margin: 10px 40px;
       width: calc(100% - 80px);
+      border-color: var(--music-side-divider-color);
     }
     :deep(.el-sub-menu__title) {
       padding-left: 0 !important;
@@ -277,12 +253,12 @@ function createMyPlaylists() {
         }
       }
       &:hover {
-        background: var(--music-button-background-hover);
+        background: var(--music-side-menu-color-hover);
       }
       img {
         width: 40px;
         height: 40px;
-        border-radius: var(--music-border-radio);
+        border-radius: var(--music-border-radius);
         margin-right: 5px;
       }
       &-wide {
@@ -364,7 +340,7 @@ function createMyPlaylists() {
     &-image {
       width: 50px;
       height: 50px;
-      border-radius: var(--music-border-radio);
+      border-radius: var(--music-border-radius);
     }
     &-right {
       flex: 1;

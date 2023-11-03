@@ -28,14 +28,6 @@
   font-style: normal;
 }
 
-html > body {
-  color: var(--el-color-black);
-}
-
-html.dark > body {
-  color: var(--el-color-white);
-}
-
 .music-icon {
   font-family: 'icon-font';
   font-size: 20px;

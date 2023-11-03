@@ -29,12 +29,16 @@ function valueChange(v: any) {
 </template>
 <style lang="less" scoped>
 .el-radio-group {
-  border: 1px solid var(--music-button-info-border-color);
-  border-radius: var(--music-border-radio);
+  // border: 1px solid var(--el-input-border-color, var(--el-border-color));
+  box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color))
+    inset;
+  border-radius: var(--music-border-radius);
+  margin-right: 0;
+  margin-left: 10px;
 }
 
-:deep(.el-radio-button--large .el-radio-button__inner) {
-  padding: 11.5px 19px !important;
+:deep(.el-radio-button__inner) {
+  padding: 6.5px 15px !important;
   border: none;
   background-color: transparent;
   border-left: none !important;
@@ -54,6 +58,6 @@ function valueChange(v: any) {
   background: var(--music-button-primary-background);
 }
 .el-radio-button + .el-radio-button {
-  border-left: 1px solid var(--music-button-info-border-color);
+  border-left: 1px solid var(--el-input-border-color, var(--el-border-color));
 }
 </style>

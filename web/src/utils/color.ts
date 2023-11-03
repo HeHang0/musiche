@@ -10,16 +10,21 @@ export class ThemeColor {
   // 主色
   themeColor = 'white';
   // 回调
-  themeColorCallBack?: (themeColor: string) => void;
+  themeColorCallBack?: (themeColor: string, isDark?: boolean) => void;
   // 提取像素出现最大次数操作对象
   colorCountedSet = new ColorCountedSet();
 
-  constructor(imgUrl: string, callback: (themeColor: string) => void) {
+  constructor(
+    imgUrl: string,
+    callback: (themeColor: string, isDark?: boolean) => void
+  ) {
     if (colorCache.get(imgUrl)) {
       callback(colorCache.get(imgUrl)!);
       return;
     }
-    this.imgUrl = parseHttpProxyAddress(imgUrl);
+    this.imgUrl = imgUrl?.startsWith('http')
+      ? parseHttpProxyAddress(imgUrl)
+      : imgUrl;
     this.themeColorCallBack = callback;
     this.startScreeningThemeColor();
   }
@@ -130,7 +135,10 @@ export class ThemeColor {
     // });
     //执行回调
     if (this.themeColorCallBack) {
-      this.themeColorCallBack(this.themeColor);
+      this.themeColorCallBack(
+        this.themeColor,
+        (rValue + gValue + bValue) / 3 < 128
+      );
     }
   }
   adjustNumbers(a: number, b: number, c: number) {

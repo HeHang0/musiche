@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router';
 import { usePlayStore } from '../stores/play';
 import { Music } from '../utils/type';
 import LogoImage from '../assets/images/logo.png';
+import LogoCircleImage from '../assets/images/logo-circle.png';
 import CloudMusicImage from '../assets/images/cloud-music.webp';
 import QQMusicImage from '../assets/images/qq-music.png';
 import MiguMusicImage from '../assets/images/migu-music.webp';
@@ -38,13 +39,17 @@ const setting = useSettingStore();
   <div
     class="music-list"
     :class="props.single ? 'music-list-single' : 'music-list-all'">
-    <div class="music-list-header">
+    <div class="music-list-header" v-show="loading || props.list.length > 0">
       <div class="music-list-header-index">#</div>
       <div class="music-list-header-title">标题</div>
       <div class="music-list-header-album">专辑</div>
       <div class="music-list-header-lover">喜欢</div>
       <div class="music-list-header-duration">时长</div>
     </div>
+    <el-empty
+      v-show="!loading && props.list.length === 0"
+      :image="LogoCircleImage"
+      description="空空如也" />
     <div
       v-for="(item, index) in props.list"
       v-show="!loading"
@@ -254,7 +259,8 @@ const setting = useSettingStore();
     display: flex;
     border-bottom: 1px solid var(--music-button-info-border-color);
     font-size: 13px;
-    color: var(--el-text-color-placeholder);
+    // color: var(--el-text-color-placeholder);
+    opacity: 0.6;
     margin-bottom: 8px;
     cursor: default;
     & > div {
@@ -285,15 +291,18 @@ const setting = useSettingStore();
       height: 66px;
       cursor: default;
       font-size: 13px;
-      color: var(--el-text-color-placeholder);
+    }
+    &-index,
+    &-duration,
+    &-singer > span,
+    &-album > span {
+      opacity: 0.6;
     }
     &-singer > span,
     &-album > span {
-      color: black;
-      opacity: 0.4;
       cursor: pointer;
       &:hover {
-        opacity: 0.6;
+        opacity: 0.8;
       }
     }
     &-lover > span {
@@ -315,10 +324,10 @@ const setting = useSettingStore();
       & > img {
         width: 100%;
         height: 100%;
-        border-radius: var(--music-border-radio);
+        border-radius: var(--music-border-radius);
       }
       &-single {
-        border-radius: var(--music-border-radio);
+        border-radius: var(--music-border-radius);
         position: absolute;
         left: 0;
         top: 0;
@@ -372,7 +381,7 @@ const setting = useSettingStore();
         }
         .music-list-item-singer {
           font-size: 13px;
-          color: var(--el-text-color-placeholder);
+          // color: var(--el-text-color-placeholder);
           width: 100%;
           white-space: nowrap;
           overflow: hidden;
@@ -430,12 +439,12 @@ const setting = useSettingStore();
   }
   .music-list-item {
     &:hover {
-      background-color: rgb(239, 239, 240);
+      background-color: var(--music-background-hover);
     }
   }
 }
 .music-list-all {
-  padding: 0 10px;
+  padding: 0 10px 10px 10px;
   .music-list-header-index,
   .music-list-item-index {
     width: 50px;
@@ -459,9 +468,9 @@ const setting = useSettingStore();
   }
   .music-list-item {
     &:hover {
-      background-color: white;
-      border-radius: var(--music-border-radio);
-      box-shadow: 0px 0px 8px 0px #9a94945c;
+      background-color: var(--music-background-hover);
+      border-radius: var(--music-border-radius);
+      // box-shadow: 0px 0px 8px 0px #9a94945c;
     }
   }
 }
@@ -475,7 +484,7 @@ const setting = useSettingStore();
     width: 80%;
   }
   .el-skeleton__image {
-    border-radius: var(--music-border-radio);
+    border-radius: var(--music-border-radius);
   }
   .music-list-item-index {
     .el-skeleton__text {

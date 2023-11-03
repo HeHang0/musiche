@@ -3,6 +3,8 @@ const useFileAccessor = false;
 export enum StorageKey {
   Language = 'language',
   AppTheme = 'app-theme',
+  AutoAppTheme = 'auto-app-theme',
+  CustomTheme = 'custom-theme',
   FontFamily = 'font-family',
   CurrentMusic = 'current-music',
   CurrentMusicList = 'current-music-list',
@@ -16,7 +18,8 @@ export enum StorageKey {
   Progress = 'progress',
   VolumeCache = 'volume-cache',
   Setting = 'setting',
-  UserInfo = 'user-info'
+  UserInfo = 'user-info',
+  LocalDirectories = 'local-directories'
 }
 
 async function setValue<T>(key: string, value: T) {
