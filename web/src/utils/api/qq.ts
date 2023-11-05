@@ -14,6 +14,8 @@ import RankingSoarImage from '../../assets/images/ranking-soar.jpg';
 
 const musicType: MusicType = 'qq';
 
+var qqCookie: string = '';
+
 function parseAlbumImage(music: any) {
   const albumPMId =
     (music.album && music.album.pmid) || music.albumpmid || music.pmid;
@@ -137,8 +139,7 @@ function removeExtJson(jsonStr: string) {
   return jsonStr;
 }
 
-export async function daily(cookies: string): Promise<Playlist | null> {
-  const cookie = formatCookies(cookies);
+export async function daily(): Promise<Playlist | null> {
   var url = 'https://c.y.qq.com/node/musicmac/v6/index.html';
   var res = await httpProxy({
     url: url,
@@ -146,7 +147,7 @@ export async function daily(cookies: string): Promise<Playlist | null> {
     data: '',
     headers: {
       Referer: 'http://y.qq.com',
-      Cookie: cookie
+      Cookie: qqCookie
     }
   });
   const html = await res.text();
@@ -163,22 +164,20 @@ export async function daily(cookies: string): Promise<Playlist | null> {
   return null;
 }
 
-export async function yours(cookies: string): Promise<{
+export async function yours(_offset: number): Promise<{
   total: number;
   list: Playlist[];
 }> {
   const list: Playlist[] = [];
-  const dailyPlaylist = await daily(cookies);
+  const dailyPlaylist = await daily();
   if (dailyPlaylist) list.push(dailyPlaylist);
-
-  const cookie = formatCookies(cookies);
   var res = await httpProxy({
     url: 'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg?cid=205360838&reqfrom=1',
     method: 'GET',
     data: '',
     headers: {
       Referer: 'http://y.qq.com',
-      Cookie: cookie
+      Cookie: qqCookie
     }
   });
   let ret = await res.json();
@@ -200,19 +199,79 @@ export async function yours(cookies: string): Promise<{
   };
 }
 
-export async function recommend(offset: number) {
+export async function recommendFirst(offset: number) {
   var url =
-    'https://c.y.qq.com/splcloud/fcgi-bin/fcg_get_diss_by_tag.fcg?' +
-    'rnd=0.4781484879517406&g_tk=732560869&loginUin=0&hostUin=0' +
-    '&format=json&inCharset=utf8&outCharset=utf-8&notice=0' +
-    '&platform=yqq&needNewCode=0&categoryId=10000000&sortId=5' +
-    `&sin=${offset * 35}&ein=${offset * 35 + 34}`;
+    `https://u.y.qq.com/cgi-bin/musicu.fcg?callback=&g_tk=5381&platform=yqq` +
+    `&jsonpCallback=&loginUin=0&hostUin=0&format=json&inCharset=utf8` +
+    `&outCharset=utf-8&notice=0&needNewCode=0&data=${encodeURIComponent(
+      JSON.stringify({
+        comm: {
+          cv: 4747474,
+          ct: 24,
+          format: 'json',
+          inCharset: 'utf-8',
+          outCharset: 'utf-8',
+          notice: 0,
+          platform: 'yqq.json',
+          needNewCode: 1,
+          uin: 0,
+          g_tk_new_20200303: 5381,
+          g_tk: 5381
+        },
+        req_1: {
+          method: 'GetRecommendWhole',
+          module: 'music.playlist.PlaylistSquare',
+          param: { IsReqFeed: true, FeedReq: { From: offset, Size: 30 } }
+        }
+      })
+    )}`;
   var res = await httpProxy({
     url: url,
     method: 'GET',
     data: '',
     headers: {
-      Referer: 'http://y.qq.com'
+      Referer: 'http://y.qq.com',
+      Cookie: qqCookie
+    }
+  });
+  let json = await res.json();
+  const ret = json.req_1.data.FeedRsp;
+  const list: Playlist[] = [];
+  const total: number = ret.FromLimit;
+  ret.List.map((m: any) => {
+    list.push({
+      id: m.Playlist.basic.tid,
+      name: m.Playlist.basic.title,
+      type: musicType,
+      image: m.Playlist.basic.cover.default_url
+        .toString()
+        .replace('300?n=1', '150?n=1')
+        .replace('http://', 'https://')
+    });
+  });
+  return {
+    total,
+    list
+  };
+}
+
+export async function recommend(offset: number) {
+  try {
+    return await recommendFirst(offset);
+  } catch {}
+  var url =
+    'https://c.y.qq.com/splcloud/fcgi-bin/fcg_get_diss_by_tag.fcg?' +
+    'rnd=0.4781484879517406&g_tk=732560869&loginUin=0&hostUin=0' +
+    '&format=json&inCharset=utf8&outCharset=utf-8&notice=0' +
+    '&platform=yqq&needNewCode=0&categoryId=10000000&sortId=5' +
+    `&sin=${offset}&ein=${offset + 30}`;
+  var res = await httpProxy({
+    url: url,
+    method: 'GET',
+    data: '',
+    headers: {
+      Referer: 'http://y.qq.com',
+      Cookie: qqCookie
     }
   });
   let json = await res.json();
@@ -281,7 +340,7 @@ export async function playlistDetail1(id: string) {
   };
 }
 
-export async function playlistDetail(id: string) {
+export async function playlistDetail(id: string, offset: number) {
   if (id.startsWith('ranking')) {
     var rankingType = RankingType.Hot;
     switch (id) {
@@ -292,7 +351,7 @@ export async function playlistDetail(id: string) {
         rankingType = RankingType.Soar;
         break;
     }
-    const rankingList = await ranking(rankingType);
+    const rankingList = await ranking(rankingType, offset);
     return {
       list: rankingList.list,
       total: rankingList.total,
@@ -318,8 +377,8 @@ export async function playlistDetail(id: string) {
         enc_host_uin: '',
         tag: 1,
         userinfo: 1,
-        song_begin: 0,
-        song_num: 500
+        song_begin: offset,
+        song_num: offset + 30
       }
     }
   };
@@ -452,7 +511,84 @@ export function rankingPlaylist(ranking: RankingType): Playlist {
   };
 }
 
-export async function ranking(ranking: RankingType) {
+export async function rankingFirst(ranking: RankingType, offset: number) {
+  let now = new Date();
+  if (now.getHours() < 10) now = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const day = now.getDate().toString().padStart(2, '0');
+  const date = `${now.getFullYear()}-${month}-${day}`;
+  var playlistId = 26;
+  switch (ranking) {
+    case RankingType.New:
+      playlistId = 27;
+      break;
+    case RankingType.Soar:
+      playlistId = 62;
+      break;
+  }
+  var url =
+    `https://u.y.qq.com/cgi-bin/musicu.fcg?callback=&g_tk=5381&platform=yqq` +
+    `&jsonpCallback=&loginUin=0&hostUin=0&format=json&inCharset=utf8` +
+    `&outCharset=utf-8&notice=0&needNewCode=0&data=${encodeURIComponent(
+      JSON.stringify({
+        comm: {
+          cv: 4747474,
+          ct: 24,
+          format: 'json',
+          inCharset: 'utf-8',
+          outCharset: 'utf-8',
+          notice: 0,
+          platform: 'yqq.json',
+          needNewCode: 1,
+          uin: 0,
+          g_tk_new_20200303: 5381,
+          g_tk: 5381
+        },
+        req_1: {
+          module: 'musicToplist.ToplistInfoServer',
+          method: 'GetDetail',
+          param: { topid: playlistId, offset: offset, num: 20, period: date }
+        }
+      })
+    )}`;
+  const res = await httpProxy({
+    url,
+    method: 'GET',
+    headers: {
+      Referer: 'http://y.qq.com',
+      Cookie: qqCookie
+    }
+  });
+  let json = await res.json();
+  const total: number = json.req_1.data.data.totalNum;
+  const list: Music[] = [];
+  json.req_1.data.songInfoList.map((m: any) => {
+    list.push({
+      id: m.mid,
+      name: m.name,
+      image: parseAlbumImage(m),
+      singer: Array.isArray(m.singer)
+        ? m.singer.map((n: any) => n.name).join(' / ')
+        : '',
+      album: m.album.name,
+      albumId: m.album.id,
+      duration: millisecond2Duration(m.file.size128mp3 / 16),
+      length: m.file.size128mp3 / 16,
+      vip: Boolean(m.pay && m.pay.payplay),
+      remark: '',
+      type: musicType
+    });
+  });
+  return {
+    list,
+    total
+  };
+}
+
+export async function ranking(ranking: RankingType, offset: number) {
+  try {
+    return rankingFirst(ranking, offset);
+  } catch {}
   var playlistId = '';
   switch (ranking) {
     case RankingType.New:
@@ -641,7 +777,8 @@ export async function musicDetail(
       method: 'GET',
       data: '',
       headers: {
-        Referer: 'http://y.qq.com'
+        Referer: 'http://y.qq.com',
+        Cookie: qqCookie
       }
     });
     const ret = await res.json();
@@ -732,6 +869,7 @@ export async function loginStatus(cookie: string): Promise<{
 }
 
 export async function userInfo(cookies: string): Promise<UserInfo | null> {
+  qqCookie = cookies;
   const cookie = formatCookies(cookies);
   var res = await httpProxy({
     url: 'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg?cid=205360838&reqfrom=1',

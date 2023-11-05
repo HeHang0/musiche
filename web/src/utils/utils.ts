@@ -1,3 +1,4 @@
+import { MessageParams } from 'element-plus';
 import { LyricLine, MusicFileInfo } from './type';
 
 interface SpecialService {
@@ -267,4 +268,15 @@ export async function imageToDataUrl(
   image.remove();
   canvas.remove();
   return dataUrl;
+}
+
+export function messageOption(message: string, html?: boolean): MessageParams {
+  return {
+    message: message,
+    center: true,
+    dangerouslyUseHTMLString: html,
+    customClass: 'music-message',
+    offset: screen.availHeight * 0.36,
+    grouping: true
+  };
 }

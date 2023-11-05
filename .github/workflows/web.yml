@@ -52,3 +52,12 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v1
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            web\dist\Musiche.exe
+            web\dist\Musiche.net6.exe
+            windows\Resources\web.zip

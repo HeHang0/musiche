@@ -52,7 +52,6 @@ const setting = useSettingStore();
       description="空空如也" />
     <div
       v-for="(item, index) in props.list"
-      v-show="!loading"
       class="music-list-item"
       :class="
         item.id == play.music.id && item.type == play.music.type
@@ -439,7 +438,7 @@ const setting = useSettingStore();
   }
   .music-list-item {
     &:hover {
-      background-color: var(--music-background-hover);
+      background-color: var(--music-background);
     }
   }
 }
@@ -468,7 +467,7 @@ const setting = useSettingStore();
   }
   .music-list-item {
     &:hover {
-      background-color: var(--music-background-hover);
+      background-color: var(--music-background);
       border-radius: var(--music-border-radius);
       // box-shadow: 0px 0px 8px 0px #9a94945c;
     }

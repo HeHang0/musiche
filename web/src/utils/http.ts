@@ -1,6 +1,8 @@
 import { AudioPlayer } from './audio';
 import { ProxyRequestData } from './type';
 import { webView2Services } from './utils';
+const musicRouterPrefix = localStorage.getItem('musiche-router-prefix');
+const history = musicRouterPrefix ? '/' + musicRouterPrefix : '';
 
 const httpAddress = import.meta.env.DEV ? '127.0.0.1:54621' : location.host;
 const proxyAddress =
@@ -41,7 +43,7 @@ export async function musicOperate(
   } else {
     var text = '';
     try {
-      const res = await fetch(`//${httpAddress}${url}`, {
+      const res = await fetch(`//${httpAddress}${history}${url}`, {
         method: 'POST',
         body: data,
         headers: headers

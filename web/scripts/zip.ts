@@ -18,7 +18,13 @@ function buildVersion(output: string = null) {
   const commitHash = execSync('git rev-parse --short HEAD', {
     encoding: 'utf8'
   });
-  fs.writeFileSync(outFile, `${version}-${commitHash}`);
+  const now = new Date();
+  fs.writeFileSync(
+    outFile,
+    `${version}-${commitHash} (${now.getFullYear()}-${(now.getMonth() + 1)
+      .toString()
+      .padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')})`
+  );
 }
 
 export const ZipPlugin = function (

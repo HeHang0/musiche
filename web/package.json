@@ -20,6 +20,7 @@
     "crypto-js": "*",
     "default-passive-events": "*",
     "element-plus": "*",
+    "jsmediatags": "^3.9.7",
     "less": "*",
     "pinia": "*",
     "qrcode": "^1.5.3",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@types/crypto-js": "*",
+    "@types/jsmediatags": "^3.9.5",
     "@types/node": "^18.14.2",
     "@types/qrcode": "^1.5.4",
     "@vitejs/plugin-vue": "*",

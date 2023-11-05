@@ -10,14 +10,16 @@ import { useSettingStore } from '../stores/setting';
 const { currentRoute, replace } = useRouter();
 const play = usePlayStore();
 const setting = useSettingStore();
+const total = ref(0);
 const musicList: Ref<Music[]> = ref([] as Music[]);
 const playlistInfo: Ref<Playlist | null> = ref({} as Playlist);
 const loading = ref(false);
 const playlistInfoShow = ref(false);
-const unWatch = watch(currentRoute, searchMusic);
+const affixShow = ref(false);
+const unWatch = watch(currentRoute, searchMusic.bind(null, true));
 const pageKeys = ['album', 'playlist', 'lover', 'recent', 'created'];
 const hideFavoriteKeys = ['lover', 'created'];
-async function searchMusic() {
+async function searchMusic(clear: boolean = true) {
   const routerKey = currentRoute.value.meta.key?.toString() || '';
   if (!pageKeys.includes(routerKey)) return false;
   const localShow = Boolean(currentRoute.value.meta.localShow);
@@ -33,13 +35,17 @@ async function searchMusic() {
     list: Music[];
     playlist: Playlist | null;
   };
-  musicList.value = [];
+  if (clear) musicList.value = [];
   playlistInfo.value = null;
   playlistInfoShow.value = routerKey !== 'recent';
   switch (currentRoute.value.meta.key) {
     case 'album':
       loading.value = true;
-      result = await api.albumDetail(musicType, playlistId);
+      result = await api.albumDetail(
+        musicType,
+        playlistId,
+        musicList.value.length
+      );
       loading.value = false;
       break;
     case 'playlist':
@@ -47,7 +53,7 @@ async function searchMusic() {
       result = await api.playlistDetail(
         musicType,
         playlistId,
-        setting.userInfo[musicType]?.cookie
+        musicList.value.length
       );
       loading.value = false;
       break;
@@ -84,7 +90,9 @@ async function searchMusic() {
       return;
   }
   if (!result) return;
-  musicList.value = result.list;
+  total.value = result.total;
+  if (clear) musicList.value = result.list;
+  else result.list.forEach(m => musicList.value.push(m));
   playlistInfo.value = result.playlist;
 }
 function addMyFavorite() {
@@ -97,6 +105,14 @@ function addMyFavorite() {
     play.beforeAddMyPlaylistsMusic(musicList.value);
   }
 }
+function onPageScroll(event: { scrollTop: number }) {
+  const { scrollTop } = event;
+  if (scrollTop > 220 && !affixShow.value) {
+    affixShow.value = true;
+  } else if (scrollTop < 220 && affixShow.value) {
+    affixShow.value = false;
+  }
+}
 onMounted(searchMusic);
 onUnmounted(unWatch);
 </script>
@@ -105,33 +121,91 @@ onUnmounted(unWatch);
   <div
     class="music-playlist"
     :class="playlistInfo ? 'music-playlist-info-show' : ''">
-    <div class="music-playlist-header">
-      <img
-        class="music-playlist-header-image"
-        v-if="playlistInfoShow && !loading"
-        :src="
-          playlistInfo?.image ||
-          playlistInfo?.musicList?.at(0)?.image ||
-          LogoImage
-        " />
-      <el-skeleton
-        animated
-        :loading="loading"
-        class="music-playlist-header-image">
-        <template #template>
-          <el-skeleton-item variant="image" />
-        </template>
-      </el-skeleton>
-      <div class="music-playlist-header-info">
-        <div v-if="playlistInfoShow" v-show="!loading">
-          <div class="music-playlist-header-info-name text-overflow-1">
-            {{ playlistInfo?.name || '' }}
+    <el-scrollbar @scroll="onPageScroll">
+      <div class="music-playlist-header">
+        <img
+          class="music-playlist-header-image"
+          v-if="playlistInfoShow && !loading"
+          :src="
+            playlistInfo?.image ||
+            playlistInfo?.musicList?.at(0)?.image ||
+            LogoImage
+          " />
+        <el-skeleton
+          animated
+          :loading="loading"
+          class="music-playlist-header-image">
+          <template #template>
+            <el-skeleton-item variant="image" />
+          </template>
+        </el-skeleton>
+        <div class="music-playlist-header-info">
+          <div v-if="playlistInfoShow" v-show="!loading">
+            <div class="music-playlist-header-info-name text-overflow-1">
+              {{ playlistInfo?.name || '' }}
+            </div>
+            <el-scrollbar class="music-playlist-header-info-desc">
+              <div v-html="playlistInfo?.description || ''"></div>
+            </el-scrollbar>
           </div>
-          <el-scrollbar class="music-playlist-header-info-desc">
-            <div v-html="playlistInfo?.description || ''"></div>
-          </el-scrollbar>
+          <el-skeleton animated :loading="loading" :row="4"> </el-skeleton>
+          <div>
+            <el-button-group>
+              <el-button
+                type="primary"
+                :disabled="loading || musicList.length === 0"
+                @click="play.play(undefined, musicList)">
+                <span class="music-icon">播</span>
+                播放
+              </el-button>
+              <el-button
+                type="primary"
+                :disabled="loading || musicList.length === 0"
+                @click="
+                  play.add(musicList);
+                  play.showCurrentListPopover();
+                "
+                title="添加到播放列表">
+                <span class="music-icon">添</span>
+              </el-button>
+            </el-button-group>
+            <el-button
+              v-if="
+                !hideFavoriteKeys.includes(
+                  currentRoute.meta?.key?.toString() || ''
+                )
+              "
+              type="info"
+              @click="addMyFavorite">
+              <span class="music-icon">{{
+                playlistInfo &&
+                play.myFavorite[playlistInfo.type + playlistInfo.id]
+                  ? '藏'
+                  : '收'
+              }}</span>
+              {{
+                playlistInfo &&
+                play.myFavorite[playlistInfo.type + playlistInfo.id]
+                  ? '已'
+                  : ''
+              }}收藏
+            </el-button>
+          </div>
         </div>
-        <el-skeleton animated :loading="loading" :row="4"> </el-skeleton>
+      </div>
+      <MusicList :loading="loading" :list="musicList" />
+      <div
+        v-if="total > musicList.length && !loading"
+        class="load-more"
+        @click="searchMusic(false)"></div>
+    </el-scrollbar>
+    <div
+      class="music-playlist-header-affix"
+      :class="affixShow ? 'music-playlist-header-affix-show' : ''">
+      <div class="music-playlist-header-info">
+        <div class="music-playlist-header-info-name text-overflow-1">
+          {{ playlistInfo?.name || '' }}
+        </div>
         <div>
           <el-button-group>
             <el-button
@@ -176,9 +250,6 @@ onUnmounted(unWatch);
         </div>
       </div>
     </div>
-    <el-scrollbar>
-      <MusicList :loading="loading" :list="musicList" />
-    </el-scrollbar>
   </div>
 </template>
 
@@ -190,6 +261,27 @@ onUnmounted(unWatch);
   &-header {
     display: flex;
     align-items: center;
+    &-affix {
+      position: absolute;
+      top: -50px;
+      left: 0;
+      width: 100%;
+      background: var(--music-affix-background);
+      z-index: -1;
+      opacity: 0;
+      transition-duration: 0.8s;
+      transition-property: opacity top;
+      .music-playlist-header-info {
+        height: 95px !important;
+        margin-left: 0;
+        padding: 0 var(--music-page-padding-horizontal);
+      }
+      &-show {
+        top: 0;
+        z-index: 0;
+        opacity: 1;
+      }
+    }
     & > div {
       display: flex;
     }

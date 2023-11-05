@@ -15,9 +15,9 @@
   --music-button-info-background-hover: #e4e8ec;
   --music-side-background: rgba(106, 143, 172, 0.1);
   --music-footer-background: rgba(100, 100, 100, 0.12);
-  --music-background: rgba(255, 255, 255, 0.6);
+  --music-background: rgba(255, 255, 255);
   --music-sub-background: rgba(179, 179, 179, 0.1);
-  --music-background-hover: rgba(255, 255, 255, 1);
+  --music-affix-background: rgb(247, 247, 247);
   --music-page-padding-horizontal: 38px;
   --music-border-radius: 8px;
   --music-progress-height: 4px;
@@ -55,6 +55,7 @@
   --music-text-color: white;
   --music-search-background: transparent;
   --music-side-divider-color: rgba(255, 255, 255, 0.1);
+  --music-affix-background: var(--music-background);
 }
 
 .red {
@@ -67,10 +68,19 @@
 
 html.custom {
   text-shadow: 0 0 3px white;
+  --music-affix-background: linear-gradient(transparent,
+      rgba(247, 247, 247, 0.6));
+
+  .el-scrollbar {
+    --el-scrollbar-bg-color: var(--music-text-color);
+    --el-scrollbar-hover-bg-color: rgba(119, 119, 119, 0.6);
+  }
 }
 
 html.custom.dark {
   text-shadow: 0 0 3px black;
+  --music-affix-background: linear-gradient(transparent,
+      rgba(19, 19, 26, 0.6));
 }
 
 .layout-vertical {
@@ -99,8 +109,8 @@ body {
 
 body {
   color: var(--music-text-color);
-  background: var(--color-background);
-  transition: color 0.5s, background-color 0.5s;
+  transition: color 0.5s;
+  background: var(--music-background);
   line-height: 1.6;
   font-family: 'PingFang SC', 'Noto Sans TC', Arial, Inter, -apple-system,
     BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
@@ -117,11 +127,6 @@ body {
   width: 6px;
 }
 
-.el-scrollbar::-webkit-scrollbar {
-  height: 0;
-  width: 0;
-}
-
 ::-webkit-scrollbar-track {
   background-color: transparent;
 }
@@ -133,6 +138,11 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background-color: rgba(163, 166, 173, 0.5);
+}
+
+.el-scrollbar::-webkit-scrollbar {
+  height: 0;
+  width: 0;
 }
 
 @-webkit-keyframes spin {
@@ -162,6 +172,20 @@ body {
 
   &&-running {
     animation-play-state: running;
+  }
+}
+
+.load-more {
+  width: 100%;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &::after {
+    content: '加载更多...';
+    color: var(--music-primary-color);
   }
 }
 

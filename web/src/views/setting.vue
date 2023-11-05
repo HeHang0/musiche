@@ -578,25 +578,31 @@ onUnmounted(unWatch);
           <td></td>
           <td class="music-setting-about">
             <span> 当前版本 {{ currentVersion }} </span>
-            <span v-if="currentVersion != remoteVersion">
-              最新版本 {{ remoteVersion }}
-            </span>
             <span
               v-if="
-                !webView2Services.enabled && currentVersion != remoteVersion
+                webView2Services.enabled && currentVersion != remoteVersion
               ">
-              Windows:
-              <a
-                href="https://hehang0.github.io/musiche/Musiche.exe"
-                target="_blank"
-                >Musiche.exe</a
-              >
-              <a
-                href="https://hehang0.github.io/musiche/Musiche.net6.exe"
-                target="_blank"
-                >Musiche.exe[NET6.0]</a
-              >
+              最新版本 {{ remoteVersion }}
             </span>
+            <div
+              class="music-setting-about-download"
+              v-if="!webView2Services.enabled">
+              <a
+                class="music-setting-about-card"
+                href="https://hehang0.github.io/musiche/Musiche.exe"
+                target="_blank">
+                <img src="https://support.microsoft.com/apple-touch-icon.png" />
+                <p>PC版</p>
+              </a>
+              <a
+                class="music-setting-about-card"
+                href="https://hehang0.github.io/musiche/Musiche.net6.exe"
+                target="_blank">
+                <img
+                  src="https://dotnet.microsoft.com/icons/brand-dotnet.png" />
+                <p>PC版(NET6)</p>
+              </a>
+            </div>
           </td>
         </tr>
       </table>
@@ -807,8 +813,22 @@ onUnmounted(unWatch);
   &-about {
     display: flex;
     flex-direction: column;
-    a {
-      margin-left: 20px;
+    &-download {
+      display: flex;
+    }
+    &-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      margin: 20px 30px 0 0;
+      img {
+        width: 50px;
+        height: 50px;
+      }
+      p {
+        margin-top: 10px;
+      }
     }
   }
   &-shortcut {

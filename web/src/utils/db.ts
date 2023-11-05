@@ -43,7 +43,7 @@ export class IndexDB {
     request.onerror = function (event) {
       console.log('db store add error', event);
     };
-    request.onsuccess = function (event) {
+    request.onsuccess = function (_event) {
       console.log('db store add success');
     };
   }

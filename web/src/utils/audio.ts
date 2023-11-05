@@ -9,10 +9,7 @@ export class AudioPlayer {
   lastProgress?: number;
   constructor() {
     this.audio = new Audio();
-    this.audio.addEventListener(
-      'play',
-      this.statusChange.bind(this, undefined)
-    );
+    this.audio.addEventListener('play', this.audioPlay.bind(this));
     this.audio.addEventListener(
       'pause',
       this.statusChange.bind(this, undefined)
@@ -62,9 +59,6 @@ export class AudioPlayer {
         this.fadeInVolume = undefined;
       }
       await this.audio.play();
-      if (this.audio.src?.startsWith('blob')) {
-        URL.revokeObjectURL(this.audio.src);
-      }
     } catch {}
 
     if (this.progressTemp && !isNaN(this.audio.duration)) {
@@ -134,11 +128,22 @@ export class AudioPlayer {
     );
     if (this.lastProgress !== progress) this.statusChange(progress);
   }
-  audioEnded() {
+  sendMessage(type: string, body: any) {
     this.onMessage &&
       this.onMessage({
-        type: 'next',
-        data: true
+        type: type,
+        data: body
       });
+  }
+  audioEnded() {
+    console.log('audio ended');
+    if (this.audio.src?.startsWith('blob')) {
+      URL.revokeObjectURL(this.audio.src);
+    }
+    this.sendMessage('next', true);
+  }
+  audioPlay() {
+    console.log('audio play');
+    this.statusChange();
   }
 }

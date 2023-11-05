@@ -102,9 +102,7 @@ export async function search(keywords: string, offset: number) {
   };
 }
 
-export async function daily(
-  _cookies: Record<string, string>
-): Promise<Playlist | null> {
+export async function daily(): Promise<Playlist | null> {
   const now = new Date();
   return {
     id: 'daily',
@@ -116,25 +114,22 @@ export async function daily(
   };
 }
 
-export async function yours(
-  cookies: Record<string, string>,
-  offset: number
-): Promise<{
+export async function yours(offset: number): Promise<{
   total: number;
   list: Playlist[];
 }> {
   const list: Playlist[] = [];
-  const dailyPlaylist = await daily(cookies);
+  const dailyPlaylist = await daily();
   if (dailyPlaylist) list.push(dailyPlaylist);
 
-  const csrfToken = cookies['__csrf'] || '';
-  const musicU = cookies['MUSIC_U'] || '';
+  const csrfToken = cloudCookie['__csrf'] || '';
+  const musicU = cloudCookie['MUSIC_U'] || '';
   var url = 'https://music.163.com/weapi/user/playlist?csrf_token=';
   const data = {
-    uid: cookies['uid'] || '',
+    uid: cloudCookie['uid'] || '',
     wordwrap: 7,
     limit: 50,
-    offset: offset * 50,
+    offset: offset,
     lasttime: 0,
     total: true,
     csrf_token: csrfToken
@@ -182,8 +177,8 @@ export async function recommend(offset: number) {
   const data = {
     cat: '全部', // 全部,华语,欧美,日语,韩语,粤语,小语种,流行,摇滚,民谣,电子,舞曲,说唱,轻音乐,爵士,乡村,R&B/Soul,古典,民族,英伦,金属,朋克,蓝调,雷鬼,世界音乐,拉丁,另类/独立,New Age,古风,后摇,Bossa Nova,清晨,夜晚,学习,工作,午休,下午茶,地铁,驾车,运动,旅行,散步,酒吧,怀旧,清新,浪漫,性感,伤感,治愈,放松,孤独,感动,兴奋,快乐,安静,思念,影视原声,ACG,儿童,校园,游戏,70后,80后,90后,网络歌曲,KTV,经典,翻唱,吉他,钢琴,器乐,榜单,00后
     // order: 'hot', // hot,new
-    limit: 50,
-    offset: offset * 50,
+    limit: 30,
+    offset: offset,
     lasttime: 0,
     total: true
   };
@@ -225,11 +220,11 @@ export async function recommend(offset: number) {
   };
 }
 
-export async function dailyPlayList(cookies: Record<string, string>) {
-  const csrfToken = cookies ? cookies['__csrf'] || '' : '';
-  const musicU = cookies ? cookies['MUSIC_U'] || '' : '';
+export async function dailyPlayList(offset: number) {
+  const csrfToken = cloudCookie['__csrf'] || '';
+  const musicU = cloudCookie['MUSIC_U'] || '';
   const data = {
-    offset: 0,
+    offset: offset,
     total: true,
     csrf_token: csrfToken
   };
@@ -272,7 +267,7 @@ export async function dailyPlayList(cookies: Record<string, string>) {
       });
     });
   }
-  let playlist = await daily(cookies);
+  let playlist = await daily();
   if (playlist) {
     playlist.name = playlist.name.replace('<br />', ' ');
     if (!playlist.image && list.length > 0) {
@@ -286,12 +281,9 @@ export async function dailyPlayList(cookies: Record<string, string>) {
   };
 }
 
-export async function playlistDetail(
-  id: string,
-  cookies?: Record<string, string>
-) {
+export async function playlistDetail(id: string, offset: number) {
   if (id == 'daily') {
-    return dailyPlayList(cookies!);
+    return dailyPlayList(offset);
   }
   if (id.startsWith('ranking')) {
     var rankingType = RankingType.Hot;
@@ -303,7 +295,7 @@ export async function playlistDetail(
         rankingType = RankingType.Soar;
         break;
     }
-    const rankingList = await ranking(rankingType);
+    const rankingList = await ranking(rankingType, offset);
     return {
       list: rankingList.list,
       total: rankingList.total,
@@ -311,13 +303,15 @@ export async function playlistDetail(
     };
   }
   var url = 'https://music.163.com/weapi/v3/playlist/detail';
+  const csrfToken = cloudCookie['__csrf'] || '';
+  const musicU = cloudCookie['MUSIC_U'] || '';
   const data = {
     id: id,
-    offset: 0,
-    total: true,
-    limit: 1000,
+    offset: offset,
+    total: false,
+    limit: 30,
     n: 1000,
-    csrf_token: ''
+    csrf_token: csrfToken
   };
   var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
   param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
@@ -330,7 +324,7 @@ export async function playlistDetail(
     method: 'POST',
     data: paramData,
     headers: {
-      Cookie: 'os=ios;MUSIC_U=',
+      Cookie: 'os=ios;MUSIC_U=' + musicU,
       Referer: 'https://music.163.com',
       ContentType: 'application/x-www-form-urlencoded',
       UserAgent:
@@ -348,7 +342,7 @@ export async function playlistDetail(
     image: ret.playlist.coverImgUrl,
     type: musicType
   };
-  const total: number = ret.playlist.tracks.length;
+  const total: number = ret.playlist.trackCount;
   ret.playlist.tracks.map((m: any) => {
     list.push({
       id: m.id,
@@ -429,7 +423,10 @@ export async function albumDetail(id: string) {
   };
 }
 
-export async function ranking(ranking: RankingType): Promise<{
+export async function ranking(
+  ranking: RankingType,
+  offset: number
+): Promise<{
   list: Music[];
   total: number;
 }> {
@@ -446,7 +443,7 @@ export async function ranking(ranking: RankingType): Promise<{
       playlistId = '3778678';
       break;
   }
-  return playlistDetail(playlistId);
+  return playlistDetail(playlistId, offset);
 }
 const RankingHot = 'rankinghot';
 const RankingNew = 'rankingnew';
@@ -698,7 +695,11 @@ export async function userInfo(
   });
   const ret = await res.json();
   if (!ret || !ret.profile || !ret.profile.userId) return null;
-  cloudCookie = cookie;
+  cloudCookie = {
+    __csrf: csrfToken,
+    MUSIC_U: musicU,
+    uid: cookie['uid'] || ''
+  };
   return {
     id: ret.profile.userId,
     name: ret.profile.nickname,

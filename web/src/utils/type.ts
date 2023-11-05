@@ -19,6 +19,7 @@ export enum SortType {
 export interface PlayStatus {
   currentTime: string;
   playing: boolean;
+  loading: boolean;
   stopped: boolean;
   totalTime: string;
   progress: number;
@@ -151,18 +152,24 @@ export interface PlatformAPI {
   }>;
   playlistDetail?(
     id: string,
-    cookies?: Record<string, string> | string
+    offset: number
   ): Promise<{
     total: number;
     list: Music[];
     playlist: Playlist | null;
   }>;
-  albumDetail?(id: string): Promise<{
+  albumDetail?(
+    id: string,
+    offset: number
+  ): Promise<{
     total: number;
     list: Music[];
     playlist: Playlist | null;
   }>;
-  ranking?(ranking: RankingType): Promise<{
+  ranking?(
+    ranking: RankingType,
+    offset: number
+  ): Promise<{
     total: number;
     list: Music[];
   }>;
@@ -177,10 +184,7 @@ export interface PlatformAPI {
     user?: UserInfo;
   }>;
   userInfo?(cookie: Record<string, string> | string): Promise<UserInfo | null>;
-  yours?(
-    cookie: Record<string, string> | string,
-    offset: number
-  ): Promise<{
+  yours?(offset: number): Promise<{
     total: number;
     list: Playlist[];
   }>;

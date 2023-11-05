@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { ElMessage } from 'element-plus';
 import * as api from '../utils/api/api';
 import { Music, PlayStatus, Playlist, SortType } from '../utils/type';
 import { musicOperate } from '../utils/http';
@@ -7,6 +8,7 @@ import {
   duration2Millisecond,
   generateGuid,
   getRandomInt,
+  messageOption,
   millisecond2Duration
 } from '../utils/utils';
 import { useTitle } from '@vueuse/core';
@@ -32,6 +34,7 @@ export const usePlayStore = defineStore('play', {
       playerMode: '',
       playStatus: {
         currentTime: '00:00',
+        loading: false,
         playing: false,
         stopped: true,
         totalTime: '',
@@ -51,20 +54,34 @@ export const usePlayStore = defineStore('play', {
   actions: {
     clearMusicList() {
       this.musicList.splice(0, this.musicList.length);
+      this.setCurrentMusic();
       storage.setValue(StorageKey.CurrentMusicList, this.musicList);
       Object.keys(this.music).map(k => {
         delete (this.music as any)[k];
       });
-      storage.setValue(StorageKey.CurrentMusic, this.music);
       this.pause();
     },
-    setCurrentMusic(music: Music) {
-      if (!music || !music.id) return;
+    setCurrentMusic(music?: Music, noSave?: boolean) {
+      if (!music || !music.id) {
+        music = {
+          id: '',
+          name: '',
+          image: '',
+          singer: '',
+          album: '',
+          albumId: '',
+          duration: '',
+          vip: false,
+          type: 'local'
+        };
+      } else {
+        // this.add([music]);
+      }
       Object.keys(music).map(k => {
         if ((this.music as any)[k] != (music as any)[k])
           (this.music as any)[k] = (music as any)[k];
       });
-      this.add([music]);
+      !noSave && storage.setValue(StorageKey.CurrentMusic, this.music);
     },
     setSortType(type: SortType) {
       if (!type) return;
@@ -195,7 +212,7 @@ export const usePlayStore = defineStore('play', {
       storage.setValue(StorageKey.MyPlaylists, this.myPlaylists);
     },
     add(musics: Music[], noSet?: boolean) {
-      if (!musics) return;
+      if (!musics || !Array.isArray(musics)) return;
       const lastLength = this.musicList.length;
       musics.map(music => {
         var index = this.musicList.findIndex(
@@ -213,10 +230,10 @@ export const usePlayStore = defineStore('play', {
       if (this.preparePlay) {
         return;
       }
+      this.playStatus.loading = true;
       this.preparePlay = true;
       if (!music && musicList && musicList[0]) music = musicList[0];
       if (!music && this.playStatus.stopped) music = this.music;
-      console.log('play', music, musicList);
       if (
         !music ||
         (!this.playStatus.stopped &&
@@ -233,34 +250,35 @@ export const usePlayStore = defineStore('play', {
         this.musicList.splice(0, this.musicList.length);
         this.add(musicList);
       }
-      const m = await api.musicDetail(music);
-      if (!m || !m.url) {
+      const lastMusic = this.music;
+      if (music) {
+        this.setCurrentMusic(music);
+      }
+      await api.musicDetail(music);
+      if (!music.url) {
         console.log('fail', music);
+        ElMessage(messageOption('当前音乐无法播放'));
+        this.preparePlay = false;
         if (this.playStatus.playing) {
-          this.preparePlay = false;
-          this.add([this.music]);
           return;
         }
         const musicIndex = this.musicList.findIndex(
           n => music && music.id == n.id && music.type == n.type
         );
         musicIndex >= 0 && this.musicList.splice(0, 1);
-        this.preparePlay = false;
         this.musicList.length > 0 && this.next(true);
         return;
       }
       if (
-        music.id != this.music.id &&
+        (music.id != lastMusic.id || music.type != lastMusic.type) &&
         this.playStatus.stopped &&
         this.playStatus.progress > 0
       ) {
         await musicOperate('/progress', '0');
       }
-      this.setCurrentMusic(m);
       this.checkingStatus = true;
       const res = await musicOperate('/play', music.url);
       this.setStatus(res.data);
-      storage.setValue(StorageKey.CurrentMusic, this.music);
       this.addHistory([this.music]);
       this.setTitle();
       this.preparePlay = false;
@@ -357,9 +375,14 @@ export const usePlayStore = defineStore('play', {
         if (!data) return;
         if (this.playStatus.playing != data.playing) {
           this.playStatus.playing = data.playing;
+          this.playStatus.loading = false;
         }
         if (this.playStatus.stopped != data.stopped) {
           this.playStatus.stopped = data.stopped;
+          this.playStatus.loading = false;
+        }
+        if (this.playStatus.loading && data.playing) {
+          this.playStatus.loading = false;
         }
         if (
           this.playStatus.currentTime != data.currentTime &&
@@ -423,7 +446,8 @@ export const usePlayStore = defineStore('play', {
     async initValue() {
       this.add(await storage.getValue(StorageKey.CurrentMusicList), true);
       this.setCurrentMusic(
-        (await storage.getValue(StorageKey.CurrentMusic)) || this.musicList[0]
+        (await storage.getValue(StorageKey.CurrentMusic)) || this.musicList[0],
+        true
       );
       this.addMyLove(await storage.getValue(StorageKey.MyLoves));
       this.addMyFavorite(await storage.getValue(StorageKey.MyFavorites));

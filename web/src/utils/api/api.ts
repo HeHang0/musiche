@@ -62,7 +62,7 @@ export async function recommend(
 export async function playlistDetail(
   type: MusicType,
   id: string,
-  cookies?: Record<string, string> | string
+  offset: number
 ): Promise<{
   total: number;
   list: Music[];
@@ -70,7 +70,7 @@ export async function playlistDetail(
 }> {
   const func = musicAPI.get(type)?.playlistDetail;
   try {
-    if (func) return await func(id, cookies);
+    if (func) return await func(id, offset);
   } catch (e) {
     console.error(e);
   }
@@ -83,7 +83,8 @@ export async function playlistDetail(
 
 export async function albumDetail(
   type: MusicType,
-  id: string
+  id: string,
+  offset: number
 ): Promise<{
   total: number;
   list: Music[];
@@ -91,7 +92,7 @@ export async function albumDetail(
 }> {
   const func = musicAPI.get(type)?.albumDetail;
   try {
-    if (func) return await func(id);
+    if (func) return await func(id, offset);
   } catch (e) {
     console.error(e);
   }
@@ -104,14 +105,15 @@ export async function albumDetail(
 
 export async function ranking(
   type: MusicType,
-  ranking: RankingType
+  ranking: RankingType,
+  offset: number
 ): Promise<{
   total: number;
   list: Music[];
 }> {
   const func = musicAPI.get(type)?.ranking;
   try {
-    if (func) return await func(ranking);
+    if (func) return await func(ranking, offset);
   } catch (e) {
     console.error(e);
   }
@@ -188,7 +190,6 @@ export async function userInfo(
 
 export async function yours(
   type: MusicType,
-  cookie: Record<string, string> | string,
   offset: number
 ): Promise<{
   total: number;
@@ -196,7 +197,7 @@ export async function yours(
 }> {
   const func = musicAPI.get(type)?.yours;
   try {
-    if (func) return await func(cookie, offset);
+    if (func) return await func(offset);
   } catch (e) {
     console.error(e);
   }

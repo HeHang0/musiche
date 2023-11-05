@@ -31,7 +31,7 @@ const rankingTypes = ref([
 const rankingType: Ref<RankingType> = ref(
   currentRoute.value.params.ranking as RankingType
 );
-const unWatch = watch(currentRoute, searchMusic);
+const unWatch = watch(currentRoute, searchMusic.bind(null, true));
 function parseParams() {
   if (currentRoute.value.meta.key != 'ranking') return false;
   const type = currentRoute.value.params.type as MusicType;
@@ -51,18 +51,24 @@ function parseParams() {
   }
   return false;
 }
-async function searchMusic() {
-  if (!parseParams()) return;
+async function searchMusic(clear: boolean = true) {
+  if (!parseParams()) {
+    return;
+  }
+  clear && musicList.value.splice(0, musicList.value.length);
   if (setting.currentMusicType === 'migu') {
     rankingTypes.value[2].label = '原创榜';
   } else {
     rankingTypes.value[2].label = '飙升榜';
   }
   loading.value = true;
-  var result = await api.ranking(setting.currentMusicType, rankingType.value);
+  var result = await api.ranking(
+    setting.currentMusicType,
+    rankingType.value,
+    musicList.value.length
+  );
   loading.value = false;
   total.value = result.total;
-  musicList.value.splice(0, musicList.value.length);
   result.list.map((m: Music) => musicList.value.push(m));
 }
 function rankingTypeChange(type: RankingType) {
@@ -133,6 +139,10 @@ onUnmounted(unWatch);
     </div>
     <el-scrollbar>
       <MusicList :loading="loading" :list="musicList" />
+      <div
+        v-if="total > musicList.length && !loading"
+        class="load-more"
+        @click="searchMusic(false)"></div>
     </el-scrollbar>
   </div>
 </template>

@@ -25,16 +25,17 @@ function valueChange(v: MusicType) {
 </script>
 <template>
   <el-radio-group :model-value="value" :size="props.size" @change="valueChange">
-    <el-radio-button
-      v-for="info in musicTypeInfoAll"
-      v-show="
-        currentRoute.meta.key !== 'yours' || setting.userInfo[info.type].id
-      "
-      :label="info.type"
-      :title="info.name">
-      <img class="music-type-icon" v-if="info.image" :src="info.image" />
-      <span v-else>{{ info.name }}</span>
-    </el-radio-button>
+    <template v-for="info in musicTypeInfoAll">
+      <el-radio-button
+        v-if="
+          currentRoute.meta.key !== 'yours' || setting.userInfo[info.type].id
+        "
+        :label="info.type"
+        :title="info.name">
+        <img class="music-type-icon" v-if="info.image" :src="info.image" />
+        <span v-else>{{ info.name }}</span>
+      </el-radio-button>
+    </template>
   </el-radio-group>
 </template>
 <style lang="less" scoped>

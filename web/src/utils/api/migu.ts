@@ -20,6 +20,8 @@ import RankingSoarImage from '../../assets/images/ranking-original.jpg';
 
 const musicType: MusicType = 'migu';
 
+var miguCookie: string = '';
+
 function padProtocol(url: string) {
   return url && url.startsWith('//') ? 'https:' + url : url;
 }
@@ -64,26 +66,20 @@ export async function search(keywords: string, offset: number) {
   };
 }
 
-export async function daily(cookies: string): Promise<Playlist | null> {
-  const user = await userInfo(cookies);
+export async function daily(): Promise<Playlist | null> {
   return {
     id: 'daily',
     name: '你会喜欢',
-    image: (user && user.image) || '',
+    image: 'https://d.musicapp.migu.cn/data/oss/service66/00/2b/0z/4i',
     type: musicType
   };
 }
 
-export async function yours(
-  cookies: string,
-  _offset: number
-): Promise<{
+export async function yours(_offset: number): Promise<{
   total: number;
   list: Playlist[];
 }> {
   const list: Playlist[] = [];
-
-  const cookie = formatCookies(cookies);
   const urls = [
     'https://music.migu.cn/v3/api/my/playlist/list',
     'https://music.migu.cn/v3/api/my/collect/list?type=playlist',
@@ -96,7 +92,7 @@ export async function yours(
       method: 'GET',
       headers: {
         Referer: 'https://music.migu.cn/v3',
-        Cookie: cookie
+        Cookie: miguCookie
       }
     });
     const ret = await res.json();
@@ -113,20 +109,20 @@ export async function yours(
         });
       });
 
-      const dailyPlaylist = await daily(cookies);
+      const dailyPlaylist = await daily();
       if (dailyPlaylist) list.unshift(dailyPlaylist);
     }
   }
 
   return {
-    total: 1,
+    total: list.length,
     list
   };
 }
 
 export async function recommend(offset: number) {
   var url = `https://app.c.nf.migu.cn/MIGUM2.0/v1.0/template/musiclistplaza-listbytag/release?pageNumber=${
-    offset + 1
+    Math.floor(offset / 30) + 1
   }&tagId=1003449976`;
   var res = await httpProxy({
     url: url,
@@ -134,7 +130,10 @@ export async function recommend(offset: number) {
   });
   const ret = await res.json();
   const list: Playlist[] = [];
-  const total: number = ret.data.contentItemList.itemList.length;
+  let total: number = offset + 60;
+  if (ret.data.contentItemList.itemList.length == 0) {
+    total = offset;
+  }
   ret.data.contentItemList.itemList.map((m: any) => {
     list.push({
       id: m.logEvent.contentId,
@@ -164,19 +163,29 @@ export async function playlistInfo(id: string) {
     }
   });
   let ret = await res.json();
+  let total = 0;
+  if (
+    ret &&
+    ret.data &&
+    ret.data.contentCount &&
+    /^[\d]+$/.test(ret.data.contentCount)
+  ) {
+    total = parseInt(ret.data.contentCount);
+  }
   return {
     id: ret.data.playListId,
     name: ret.data.playListName,
     description: ret.data.summary && ret.data.summary.replace(/\n+/g, '<br />'),
     image: padProtocol(ret.data.image),
+    total: total,
     type: musicType
   };
 }
 
-export async function dailyPlayList(cookies: string) {
+export async function dailyPlayList(_offset: number) {
   const headers: Record<string, string> = {
     Referer: 'https://music.migu.cn/v3',
-    Cookie: formatCookies(cookies)
+    Cookie: miguCookie
   };
   let res = await httpProxy({
     url: 'https://music.migu.cn/v3/api/music/index/39',
@@ -223,7 +232,7 @@ export async function dailyPlayList(cookies: string) {
       });
     });
   }
-  playlist = await daily(cookies);
+  playlist = await daily();
   return {
     total,
     list,
@@ -231,7 +240,7 @@ export async function dailyPlayList(cookies: string) {
   };
 }
 
-export async function digitalDetail(id: string, _cookies?: string) {
+export async function digitalDetail(id: string) {
   var url =
     'https://m.music.migu.cn/migumusic/h5/digitalAlbum/info?pageSize=500&digitalAlbumId=' +
     id;
@@ -281,9 +290,9 @@ export async function digitalDetail(id: string, _cookies?: string) {
   };
 }
 
-export async function playlistDetail(id: string, cookies?: string) {
+export async function playlistDetail(id: string, offset: number) {
   if (id == 'daily') {
-    return dailyPlayList(cookies!);
+    return dailyPlayList(offset);
   }
   if (id.startsWith('ranking')) {
     var rankingType = RankingType.Hot;
@@ -295,16 +304,16 @@ export async function playlistDetail(id: string, cookies?: string) {
         rankingType = RankingType.Soar;
         break;
     }
-    const rankingList = await ranking(rankingType);
+    const rankingList = await ranking(rankingType, offset);
     return {
       list: rankingList.list,
       total: rankingList.total,
       playlist: rankingPlaylist(rankingType)
     };
   }
-  var url =
-    'https://m.music.migu.cn/migumusic/h5/playlist/songsInfo?pageNo=1&pageSize=30&palylistId=' +
-    id;
+  var url = `https://m.music.migu.cn/migumusic/h5/playlist/songsInfo?pageNo=${
+    Math.floor(offset / 30) + 1
+  }&pageSize=30&palylistId=${id}`;
   var res = await httpProxy({
     url: url,
     method: 'GET',
@@ -318,11 +327,11 @@ export async function playlistDetail(id: string, cookies?: string) {
   });
   let ret = await res.json();
   if (ret && ret.code == 999) {
-    return digitalDetail(id, cookies);
+    return digitalDetail(id);
   }
   const list: Music[] = [];
   const playlist = await playlistInfo(id);
-  const total: number = ret.data.total;
+  const total: number = playlist.total || ret.data.total;
   ret.data.items.map((m: any) => {
     list.push({
       id: m.copyrightId,
@@ -432,7 +441,59 @@ export function rankingPlaylist(ranking: RankingType): Playlist {
   };
 }
 
-export async function ranking(ranking: RankingType) {
+export async function ranking1(ranking: RankingType, offset: number) {
+  var rankingId = '';
+  switch (ranking) {
+    case RankingType.New:
+      rankingId = 'jianjiao_newsong';
+      break;
+    case RankingType.Soar:
+      rankingId = 'jianjiao_original';
+      break;
+
+    default:
+      rankingId = 'jianjiao_hotsong';
+      break;
+  }
+  var res = await httpProxy({
+    url: `https://m.music.migu.cn/migumusic/h5/billboard/home?pathName=${rankingId}&pageNum=${
+      1 + Math.round(offset / 30)
+    }&pageSize=30`,
+    method: 'GET',
+    headers: {
+      By: 'd567433192b439b47c5ea87e55bcc282',
+      Referer: 'https://m.music.migu.cn/v4/music/top/' + rankingId,
+      'User-Agent':
+        'Mozilla/5.0 (Linux; Android 8.0.0; SM-G955U Build/R16NW) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Mobile Safari/537.36'
+    }
+  });
+  const ret = await res.json();
+  const list: Music[] = [];
+  const total: number = ret.data.songs.itemTotal;
+  ret.data.songs.items.map((m: any) => {
+    list.push({
+      id: m.copyrightId,
+      name: m.name,
+      image: m.mediumPic,
+      singer: Array.isArray(m.singers)
+        ? m.singers.map((n: any) => n.name).join(' / ')
+        : '',
+      album: m.albumName,
+      albumId: m.albumId,
+      duration: durationTrim(m.duration),
+      length: duration2Millisecond(m.duration),
+      vip: (m.vipFlag || (m.fullSong && m.fullSong.vipFlag)) == 1,
+      remark: (m.fullSong && m.fullSong.productId) || '',
+      type: musicType
+    });
+  });
+  return {
+    total,
+    list
+  };
+}
+
+export async function ranking(ranking: RankingType, _offset: number) {
   var rankingId = '';
   switch (ranking) {
     case RankingType.New:
@@ -448,7 +509,7 @@ export async function ranking(ranking: RankingType) {
   }
   var res = await httpProxy({
     url:
-      'https://app.c.nf.migu.cn/MIGUM3.0/column/rank/h5/v1.0?columnId=' +
+      'https://app.c.nf.migu.cn/MIGUM3.0/column/rank/h5/v1.0?&pageSize=30&columnId=' +
       rankingId,
     method: 'GET'
   });
@@ -491,7 +552,8 @@ export async function musicDetail(music: Music) {
     method: 'GET',
     data: '',
     headers: {
-      channel: '014000D'
+      channel: '014000D',
+      Cookie: miguCookie
     }
   });
   let ret = await res.json();
@@ -662,6 +724,7 @@ export async function loginStatus(key: string): Promise<{
 }
 
 export async function userInfo(cookies: string): Promise<UserInfo | null> {
+  miguCookie = cookies;
   var res = await httpProxy({
     url: 'https://music.migu.cn/v3/api/user/getUserInfo',
     method: 'GET',

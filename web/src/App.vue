@@ -66,7 +66,6 @@ new MusicConnection(webView2Services.enabled);
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background: var(--music-background);
   .el-main {
     padding: 0;
     margin-top: 5px;

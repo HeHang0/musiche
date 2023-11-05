@@ -1,7 +1,8 @@
 :root {
     --el-skeleton-color: var(--music-skeleton-color);
-    --el-color-primary: var(--music-color-primary);
+    --el-color-primary: var(--music-primary-color) !important;
     --el-border-color: var(--music-button-info-border-color);
+    --el-mask-color: transparent !important;
 }
 
 .el-switch {
@@ -380,4 +381,22 @@
     --el-popover-padding: 2px 3px;
     --el-popover-font-size: 13px;
     --el-popover-border-radius: var(--music-border-radius);
+}
+
+.el-message.music-message {
+    min-width: 120px;
+    border-radius: var(--music-infinity);
+    border: none;
+    // box-shadow: 0 0 6px 0 var(--music-text-color);
+    background: var(--music-text-color);
+
+    &>.el-icon,
+    &>.el-badge {
+        display: none;
+    }
+
+    .el-message__content {
+        color: var(--music-background);
+        text-shadow: none;
+    }
 }

@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { ElMessage } from 'element-plus';
 import { musicOperate } from '../utils/http';
 import {
   CloseType,
@@ -11,8 +12,7 @@ import {
 } from '../utils/type';
 import { StorageKey, storage } from '../utils/storage';
 import * as api from '../utils/api/api';
-import { webView2Services } from '../utils/utils';
-import { useDark } from '@vueuse/core';
+import { messageOption, webView2Services } from '../utils/utils';
 const controlKeys = [
   'ctrl',
   'control',
@@ -218,7 +218,10 @@ export const useSettingStore = defineStore('setting', {
           this.handleThemeChange
         );
       }
-      !noSave && storage.setValue(StorageKey.AutoAppTheme, this.autoAppTheme);
+      if (!noSave) {
+        storage.setValue(StorageKey.AutoAppTheme, this.autoAppTheme);
+        ElMessage(messageOption('设置已更新'));
+      }
     },
     handleThemeChange() {
       this.setAppTheme({ id: darkModeMediaQuery.matches ? 'dark' : '' });
@@ -244,9 +247,11 @@ export const useSettingStore = defineStore('setting', {
       storage.setValue(StorageKey.LocalDirectories, this.localDirectories);
     },
     saveSetting() {
+      ElMessage(messageOption('设置已更新'));
       storage.setValue(StorageKey.Setting, this.pageValue);
     },
     saveUserInfo() {
+      ElMessage(messageOption('登录成功'));
       storage.setValue(StorageKey.UserInfo, this.userInfo);
     },
     async setUserInfo(type: MusicType) {

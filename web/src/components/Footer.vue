@@ -101,6 +101,9 @@ const play = usePlayStore();
             <span
               v-if="play.playStatus.playing"
               class="music-icon music-footer-play"
+              :class="
+                play.playStatus.loading ? 'music-footer-play-loading' : ''
+              "
               title="暂停"
               @click="play.pause">
               停
@@ -108,6 +111,9 @@ const play = usePlayStore();
             <span
               v-else
               class="music-icon music-footer-play"
+              :class="
+                play.playStatus.loading ? 'music-footer-play-loading' : ''
+              "
               @click="play.play()"
               title="播放">
               播
@@ -183,7 +189,7 @@ const play = usePlayStore();
 .music-footer {
   background-color: var(--music-footer-background);
   height: 80px;
-  border-top: 1px solid var(--el-border-color);
+  border-top: 1px solid var(--music-side-divider-color);
   overflow-x: auto;
   padding: 0;
   &-play {
@@ -193,6 +199,18 @@ const play = usePlayStore();
     border-radius: 50%;
     line-height: 38px;
     background-color: rgba(0, 0, 0, 0.1);
+    &-loading::before {
+      content: ' ';
+      display: block;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border-top: 2px solid var(--music-text-color);
+      animation: spin 2s linear infinite;
+    }
   }
   &-full {
     background-color: rgba(255, 255, 255, 0.1);

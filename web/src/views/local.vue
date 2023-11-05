@@ -106,43 +106,52 @@ async function showLocalDirectorySelection() {
 }
 
 async function syncLocalMusic() {
-  if (webView2Services.enabled) {
-    clearArray(musicListAll);
-    for (let i = 0; i < setting.localDirectories.length; i++) {
-      const directory = setting.localDirectories[i];
-      if (!directory.selected) continue;
-      const musicFiles = await webView2Services.fileAccessor?.ListAllFiles(
-        directory.path,
-        true,
-        true
-      );
-      if (musicFiles) {
-        pathToMusic(musicFiles).forEach(m => musicListAll.push(m));
-      }
+  loading.value = true;
+  try {
+    if (webView2Services.enabled) {
+      await syncLocalMusicBackend();
+      clearArray(musicList.value);
+      musicListAll.forEach(m => musicList.value.push(m));
+    } else {
+      clearArray(musicList.value);
+      await syncLocalMusicWeb();
     }
-    clearArray(musicList.value);
-    musicListAll.forEach(m => musicList.value.push(m));
-  } else {
-    syncLocalMusicWeb();
+  } catch {}
+  musicListAll.sort((a, b) => a.name.localeCompare(b.name));
+  musicList.value.sort((a, b) => a.name.localeCompare(b.name));
+  loading.value = false;
+}
+
+async function syncLocalMusicBackend() {
+  clearArray(musicListAll);
+  for (let i = 0; i < setting.localDirectories.length; i++) {
+    const directory = setting.localDirectories[i];
+    if (!directory.selected) continue;
+    const musicFiles = await webView2Services.fileAccessor?.ListAllFiles(
+      directory.path,
+      true,
+      true
+    );
+    if (musicFiles) {
+      pathToMusic(musicFiles).forEach(m => musicListAll.push(m));
+    }
   }
 }
 
 async function syncLocalMusicWeb() {
-  try {
-    const result = await fileHandlerDB.getAllFileHandler();
-    if (!result) return;
-    clearArray(musicListAll);
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
-      const localDirectory = setting.localDirectories.find(
-        m => m.path == item.key
-      );
-      if (!localDirectory || !localDirectory.selected) {
-        continue;
-      }
-      await loadMusicList(item.key);
+  const result = await fileHandlerDB.getAllFileHandler();
+  if (!result) return;
+  clearArray(musicListAll);
+  for (let i = 0; i < result.length; i++) {
+    const item = result[i];
+    const localDirectory = setting.localDirectories.find(
+      m => m.path == item.key
+    );
+    if (!localDirectory || !localDirectory.selected) {
+      continue;
     }
-  } catch {}
+    await loadMusicList(item.key);
+  }
 }
 
 async function loadMusicList(key: string) {
@@ -156,10 +165,11 @@ async function loadMusicList(key: string) {
       fileHandlerDB.handleCache[key].handler,
       key
     );
-    (await fileToMusic(files)).forEach(m => musicListAll.push(m));
+    (await fileToMusic(files)).forEach(m => {
+      musicListAll.push(m);
+      musicList.value.push(m);
+    });
   }
-  clearArray(musicList.value);
-  musicListAll.forEach(m => musicList.value.push(m));
 }
 onMounted(syncLocalMusic);
 </script>

@@ -13,7 +13,6 @@ const props = withDefaults(defineProps<Props>(), {
 <template>
   <div class="music-play-list">
     <RouterLink
-      v-show="!loading"
       :to="'/playlist/' + item.type + '/' + item.id"
       v-for="item in props.list">
       <div class="music-play-list-item">

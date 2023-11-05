@@ -1,6 +1,8 @@
 import { IndexDB } from '../db';
 import { Music, MusicFileInfo } from '../type';
 import { checkReadPermission, getFileName, webView2Services } from '../utils';
+import jsmediatags from 'jsmediatags';
+import { TagType, jsmediatagsError } from 'jsmediatags/types';
 export const fileHandlerDB = new IndexDB('file-handles-store');
 
 export async function fileToMusic(
@@ -9,12 +11,31 @@ export async function fileToMusic(
   const musics: Music[] = [];
   for (let i = 0; i < fileInfos.length; i++) {
     const info = fileInfos[i];
+    let tag: TagType = {} as any;
+    try {
+      tag = await new Promise((resolve, reject) => {
+        jsmediatags.read(info.file, {
+          onSuccess: function (tag: TagType) {
+            resolve(tag);
+          },
+          onError: function (error: jsmediatagsError) {
+            reject(error);
+          }
+        });
+      });
+    } catch {}
     musics.push({
       id: info.path,
-      name: info.file.name.replace(/\.[a-zA-Z\d]+$/, ''),
-      image: '',
-      singer: '',
-      album: '',
+      name: tag.tags?.title || info.file.name.replace(/\.[a-zA-Z\d]+$/, ''),
+      image: tag.tags?.picture?.data
+        ? URL.createObjectURL(
+            new Blob([new Uint8Array(tag.tags.picture.data as any)], {
+              type: tag.tags.picture.format
+            })
+          )
+        : '',
+      singer: tag.tags?.artist || '',
+      album: tag.tags?.album || '',
       albumId: '',
       duration: '',
       vip: false,
