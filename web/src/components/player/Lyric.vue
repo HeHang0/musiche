@@ -20,8 +20,13 @@ const musicLyric: Ref<LyricLine[]> = ref([]);
 const currentLine: Ref<number> = ref(0);
 const lyricLineIdPrefix = 'lyric-line-';
 const router = useRouter();
+var currentLyricId = '';
 function loadLyric() {
   currentLine.value = 0;
+  if (!play.music.length && !play.music.duration) {
+    return;
+  }
+  if (currentLyricId == `${play.music.type}${play.music.id}`) return;
   api.lyric(play.music).then(lyric => {
     if (!lyric) {
       musicLyric.value = [];
@@ -32,17 +37,27 @@ function loadLyric() {
           play.music.length || duration2Millisecond(play.music.duration)
         );
       }
+      currentLyricId = `${play.music.type}${play.music.id}`;
       musicLyric.value = lyric.lines || [];
     }
   });
 }
 function activeLyricLine() {
+  if (!play.playDetailShow) return;
   for (let i = 0; i < musicLyric.value.length; i++) {
     const line = musicLyric.value[i];
     if (
       line.progress <= play.playStatus.progress &&
       line.max > play.playStatus.progress
     ) {
+      for (let j = i + 1; j < musicLyric.value.length; j++) {
+        if (musicLyric.value[j].progress === line.progress) continue;
+        else {
+          i = j;
+          break;
+        }
+      }
+
       if (currentLine.value != i) {
         currentLine.value = i;
         scrollToElementId(lyricLineIdPrefix + i, true, true);
@@ -73,10 +88,12 @@ function toAlbum() {
 }
 const unWatchProgress = watch(() => play.playStatus.progress, activeLyricLine);
 const unWatchMusicId = watch(() => play.music.id, loadLyric);
+const unWatchDuration = watch(() => play.music.duration, loadLyric);
 onMounted(loadLyric);
 onUnmounted(() => {
   unWatchProgress();
   unWatchMusicId();
+  unWatchDuration();
 });
 </script>
 <template>
@@ -89,17 +106,23 @@ onUnmounted(() => {
         class="music-lyric-desc"
         v-show="play.music.album || play.music.singer"
         :style="pure ? 'justify-content: center' : ''">
-        <div v-if="!props.pure">
+        <div v-if="!props.pure" class="text-overflow-1">
           <span>专辑：</span
-          ><span class="music-lyric-desc-album" @click="toAlbum">{{
-            play.music.album
-          }}</span>
+          ><span
+            class="music-lyric-desc-album"
+            @click="toAlbum"
+            :title="play.music.album"
+            >{{ play.music.album }}</span
+          >
         </div>
-        <div>
+        <div v-show="play.music.singer" class="text-overflow-1">
           <span>歌手：</span
-          ><span class="music-lyric-desc-singer" @click="toSinger">{{
-            play.music.singer
-          }}</span>
+          ><span
+            class="music-lyric-desc-singer"
+            @click="toSinger"
+            :title="play.music.singer"
+            >{{ play.music.singer }}</span
+          >
         </div>
       </div>
     </div>
@@ -131,9 +154,6 @@ onUnmounted(() => {
     display: flex;
     & > div {
       width: 200px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
       & > span {
         opacity: 0.6;
         cursor: default;

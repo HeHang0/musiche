@@ -2,6 +2,7 @@ import { httpProxy, parseHttpProxyAddress } from '../http';
 import {
   LoginStatus,
   Music,
+  MusicQuality,
   MusicType,
   Playlist,
   RankingType,
@@ -22,8 +23,21 @@ const musicType: MusicType = 'migu';
 
 var miguCookie: string = '';
 
+var miguUid: string = localStorage.getItem('musiche-migu-uid') || '';
+
 function padProtocol(url: string) {
   return url && url.startsWith('//') ? 'https:' + url : url;
+}
+
+var downloadQuality: MusicQuality = 'PQ';
+var playQuality: MusicQuality = 'PQ';
+
+export function setDownloadQuality(quality: MusicQuality) {
+  downloadQuality = quality;
+}
+
+export function setPlayQuality(quality: MusicQuality) {
+  playQuality = quality;
 }
 
 export async function search(keywords: string, offset: number) {
@@ -540,10 +554,11 @@ export async function ranking(ranking: RankingType, _offset: number) {
   };
 }
 
-export async function musicDetail(music: Music) {
+async function listenUrl(music: Music, quality: MusicQuality = 'PQ') {
   var url =
     'https://c.musicapp.migu.cn/MIGUM3.0/strategy/listen-url/v2.4?' +
-    'resourceType=2&netType=01&toneFlag=PQ&scene=' +
+    'resourceType=2&netType=01&scene=' +
+    `&toneFlag=${quality || 'PQ'}` +
     `&contentId=${music.remark}` +
     `&copyrightId=${music.id}` +
     `&lowerQualityContentId=${music.id}`;
@@ -553,20 +568,41 @@ export async function musicDetail(music: Music) {
     data: '',
     headers: {
       channel: '014000D',
-      Cookie: miguCookie
+      Cookie: miguCookie,
+      uid: miguUid
     }
   });
   let ret = await res.json();
   if (ret && ret.data && ret.data.url && ret.data.song) {
-    music.url = ret.data.url.replace('http://', 'https://');
-    music.lyricUrl = ret.data.lrcUrl || '';
-    music.duration = second2Duration(ret.data.song.duration);
-    music.length = 1000 * ret.data.song.duration;
+    let image = ret.data.song.img2 || ret.data.song.img1;
+    if (image && image.startsWith('/prod'))
+      image = 'https://d.musicapp.migu.cn' + image;
+    return {
+      url: ret.data.url.replace('http://', 'https://') as string,
+      lyricUrl: (ret.data.lrcUrl || '') as string,
+      duration: second2Duration(ret.data.song.duration),
+      length: 1000 * ret.data.song.duration,
+      image
+    };
+  }
+  return null;
+}
+
+export async function downloadUrl(music: Music): Promise<string> {
+  let data = await listenUrl(music, downloadQuality);
+  if (data && data.url) return data.url;
+  return '';
+}
+
+export async function musicDetail(music: Music): Promise<Music> {
+  let data = await listenUrl(music, playQuality);
+  if (data) {
+    music.url = data.url;
+    music.lyricUrl = data.lyricUrl || '';
+    music.duration = data.duration;
+    music.length = data.length;
     if (!music.image) {
-      let image = ret.data.song.img2 || ret.data.song.img1;
-      if (image && image.startsWith('/prod'))
-        image = 'https://d.musicapp.migu.cn' + image;
-      music.image = image;
+      music.image = data.image;
     }
   }
   return music;
@@ -735,8 +771,10 @@ export async function userInfo(cookies: string): Promise<UserInfo | null> {
   });
   const ret = await res.json();
   if (!ret || !ret.user || !ret.user.uid) return null;
+  miguUid = ret.user.uid;
+  localStorage.setItem('musiche-migu-uid', miguUid);
   return {
-    id: ret.user.uid,
+    id: miguUid,
     name: ret.user.nickname,
     image: ret.user.avatar.smallAvatar
   };

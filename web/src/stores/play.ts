@@ -250,8 +250,16 @@ export const usePlayStore = defineStore('play', {
         this.musicList.splice(0, this.musicList.length);
         this.add(musicList);
       }
-      const lastMusic = this.music;
+      const lastMusicId = this.music.id;
+      const lastMusicType = this.music.type;
       if (music) {
+        if (
+          this.musicList.findIndex(
+            m => m.id == music!.id && m.type == music!.type
+          ) < 0
+        ) {
+          this.add([music]);
+        }
         this.setCurrentMusic(music);
       }
       await api.musicDetail(music);
@@ -270,7 +278,7 @@ export const usePlayStore = defineStore('play', {
         return;
       }
       if (
-        (music.id != lastMusic.id || music.type != lastMusic.type) &&
+        (music.id != lastMusicId || music.type != lastMusicType) &&
         this.playStatus.stopped &&
         this.playStatus.progress > 0
       ) {
@@ -287,6 +295,18 @@ export const usePlayStore = defineStore('play', {
       this.checkingStatus = true;
       var res = await musicOperate('/pause');
       this.setStatus(res.data);
+    },
+    async remove(item: Music) {
+      const index = this.musicList.findIndex(
+        m => m.type == item!.type && m.id == item!.id
+      );
+      if (index >= 0) {
+        this.musicList.splice(index, 1);
+        storage.setValue(StorageKey.CurrentMusicList, this.musicList);
+      }
+      if (item.type == this.music.type && item.id == this.music.id) {
+        this.next();
+      }
     },
     async next(auto?: boolean) {
       if (typeof auto !== 'boolean') auto = false;

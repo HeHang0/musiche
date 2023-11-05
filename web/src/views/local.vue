@@ -127,13 +127,14 @@ async function syncLocalMusicBackend() {
   for (let i = 0; i < setting.localDirectories.length; i++) {
     const directory = setting.localDirectories[i];
     if (!directory.selected) continue;
-    const musicFiles = await webView2Services.fileAccessor?.ListAllFiles(
+    const musicFilesText = await webView2Services.fileAccessor?.ListAllAudios(
       directory.path,
-      true,
       true
     );
-    if (musicFiles) {
-      pathToMusic(musicFiles).forEach(m => musicListAll.push(m));
+    if (musicFilesText) {
+      pathToMusic(JSON.parse(musicFilesText)).forEach(m =>
+        musicListAll.push(m)
+      );
     }
   }
 }

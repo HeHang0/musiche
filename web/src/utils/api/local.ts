@@ -1,4 +1,5 @@
 import { IndexDB } from '../db';
+import { parseMusicFileImageAddress } from '../http';
 import { Music, MusicFileInfo } from '../type';
 import { checkReadPermission, getFileName, webView2Services } from '../utils';
 import jsmediatags from 'jsmediatags';
@@ -24,9 +25,11 @@ export async function fileToMusic(
         });
       });
     } catch {}
+    const rawName = info.file.name.replace(/\.[a-zA-Z\d]+$/, '');
     musics.push({
       id: info.path,
-      name: tag.tags?.title || info.file.name.replace(/\.[a-zA-Z\d]+$/, ''),
+      name: tag.tags?.title || rawName,
+      rawName: rawName,
       image: tag.tags?.picture?.data
         ? URL.createObjectURL(
             new Blob([new Uint8Array(tag.tags.picture.data as any)], {
@@ -45,20 +48,28 @@ export async function fileToMusic(
   return musics;
 }
 
-export function pathToMusic(filePaths: string[]): Music[] {
+export function pathToMusic(filePaths: string[] | Music[]): Music[] {
   const musics: Music[] = [];
   for (let i = 0; i < filePaths.length; i++) {
-    const filePath = filePaths[i];
+    let filePath = '';
+    let music: Music = {} as any;
+    if (typeof filePaths[i] === 'string') {
+      filePath = filePaths[i] as string;
+    } else {
+      music = filePaths[i] as any;
+      filePath = music.id;
+    }
     musics.push({
-      id: filePath,
+      id: filePath || music.id || '',
       name: getFileName(filePath),
-      image: '',
-      singer: '',
-      album: '',
+      image: parseMusicFileImageAddress(filePath || music.id || ''),
+      singer: music.singer || '',
+      album: music.album || '',
       albumId: '',
-      duration: '',
+      duration: music.duration || '',
+      length: music.length || 0,
       vip: false,
-      url: filePath,
+      url: filePath || music.url || '',
       type: 'local'
     });
   }

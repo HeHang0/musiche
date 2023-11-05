@@ -1,5 +1,5 @@
 import { MessageParams } from 'element-plus';
-import { LyricLine, MusicFileInfo } from './type';
+import { LyricLine, Music, MusicFileInfo } from './type';
 
 interface SpecialService {
   MouseDownDrag: () => void;
@@ -19,6 +19,7 @@ interface FileAccessor {
     recursive: boolean,
     onlyAudio: boolean
   ) => Promise<string[]>;
+  ListAllAudios: (path: string, recursive: boolean) => Promise<string>;
 }
 
 export const webView2Services = {
@@ -92,29 +93,28 @@ export function getRandomInt(min: number, max: number, ignore?: number) {
 
 export function duration2Millisecond(duration: string) {
   if (!duration || typeof duration != 'string') duration = '';
-  duration = duration.substring(1, duration.length - 1);
+  duration = duration.replace(/[\[\]\s]/g, '');
   var durations = duration.split('.');
   var date = (durations[0] || '').split(':');
   var len = date.length;
-  var millisecond = parseInt(durations[1] || '0');
-  var second = parseInt(date[len - 1] || '0');
-  var minute = parseInt(date[len - 2] || '0');
-  var hour = parseInt(date[len - 3] || '0');
-  return millisecond + 1000 * (hour * 360 + minute * 60 + second);
+  var millisecond = parseInt((durations[1] || '0').padStart(3, '0'));
+  var second = parseInt(date[len - 1] || '0') * 1000;
+  var minute = parseInt(date[len - 2] || '0') * 60 * 1000;
+  var hour = parseInt(date[len - 3] || '0') * 3600 * 1000;
+  return millisecond + hour + minute + second;
 }
 
 export function parseLyric(text: string, length: number) {
   if (!text || typeof text != 'string') text = '';
-  var lines = text.split('\n');
-  var lastProgress = 0;
+  let lines = text.split('\n');
+  let lastProgress = 0;
   const lyricLines = [] as LyricLine[];
   const lyricRegex = /(\[[\d:\.]+\])([\s\S]+)/;
   lines.map(line => {
-    var match = lyricRegex.exec(line);
+    const match = lyricRegex.exec(line);
     if (!match) return;
-    var progress = Math.round(
-      1000 * (duration2Millisecond(match[1]) / length || lastProgress)
-    );
+    let progress = Math.round((1000 * duration2Millisecond(match[1])) / length);
+    progress = progress || lastProgress;
     lyricLines.push({
       progress: progress,
       text: match[2] || '',
@@ -123,7 +123,7 @@ export function parseLyric(text: string, length: number) {
     lastProgress = progress;
   });
   for (let i = 0; i < lyricLines.length; i++) {
-    if (lyricLines[i + 1] == null) {
+    if (!lyricLines[i + 1]) {
       lyricLines[i].max = 1000;
     } else {
       lyricLines[i].max = lyricLines[i + 1].progress;

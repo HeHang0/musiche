@@ -5,10 +5,15 @@ import {
   Playlist,
   RankingType,
   UserInfo,
-  LoginStatus
+  LoginStatus,
+  MusicQuality
 } from '../type';
 import { httpProxy } from '../http';
-import { millisecond2Duration, parseCookie } from '../utils';
+import {
+  duration2Millisecond,
+  millisecond2Duration,
+  parseCookie
+} from '../utils';
 import RankingHotImage from '../../assets/images/ranking-hot.jpg';
 import RankingNewImage from '../../assets/images/ranking-new.jpg';
 import RankingSoarImage from '../../assets/images/ranking-soar.jpg';
@@ -41,13 +46,29 @@ function parseSinger(data: any) {
     : '';
 }
 
-export async function search(keywords: string, offset: number) {
+var downloadQuality: MusicQuality = 'PQ';
+var playQuality: MusicQuality = 'PQ';
+
+export function setDownloadQuality(quality: MusicQuality) {
+  downloadQuality = quality;
+}
+
+export function setPlayQuality(quality: MusicQuality) {
+  playQuality = quality;
+}
+
+export async function search(
+  keywords: string,
+  offset: number = 0,
+  limit: number = 30,
+  type: number = 1
+) {
   var url = 'https://interface.music.163.com/weapi/search/get';
   var data = {
     s: keywords.replace(/[\s]+/g, '+'),
-    limit: 30,
+    limit: limit,
     offset: offset * 30,
-    type: 1,
+    type: type,
     strategy: 5,
     queryCorrect: true
   };
@@ -75,22 +96,24 @@ export async function search(keywords: string, offset: number) {
   var keys = keywords.split(/[\s]+/);
   ret.result.songs.map((m: any) => {
     var highlightName = m.name;
-    keys.map(n => {
-      highlightName = highlightName.replace(
-        n,
-        `<span class="c_tx_highlight">${n}</span>`
-      );
-    });
+    type == 1 &&
+      keys.map(n => {
+        highlightName = highlightName.replace(
+          n,
+          `<span class="c_tx_highlight">${n}</span>`
+        );
+      });
+    const album = m.al || m.album || {};
     list.push({
       id: m.id,
       name: m.name,
       highlightName: highlightName,
-      image: m.al.picUrl + '?param=100y100',
-      singer: parseSinger(m.ar),
-      album: m.al.name,
-      albumId: m.al.id,
-      duration: millisecond2Duration(m.dt),
-      length: m.dt,
+      image: (album.picUrl || '') + '?param=100y100',
+      singer: parseSinger(m.ar || m.artists),
+      album: album.name || '',
+      albumId: album.id || '',
+      duration: millisecond2Duration(m.dt || m.duration),
+      length: m.dt || m.duration,
       vip: m.privilege && m.privilege.fee == 1,
       remark: '',
       type: musicType
@@ -473,7 +496,10 @@ export function rankingPlaylist(ranking: RankingType): Playlist {
   };
 }
 
-export async function musicDetail(music: Music) {
+export async function downloadUrl(
+  music: Music,
+  _quality?: MusicQuality
+): Promise<string> {
   var url = 'http://music.163.com/weapi/song/enhance/player/url?csrf_token=';
   const csrfToken = cloudCookie['__csrf'] || '';
   const musicU = cloudCookie['MUSIC_U'] || '';
@@ -502,8 +528,13 @@ export async function musicDetail(music: Music) {
   });
   const ret = await res.json();
   if (ret && ret.data && ret.data[0]) {
-    music.url = ret.data[0].url;
+    return ret.data[0].url;
   }
+  return '';
+}
+
+export async function musicDetail(music: Music) {
+  music.url = await downloadUrl(music, playQuality);
   return music;
 }
 
@@ -557,7 +588,68 @@ export async function lyric(music: Music): Promise<string> {
     method: 'GET'
   });
   const data = await res.json();
-  return (data && data.lrc && data.lrc.lyric) || '';
+  const lyric: string = (data && data.lrc && data.lrc.lyric) || '';
+  // const newlinesCount = lyric.match(/\n/g)?.length || 0;
+  // if (newlinesCount < 5) {
+  //   const resSearch = await search(music.name, 0, 30, 1006);
+  //   for (let i = 0; i < resSearch.list.length; i++) {
+  //     if (
+  //       resSearch.list[i].duration == music.duration &&
+  //       resSearch.list[i].name.includes(music.name.substring(0, 2))
+  //     ) {
+  //       const resL = await httpProxy({
+  //         url:
+  //           'https://music.163.com/api/song/lyric?lv=-1&id=' +
+  //           resSearch.list[i].id,
+  //         method: 'GET'
+  //       });
+  //       const dataL = await resL.json();
+  //       if (dataL && dataL.lrc && dataL.lrc.lyric) return dataL.lrc.lyric;
+  //     }
+  //   }
+  // }
+  return lyric;
+}
+
+export async function lyricFuzzyMatch(music: Music): Promise<string> {
+  if (!music.id || !music.duration) return '';
+  let keywords = '';
+  if (music.rawName) {
+    keywords += music.rawName + ' ';
+  }
+  if (music.name && music.name != music.rawName) {
+    keywords += music.name + ' ';
+  }
+  if (music.singer && !keywords.includes(music.singer)) {
+    keywords += music.singer + ' ';
+  }
+  if (music.album && !keywords.includes(music.album)) {
+    keywords += music.album + ' ';
+  }
+  keywords = keywords.replace(/\-/g, '').replace(/[\s]+/, ' ');
+  const res = await search(keywords);
+  if (res.list.length === 0) return '';
+  let lyricText = '';
+  const localLength = duration2Millisecond(music.duration);
+  for (let i = 0; i < res.list.length; i++) {
+    if (res.list[i].duration == music.duration) {
+      lyricText = await lyric(res.list[i]);
+      break;
+    }
+  }
+  if (!lyricText || (lyricText.match(/\n/g) || []).length < 5) {
+    for (let i = 0; i < res.list.length; i++) {
+      const remoteLength = duration2Millisecond(res.list[i].duration);
+      if (
+        remoteLength < localLength + 3000 &&
+        remoteLength > localLength - 3000
+      ) {
+        lyricText = await lyric(res.list[i]);
+        break;
+      }
+    }
+  }
+  return lyricText;
 }
 
 export async function parseLink(link: string) {

@@ -23,6 +23,7 @@ export interface PlayStatus {
   stopped: boolean;
   totalTime: string;
   progress: number;
+  length?: number;
   volume: number;
   disableUpdateProgress?: boolean;
   disableUpdateVolume?: boolean;
@@ -32,6 +33,7 @@ export interface PlayStatus {
 export interface Music {
   id: string;
   name: string;
+  rawName?: string;
   highlightName?: string;
   image: string;
   singer: string;
@@ -122,6 +124,8 @@ export interface ShortcutKey {
   status?: string;
 }
 
+export type MusicQuality = 'PQ' | 'SQ' | 'HQ' | 'ZQ';
+
 export type LoginStatus = 'success' | 'fail' | 'waiting' | 'authorizing';
 
 export type StoreType = 'file-handles-store';
@@ -195,4 +199,8 @@ export interface PlatformAPI {
     id: string;
   } | null>;
   lyric?(music: Music): Promise<string>;
+  lyricFuzzyMatch?(music: Music): Promise<string>;
+  setDownloadQuality?(quality: MusicQuality): void;
+  setPlayQuality?(quality: MusicQuality): void;
+  downloadUrl?(music: Music): Promise<string>;
 }

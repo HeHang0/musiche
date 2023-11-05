@@ -19,7 +19,9 @@ export enum StorageKey {
   VolumeCache = 'volume-cache',
   Setting = 'setting',
   UserInfo = 'user-info',
-  LocalDirectories = 'local-directories'
+  LocalDirectories = 'local-directories',
+  PlayQuality = 'play-quality',
+  DownloadQuality = 'download-quality'
 }
 
 async function setValue<T>(key: string, value: T) {

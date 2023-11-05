@@ -1,13 +1,18 @@
 <script setup lang="ts">
+import { nextTick, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { Vue3Menus } from 'vue3-menus';
 import { usePlayStore } from '../stores/play';
 import { Music } from '../utils/type';
+import * as api from '../utils/api/api';
 import LogoImage from '../assets/images/logo.png';
 import LogoCircleImage from '../assets/images/logo-circle.png';
 import CloudMusicImage from '../assets/images/cloud-music.webp';
 import QQMusicImage from '../assets/images/qq-music.png';
 import MiguMusicImage from '../assets/images/migu-music.webp';
 import { useSettingStore } from '../stores/setting';
+import { messageOption, webView2Services } from '../utils/utils';
+import { ElMessage } from 'element-plus';
 interface Props {
   list: Music[];
   loading?: boolean;
@@ -32,8 +37,99 @@ function toAlbum(music: Music) {
     router.push(`/album/${music.type}/${music.albumId}`);
   }
 }
+var selectedMusic: Music | null = null;
+function menuPlay() {
+  if (!selectedMusic) return;
+  play.play(selectedMusic);
+}
+
+function addToPlayList(music: Music) {
+  if (!music && !selectedMusic) return;
+  play.add([music || selectedMusic]);
+  play.showCurrentListPopover();
+}
+
+function nextPlay(music: Music) {
+  if (!music && !selectedMusic) return;
+  play.setNextPlay(music || selectedMusic);
+  play.showCurrentListPopover();
+}
+
+function favorite(music: Music) {
+  if (!music && !selectedMusic) return;
+  play.beforeAddMyPlaylistsMusic([music || selectedMusic]);
+}
+
+function deleteFromList() {
+  if (!selectedMusic) return;
+  play.remove(selectedMusic);
+}
+
+async function downloadMusic(music: Music) {
+  if (!music && !selectedMusic) return;
+  const url = await api.downloadUrl(music);
+  if (url && !webView2Services.enabled) {
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    downloadLink.remove();
+  } else {
+    ElMessage(messageOption('当前音乐无法下载'));
+  }
+}
+
+const menus: any = [
+  {
+    icon: '播',
+    label: '播放',
+    click: menuPlay
+  },
+  {
+    icon: '待',
+    label: '下一首播放',
+    click: nextPlay
+  },
+  {
+    icon: '添',
+    label: '添加到播放列表',
+    divided: true,
+    click: addToPlayList
+  },
+  {
+    icon: '收',
+    label: '收藏',
+    click: favorite
+  },
+  {
+    icon: '载',
+    label: '下载',
+    divided: props.single,
+    click: downloadMusic
+  }
+];
+if (props.single) {
+  menus.push({
+    icon: '删',
+    label: '从列表中删除',
+    click: deleteFromList
+  });
+}
+const menuOpened = ref(false);
+const menuEvent = ref({} as any);
 const play = usePlayStore();
 const setting = useSettingStore();
+function openMenu(music: Music, e: any) {
+  if (!music) return;
+  e.preventDefault();
+  selectedMusic = music;
+  menuOpened.value = false;
+  nextTick(() => {
+    menuOpened.value = true;
+    menuEvent.value = e;
+  });
+  console.log('触发了', menuOpened.value, menuEvent.value);
+}
 </script>
 <template>
   <div
@@ -58,6 +154,7 @@ const setting = useSettingStore();
           ? 'music-list-item-is-play'
           : ''
       "
+      @contextmenu.stop="openMenu(item, $event)"
       @dblclick="
         !props.single
           ? play.play(
@@ -155,28 +252,15 @@ const setting = useSettingStore();
           </div>
           <div class="music-list-item-name-operate">
             <span
-              class="music-icon"
-              @click="play.beforeAddMyPlaylistsMusic([item])"
-              title="收藏"
-              >收</span
-            >
-            <span
-              class="music-icon"
-              @click="play.setNextPlay(item)"
-              title="下一首播放">
-              待
-            </span>
-            <span
               v-if="!props.single"
               class="music-icon"
-              @click="
-                play.add([item]);
-                play.showCurrentListPopover();
-              "
-              title="添加到播放列表">
-              添
+              @click="downloadMusic(item)"
+              title="下载">
+              载
             </span>
-
+            <span class="music-icon" @click="favorite(item)" title="收藏">
+              收
+            </span>
             <span v-if="props.single">
               <span
                 class="music-icon"
@@ -193,6 +277,12 @@ const setting = useSettingStore();
                 title="取消喜欢">
                 恨
               </span>
+            </span>
+            <span
+              class="music-icon"
+              @click="openMenu(item, $event)"
+              title="更多">
+              多
             </span>
           </div>
         </div>
@@ -246,6 +336,14 @@ const setting = useSettingStore();
         </div>
       </template>
     </el-skeleton>
+    <Vue3Menus :menus="menus" :event="menuEvent" :open="menuOpened">
+      <template #icon="{ menu }">
+        <span class="music-icon">{{ menu.icon }}</span>
+      </template>
+      <template #label="{ menu }">
+        {{ menu.label }}
+      </template>
+    </Vue3Menus>
   </div>
 </template>
 <style lang="less" scoped>
@@ -438,7 +536,7 @@ const setting = useSettingStore();
   }
   .music-list-item {
     &:hover {
-      background-color: var(--music-background);
+      background-color: var(--music-background-hover);
     }
   }
 }
@@ -467,9 +565,8 @@ const setting = useSettingStore();
   }
   .music-list-item {
     &:hover {
-      background-color: var(--music-background);
+      background-color: var(--music-background-hover);
       border-radius: var(--music-border-radius);
-      // box-shadow: 0px 0px 8px 0px #9a94945c;
     }
   }
 }

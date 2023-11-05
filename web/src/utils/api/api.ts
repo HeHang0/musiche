@@ -6,7 +6,8 @@ import {
   RankingType,
   Lyric,
   UserInfo,
-  LoginStatus
+  LoginStatus,
+  MusicQuality
 } from '../type';
 import * as cloud from './cloud';
 import * as qq from './qq';
@@ -248,22 +249,45 @@ const lyricCache = new Map<string, Lyric>();
 export async function lyric(music: Music): Promise<Lyric | null> {
   const cache = lyricCache.get(music.type + music.id);
   if (cache) return cache;
-  const func = musicAPI.get(music.type)?.lyric;
-  if (func) {
-    var text = '';
-    for (let i = 0; i < 2; i++) {
-      try {
-        text = await func(music);
-        break;
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    if (text) {
-      const lyric = { text: text };
-      lyricCache.set(music.type + music.id, lyric);
-      return lyric;
+  var text = '';
+  try {
+    text = (await musicAPI.get(music.type)?.lyric?.call(null, music)) || '';
+  } catch (e) {
+    console.error('get lyric err', e);
+  }
+  if (!text && music.type === 'local') {
+    try {
+      text =
+        (await musicAPI.get('cloud')?.lyricFuzzyMatch?.call(null, music)) || '';
+    } catch (e) {
+      console.error('fuzzy match lyric err', e);
     }
   }
+  if (text) {
+    const lyric = { text: text };
+    lyricCache.set(music.type + music.id, lyric);
+    return lyric;
+  }
   return null;
+}
+
+export function setDownloadQuality(quality: MusicQuality) {
+  for (let key of musicAPI.keys()) {
+    musicAPI.get(key)?.setDownloadQuality?.call(null, quality);
+  }
+}
+
+export function setPlayQuality(quality: MusicQuality) {
+  for (let key of musicAPI.keys()) {
+    musicAPI.get(key)?.setPlayQuality?.call(null, quality);
+  }
+}
+
+export async function downloadUrl(music: Music): Promise<string> {
+  try {
+    return (
+      (await musicAPI.get(music.type)?.downloadUrl?.call(null, music)) || ''
+    );
+  } catch {}
+  return '';
 }

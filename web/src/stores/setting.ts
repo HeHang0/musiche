@@ -8,7 +8,8 @@ import {
   MusicType,
   UserInfo,
   DirectoryInfo,
-  AppTheme
+  AppTheme,
+  MusicQuality
 } from '../utils/type';
 import { StorageKey, storage } from '../utils/storage';
 import * as api from '../utils/api/api';
@@ -37,6 +38,8 @@ export const useSettingStore = defineStore('setting', {
     currentMusicTypeShow: true,
     localDirectories: [] as DirectoryInfo[],
     autoAppTheme: false,
+    playQuality: 'SQ' as MusicQuality,
+    downloadQuality: 'ZQ' as MusicQuality,
     appTheme: {
       id: ''
     } as AppTheme,
@@ -242,6 +245,17 @@ export const useSettingStore = defineStore('setting', {
       this.customTheme.image = appTheme?.image || '';
       this.customTheme.name = '自定义';
       storage.setValue(StorageKey.CustomTheme, this.customTheme);
+    },
+    setPlayQuality(value: MusicQuality, noSave?: boolean) {
+      this.playQuality = value;
+      api.setDownloadQuality(this.downloadQuality);
+      !noSave && storage.setValue(StorageKey.PlayQuality, this.playQuality);
+    },
+    setDownloadQuality(value: MusicQuality, noSave?: boolean) {
+      this.downloadQuality = value;
+      api.setPlayQuality(this.playQuality);
+      !noSave &&
+        storage.setValue(StorageKey.DownloadQuality, this.downloadQuality);
     },
     saveLocalDirectories() {
       storage.setValue(StorageKey.LocalDirectories, this.localDirectories);
@@ -532,18 +546,29 @@ export const useSettingStore = defineStore('setting', {
           });
         }
       }
-      musicOperate('/fonts').then(fonts => {
-        if (Array.isArray(fonts)) {
-          this.fonts = [];
-          this.fonts.push(...fonts);
-        }
-      });
       this.setFadeIn(this.pageValue.fadeIn, true);
       this.setGpuAcceleration(this.pageValue.gpuAcceleration, true);
       this.setFont(this.pageValue.font, this.pageValue.fontBold, true);
       this.setDisableAnimation(this.pageValue.disableAnimation, true);
-      this.registerGlobalShortCutAll();
-      this.registerGlobalShortCutMedia();
+      musicOperate('/fonts')
+        .then(fonts => {
+          if (Array.isArray(fonts)) {
+            this.fonts = [];
+            this.fonts.push(...fonts);
+          }
+        })
+        .finally(() => {
+          this.registerGlobalShortCutAll();
+          this.registerGlobalShortCutMedia();
+        });
+      this.setPlayQuality(
+        (await storage.getValue(StorageKey.PlayQuality)) || 'SQ',
+        true
+      );
+      this.setDownloadQuality(
+        (await storage.getValue(StorageKey.DownloadQuality)) || 'ZQ',
+        true
+      );
     }
   }
 });

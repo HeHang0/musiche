@@ -280,6 +280,7 @@ onUnmounted(unWatch);
         top: 0;
         z-index: 0;
         opacity: 1;
+        backdrop-filter: blur(2px);
       }
     }
     & > div {

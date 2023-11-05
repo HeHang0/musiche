@@ -5,7 +5,8 @@ import {
   MusicType,
   RankingType,
   UserInfo,
-  LoginStatus
+  LoginStatus,
+  MusicQuality
 } from '../type';
 import { formatCookies, generateGuid, millisecond2Duration } from '../utils';
 import RankingHotImage from '../../assets/images/ranking-hot.jpg';
@@ -62,6 +63,17 @@ function getSearchlUrl(keywords: string, offset: number, jSoup?: boolean) {
     url,
     callback
   };
+}
+
+var downloadQuality: MusicQuality = 'PQ';
+var playQuality: MusicQuality = 'PQ';
+
+export function setDownloadQuality(quality: MusicQuality) {
+  downloadQuality = quality;
+}
+
+export function setPlayQuality(quality: MusicQuality) {
+  playQuality = quality;
 }
 
 export async function search(
@@ -747,11 +759,12 @@ function parseMusicUrl(ret: any) {
   return '';
 }
 
-export async function musicDetail(
+export async function downloadUrl(
   music: Music,
-  _jsoup?: boolean
-): Promise<Music> {
-  const { url, callback } = getMusicDetailUrl(music.id, true); //jsoup);
+  quality?: MusicQuality,
+  jsoup?: boolean
+): Promise<string> {
+  const { url, callback } = getMusicDetailUrl(music.id, jsoup); //jsoup);
   var musicUrl = '';
   if (callback) {
     let callbackTimeout: any = null;
@@ -784,10 +797,17 @@ export async function musicDetail(
     const ret = await res.json();
     musicUrl = parseMusicUrl(ret);
     if (!musicUrl) {
-      return await musicDetail(music, true);
+      return await downloadUrl(music, quality, true);
     }
   }
-  music.url = musicUrl;
+  return musicUrl;
+}
+
+export async function musicDetail(
+  music: Music,
+  _jsoup?: boolean
+): Promise<Music> {
+  music.url = await downloadUrl(music, playQuality, true);
   return music;
 }
 

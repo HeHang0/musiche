@@ -28,6 +28,11 @@ export function parseHttpProxyAddress(url: string): string {
   return `${proxyAddress}?url=${encodeURIComponent(url)}`;
 }
 
+export function parseMusicFileImageAddress(path: string): string {
+  if (!path) return '';
+  return `//${httpAddress}/image?path=${encodeURIComponent(path)}`;
+}
+
 export async function musicOperate(
   url: string,
   data?: string,

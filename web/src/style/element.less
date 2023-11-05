@@ -345,6 +345,35 @@
     }
 }
 
+.v3-menus {
+    text-shadow: none;
+    background: var(--music-background) !important;
+    box-shadow: 0 0 5px 0 var(--music-background-hover) !important;
+    border-radius: var(--music-border-radius) !important;
+    z-index: 9999 !important;
+
+    .v3-menus-item {
+        color: var(--music-text-color) !important;
+        border-bottom: none !important;
+
+        &.v3-menus-divided {
+            .v3-menus-icon {
+                margin-right: 0 !important;
+                border-bottom: 1px solid var(--music-side-divider-color);
+            }
+
+            .v3-menus-label {
+                border-bottom: 1px solid var(--music-side-divider-color);
+                padding-left: 0.6rem;
+            }
+        }
+    }
+
+    .v3-menus-active {
+        background: var(--music-background-hover) !important;
+    }
+}
+
 .music-button-pure {
     height: 37px;
     width: 28px;

@@ -10,7 +10,13 @@ import Login from '../components/Login.vue';
 import { useSettingStore } from '../stores/setting';
 import { musicOperate } from '../utils/http';
 import { musicTypeInfoAll } from '../utils/platform';
-import { AppTheme, CloseType, MusicType, ShortcutType } from '../utils/type';
+import {
+  AppTheme,
+  CloseType,
+  MusicQuality,
+  MusicType,
+  ShortcutType
+} from '../utils/type';
 import {
   imageToDataUrl,
   scrollToElementId,
@@ -86,6 +92,28 @@ const shortcutItems: { name: string; operate: ShortcutType }[] = [
   {
     name: '喜欢歌曲',
     operate: 'love'
+  }
+];
+
+const musicQualities: {
+  quality: MusicQuality;
+  title: string;
+}[] = [
+  {
+    quality: 'ZQ',
+    title: '至臻无损'
+  },
+  {
+    quality: 'SQ',
+    title: '无损'
+  },
+  {
+    quality: 'HQ',
+    title: '高清'
+  },
+  {
+    quality: 'PQ',
+    title: '标准'
   }
 ];
 
@@ -568,7 +596,30 @@ onUnmounted(unWatch);
         </tr>
         <tr>
           <td></td>
-          <td></td>
+          <td class="music-setting-quality">
+            <div class="music-setting-quality-type">
+              <div class="music-setting-quality-title">在线播放音质</div>
+              <el-radio-group
+                class="music-setting-quality-item"
+                v-model="setting.playQuality"
+                @change="setting.setPlayQuality">
+                <el-radio v-for="item in musicQualities" :label="item.quality">
+                  {{ item.title }}
+                </el-radio>
+              </el-radio-group>
+            </div>
+            <div class="music-setting-quality-type">
+              <div class="music-setting-quality-title">本地下载音质</div>
+              <el-radio-group
+                class="music-setting-quality-item"
+                v-model="setting.downloadQuality"
+                @change="setting.setDownloadQuality">
+                <el-radio v-for="item in musicQualities" :label="item.quality">
+                  {{ item.title }}
+                </el-radio>
+              </el-radio-group>
+            </div>
+          </td>
         </tr>
         <tr>
           <td></td>
@@ -822,6 +873,10 @@ onUnmounted(unWatch);
       justify-content: center;
       align-items: center;
       margin: 20px 30px 0 0;
+      text-decoration: none;
+      &:hover {
+        text-decoration: underline;
+      }
       img {
         width: 50px;
         height: 50px;
@@ -871,6 +926,32 @@ onUnmounted(unWatch);
         //   width: 210px;
         //   height: 50px;
         // }
+      }
+    }
+  }
+  &-quality {
+    display: flex;
+    flex-direction: column;
+    &-type {
+      display: flex;
+    }
+    &-type + &-type {
+      margin-top: 20px;
+    }
+    &-title {
+      font-weight: bold;
+      width: 100px;
+    }
+    &-item {
+      flex: 1;
+      align-items: baseline;
+      .el-radio {
+        height: 26px;
+        margin-right: 0;
+        margin-left: 20px;
+        :deep(.el-radio__inner) {
+          box-shadow: 0 0 3px var(--music-background);
+        }
       }
     }
   }

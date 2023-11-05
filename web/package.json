@@ -25,7 +25,8 @@
     "pinia": "*",
     "qrcode": "^1.5.3",
     "vue": "*",
-    "vue-router": "*"
+    "vue-router": "*",
+    "vue3-menus": "^1.1.2"
   },
   "devDependencies": {
     "@types/crypto-js": "*",

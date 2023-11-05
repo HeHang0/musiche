@@ -188,6 +188,11 @@ beforeResolve(() => {
     z-index: 2;
     height: 80px;
   }
+  &-header,
+  &-footer .music-footer-full {
+    transition: opacity 0.5s;
+    opacity: 1;
+  }
 }
 </style>
 <style lang="less">
