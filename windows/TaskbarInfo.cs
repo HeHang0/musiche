@@ -43,9 +43,9 @@ namespace Musiche
             _taskbarInfo.ThumbButtonInfos.Add(toolBarNextButton);
         }
 
-        private void AudioPlayStateChanged(object sender, NAudio.Wave.PlaybackState state)
+        public void AudioPlayStateChanged(bool playing)
         {
-            if (state == NAudio.Wave.PlaybackState.Playing)
+            if (playing)
             {
                 ToolBarPlayPauseButton.ImageSource = iconPause;
                 ToolBarPlayPauseButton.Description = "暂停";
@@ -54,10 +54,6 @@ namespace Musiche
             {
                 ToolBarPlayPauseButton.ImageSource = iconPlay;
                 ToolBarPlayPauseButton.Description = "播放";
-            }
-            if (state == NAudio.Wave.PlaybackState.Stopped)
-            {
-                webSocketHandler.SendMessage("{\"type\": \"next\",\"data\": true}");
             }
         }
 

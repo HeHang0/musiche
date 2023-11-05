@@ -1,4 +1,5 @@
-﻿using Microsoft.WindowsAPICodePack.Dialogs;
+﻿using Musiche.Audio;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -34,10 +35,10 @@ namespace Musiche.Webview2
 #pragma warning disable CS1998
         public async Task<string[]> ShowSelectedDirectory()
         {
-            CommonOpenFileDialog dialog = new CommonOpenFileDialog();
+            var dialog = new Microsoft.WindowsAPICodePack.Dialogs.CommonOpenFileDialog();
             dialog.IsFolderPicker = true;
             dialog.Multiselect = true;
-            if (dialog.ShowDialog() == CommonFileDialogResult.Ok)
+            if (dialog.ShowDialog() == Microsoft.WindowsAPICodePack.Dialogs.CommonFileDialogResult.Ok)
             {
                 return dialog.FileNames.ToArray();
             }
@@ -47,6 +48,17 @@ namespace Musiche.Webview2
         public async Task<string[]> ListAllFiles(string filePath, bool recursive, bool onlyAudio = false)
         {
             return ListFilesRecursively(filePath, recursive, onlyAudio).ToArray();
+        }
+
+        public async Task<string> ListAllAudios(string filePath, bool recursive)
+        {
+            List<string> audioFiles = ListFilesRecursively(filePath, recursive, true);
+            List<AudioTag> musicList = new List<AudioTag>();
+            foreach (string audioFile in audioFiles)
+            {
+                musicList.Add(AudioTag.ReadTag(audioFile));
+            }
+            return "[" + string.Join(",", musicList.Select(m => m.ToString())) + "]";
         }
 
         public async Task<string> GetMyMusicDirectory()

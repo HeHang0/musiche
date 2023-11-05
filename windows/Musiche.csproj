@@ -37,6 +37,7 @@
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NHotkey.Wpf" Version="2.1.1" />
+    <PackageReference Include="TagLibSharp-Lidarr" Version="2.2.0.19" />
   </ItemGroup>
 
   <ItemGroup>

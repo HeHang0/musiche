@@ -13,16 +13,16 @@ namespace Musiche.Server
 {
     public class HttpHandler : Handler, IHandler
     {
-        private readonly Dictionary<string, MethodInfo> routers;
-        private static readonly HashSet<string> installChineseFonts = new HashSet<string>();
-        private readonly FileHandler fileHandler;
+        private readonly Dictionary<string, MethodInfo> routers = new Dictionary<string, MethodInfo>();
+        private readonly HashSet<string> installChineseFonts = new HashSet<string>();
+        private readonly FileHandler fileHandler = new FileHandler();
         public HttpHandler(MainWindow window, AudioPlay audioPlay) : base(window, audioPlay)
         {
-            fileHandler = new FileHandler();
+            InitFonts();
             routers = Utils.ReadRouter(this);
         }
 
-        private static void InitFonts()
+        private void InitFonts()
         {
             foreach (var family in System.Windows.Media.Fonts.SystemFontFamilies)
             {
@@ -39,7 +39,6 @@ namespace Musiche.Server
 
         static HttpHandler()
         {
-            InitFonts();
             ServicePointManager.ServerCertificateValidationCallback +=
             (sender, certificate, chain, sslPolicyErrors) => true;
         }
@@ -239,6 +238,33 @@ namespace Musiche.Server
             await SendString(ctx, JsonConvert.SerializeObject(installChineseFonts), "text/json");
         }
 
+        [Router("/image")]
+        public async Task MusicImage(HttpListenerContext ctx)
+        {
+            var filePath = ctx.Request.QueryString["path"];
+            if(string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+            {
+                await SendString(ctx, string.Empty, statusCode: HttpStatusCode.NotFound);
+                return;
+            }
+            try
+            {
+                AudioTag audioTag = AudioTag.ReadTag(filePath, true);
+                string mime = audioTag.GetPictureType();
+                if (!string.IsNullOrWhiteSpace(mime))
+                {
+                    ctx.Response.ContentType = mime;
+                    ctx.Response.StatusCode = (int)HttpStatusCode.OK;
+                    await WriteResponse(ctx, audioTag.GetPicture());
+                    return;
+                }
+            }
+            catch (Exception)
+            {
+            }
+            await SendString(ctx, string.Empty, statusCode: HttpStatusCode.NotFound);
+        }
+
         [Router("/hotkey")]
         public async Task RegisterHostkey(HttpListenerContext ctx)
         {
@@ -400,7 +426,6 @@ namespace Musiche.Server
                 context.Response.Close();
                 return;
             }
-            HttpListenerResponse response = context.Response;
             string router = context.Request.Url?.LocalPath.TrimEnd('/') ?? "*";
             routers.TryGetValue(router.ToUpper(), out MethodInfo methodInfo);
             if (methodInfo == null)
@@ -409,8 +434,8 @@ namespace Musiche.Server
             }
             try
             {
-                if (methodInfo.Invoke(this, new object[] { context }) is Task task) await task;
-                response.Close();
+                if (methodInfo?.Invoke(this, new object[] { context }) is Task task) await task;
+                context.Response.Close();
             }
             catch (Exception ex)
             {

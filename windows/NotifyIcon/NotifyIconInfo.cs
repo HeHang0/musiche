@@ -1,5 +1,4 @@
 ﻿using Musiche.Server;
-using NAudio.Wave;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
@@ -62,9 +61,9 @@ namespace Musiche.NotifyIcon
             return new ToolStripItem[] { titleMenu, playPauseMenu, lastMenu, nextMenu, new ToolStripSeparator(), loopTypeMenu, new ToolStripSeparator(), exitMenu };
         }
 
-        private void AudioPlayStateChanged(object sender, PlaybackState state)
+        public void AudioPlayStateChanged(bool playing)
         {
-            if (state == PlaybackState.Playing)
+            if (playing)
             {
                 playPauseMenu.Text = "暂停";
                 playPauseMenu.Tag = "⏸";

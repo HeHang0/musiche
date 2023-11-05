@@ -20,11 +20,12 @@ namespace Musiche
     {
         //readonly Webview2Control webview2;
         readonly AudioPlay audioPlay;
-        readonly WebServer webServer;
+        readonly TaskbarInfo taskbarInfo;
+        WebServer webServer;
         readonly WebSocketHandler webSocketHandler;
         readonly HttpHandler httpHandler;
         readonly NotifyIconInfo notifyIcon;
-        readonly Stream logStream = null;
+        Stream logStream = null;
         Hotkey.Hotkey hotkey = null;
         public MainWindow()
         {
@@ -32,6 +33,27 @@ namespace Musiche
             audioPlay = new AudioPlay();
             InitWebview2();
             WindowState = WindowState.Minimized;
+            webSocketHandler = new WebSocketHandler(this, audioPlay);
+            httpHandler = new HttpHandler(this, audioPlay);
+            StateChanged += MainWindow_StateChanged;
+            Closing += MainWindow_Closing;
+            SourceInitialized += MainWindow_SourceInitialized;
+            audioPlay.PlatStateChanged += AudioPlay_PlatStateChanged;
+            taskbarInfo = new TaskbarInfo(webSocketHandler);
+            notifyIcon = new NotifyIconInfo(webSocketHandler, ShowApp, ExitApp);
+            TaskbarItemInfo = taskbarInfo.TaskbarItemInfo;
+        }
+
+        private void AudioPlay_PlatStateChanged(object sender, NAudio.Wave.PlaybackState state)
+        {
+            bool playing = state == NAudio.Wave.PlaybackState.Playing;
+            notifyIcon?.AudioPlayStateChanged(playing);
+            taskbarInfo?.AudioPlayStateChanged(playing);
+        }
+
+        private void MainWindow_SourceInitialized(object sender, EventArgs e)
+        {
+            hotkey = new Hotkey.Hotkey(webSocketHandler);
 #if DEBUG
             webServer = new WebServer(54621);
             webview2.Control.Source = new Uri("http://127.0.0.1:5173");
@@ -42,20 +64,8 @@ namespace Musiche
             webServer = new WebServer(port);
             webview2.Control.Source = new Uri("http://localhost:"+port);
 #endif
-            webSocketHandler = new WebSocketHandler(this, audioPlay);
-            httpHandler = new HttpHandler(this, audioPlay);
-            StateChanged += MainWindow_StateChanged;
-            Closing += MainWindow_Closing;
-            SourceInitialized += MainWindow_SourceInitialized;
             webServer.ClientConnected += WebServer_ClientConnected;
-            TaskbarItemInfo = new TaskbarInfo(webSocketHandler).TaskbarItemInfo;
-            notifyIcon = new NotifyIconInfo(webSocketHandler, ShowApp, ExitApp);
             webServer.Start();
-        }
-
-        private void MainWindow_SourceInitialized(object sender, EventArgs e)
-        {
-            hotkey = new Hotkey.Hotkey(webSocketHandler);
         }
 
         public string RegisterHotkey(Hotkey.ShortcutKey shortcutKey)
@@ -75,13 +85,14 @@ namespace Musiche
 
         private void WebServer_ClientConnected(object sender, System.Net.HttpListenerContext context)
         {
+            Logger.Logger.Info("Receive Connection", context.Request.HttpMethod, context.Request.RawUrl);
             if (context.Request.IsWebSocketRequest)
             {
-                _ = webSocketHandler.Handle(context);
+                _ = webSocketHandler?.Handle(context);
             }
             else
             {
-                _ = httpHandler.Handle(context);
+                _ = httpHandler?.Handle(context);
             }
         }
 

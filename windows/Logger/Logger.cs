@@ -49,7 +49,7 @@ namespace Musiche.Logger
         private static void Write(LoggerType category, params object[] message)
         {
             string cat = $"[{category}]";
-            string now = $"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:sss.fff")}";
+            string now = $"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:sss.fff")} ";
             string msg = string.Join(", ", message);
             Trace.WriteLine(now + msg, $"[{category}]");
             foreach (Stream stream in streams)

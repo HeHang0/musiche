@@ -46,7 +46,6 @@ namespace Musiche.Server
                     try
                     {
                         context.Response.ProcessCors();
-                        Logger.Logger.Info("Receive Connection", context.Request.HttpMethod, context.Request.RawUrl);
                         ClientConnected?.Invoke(this, context);
                     }
                     catch (Exception e)

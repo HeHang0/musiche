@@ -25,9 +25,10 @@ namespace Musiche.Audio
 
         private void OnFadeInTimerTick(object sender, EventArgs e)
         {
-            if (fadeInVolume > 0 && fadeInVolume > wasapiOut.Volume && fadeInVolume <= 1)
+            double wasapiOutVolume = Math.Round(wasapiOut.Volume, 2);
+            if (fadeInVolume > 0 && fadeInVolume > wasapiOutVolume && fadeInVolume <= 1)
             {
-                wasapiOut.Volume = (float)Math.Round(Math.Min(fadeInVolume, wasapiOut.Volume + 0.1), 2);
+                wasapiOut.Volume = (float)Math.Min(fadeInVolume, wasapiOutVolume + 0.1);
                 Logger.Logger.Debug("设置淡入声音", wasapiOut.Volume);
             }
             else
@@ -80,7 +81,7 @@ namespace Musiche.Audio
         {
             if (fadeIn)
             {
-                fadeInVolume = _volume * 1.0f / 100;
+                fadeInVolume = (float)Math.Round(_volume * 1.0f / 100, 2);
                 wasapiOut.Volume = 0;
                 fadeInTimer.Start();
                 Logger.Logger.Debug("开始淡入声音", fadeInVolume);
