@@ -27,7 +27,7 @@ namespace Musiche.Audio
         {
             if (fadeInVolume > 0 && fadeInVolume > wasapiOut.Volume && fadeInVolume <= 1)
             {
-                wasapiOut.Volume = (float)Math.Min(fadeInVolume, wasapiOut.Volume + 0.1);
+                wasapiOut.Volume = (float)Math.Round(Math.Min(fadeInVolume, wasapiOut.Volume + 0.1), 2);
                 Logger.Logger.Debug("设置淡入声音", wasapiOut.Volume);
             }
             else
