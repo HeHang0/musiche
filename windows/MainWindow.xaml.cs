@@ -1,4 +1,5 @@
-﻿using Musiche.Audio;
+﻿using Microsoft.Web.WebView2.Core;
+using Musiche.Audio;
 using Musiche.NotifyIcon;
 using Musiche.Server;
 using Musiche.Webview2;
@@ -10,6 +11,8 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Interop;
+using System.Windows.Media;
 
 namespace Musiche
 {
@@ -83,16 +86,16 @@ namespace Musiche
             webSocketHandler.SendMessage("{\"type\": \"close\"}");
         }
 
-        private void WebServer_ClientConnected(object sender, System.Net.HttpListenerContext context)
+        private async void WebServer_ClientConnected(object sender, System.Net.HttpListenerContext context)
         {
             Logger.Logger.Info("Receive Connection", context.Request.HttpMethod, context.Request.RawUrl);
             if (context.Request.IsWebSocketRequest)
             {
-                _ = webSocketHandler?.Handle(context);
+                webSocketHandler?.Handle(context);
             }
             else
             {
-                _ = httpHandler?.Handle(context);
+                await httpHandler?.Handle(context);
             }
         }
 
@@ -202,6 +205,21 @@ namespace Musiche
         {
             Title = title;
             notifyIcon.SetTitle(title);
+        }
+
+        public void SetTheme(int preferredColorSchemeNumber)
+        {
+            var preferredColorScheme = CoreWebView2PreferredColorScheme.Auto;
+            var dark = ThemeListener.IsDarkMode;
+            if (Enum.IsDefined(typeof(CoreWebView2PreferredColorScheme), preferredColorSchemeNumber))
+            {
+                preferredColorScheme = (CoreWebView2PreferredColorScheme)Enum.ToObject(typeof(CoreWebView2PreferredColorScheme), preferredColorSchemeNumber);
+                dark = preferredColorScheme == CoreWebView2PreferredColorScheme.Dark;
+            }
+            webview2.SetTheme(preferredColorScheme);
+            var windowHandle = new WindowInteropHelper(this).EnsureHandle();
+            if (windowHandle == null || windowHandle == IntPtr.Zero) return;
+            Utils.Areo.EnableBlur(windowHandle, dark);
         }
     }
 }

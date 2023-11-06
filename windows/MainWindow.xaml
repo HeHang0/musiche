@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Musiche" xmlns:webview2="clr-namespace:Musiche.Webview2"
-        mc:Ignorable="d" WindowStartupLocation="CenterScreen"
+        mc:Ignorable="d" WindowStartupLocation="CenterScreen" Background="Transparent"
         Title="" Height="750" Width="1055" MinHeight="750" MinWidth="1055">
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="20" ResizeBorderThickness="4" CornerRadius="8" GlassFrameThickness="-1" UseAeroCaptionButtons="True" />

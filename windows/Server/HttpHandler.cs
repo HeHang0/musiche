@@ -265,6 +265,18 @@ namespace Musiche.Server
             await SendString(ctx, string.Empty, statusCode: HttpStatusCode.NotFound);
         }
 
+        [Router("/theme")]
+        public async Task SetTheme(HttpListenerContext ctx)
+        {
+            string themeString = ctx.Request.QueryString["theme"];
+            int.TryParse(themeString, out int preferredColorScheme);
+            //window.Dispatcher.Invoke(() =>
+            //{
+            //    window.SetTheme(preferredColorScheme);
+            //});
+            await SendString(ctx, string.Empty);
+        }
+
         [Router("/hotkey")]
         public async Task RegisterHostkey(HttpListenerContext ctx)
         {

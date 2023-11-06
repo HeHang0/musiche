@@ -28,9 +28,9 @@ namespace Musiche.NotifyIcon
                 int y = rect.Top + (rect.Height - 10) / 2;
                 Point[] points = new Point[]
                 {
-                        new Point(x + 2, y + 5),
-                        new Point(x + 6, y + 9),
-                        new Point(x + 15, y),
+                        new Point(x - 3, y + 5),
+                        new Point(x + 1, y + 9),
+                        new Point(x + 10, y),
                 };
                 e.Graphics.DrawLines(pen, points);
             }
@@ -61,9 +61,9 @@ namespace Musiche.NotifyIcon
                 {
                     Point[] points = new Point[]
                     {
-                        new Point(x - 5, y - 5),
-                        new Point(x,y),
-                        new Point(x - 5, y + 5),
+                        new Point(x - 10, y - 5),
+                        new Point(x - 5,y),
+                        new Point(x - 10, y + 5),
                     };
                     e.Graphics.DrawLines(pen, points);
                 }
@@ -140,6 +140,24 @@ namespace Musiche.NotifyIcon
             e.TextFormat |= TextFormatFlags.VerticalCenter;
             e.TextRectangle = new Rectangle(e.TextRectangle.X, e.TextRectangle.Y + 10, e.TextRectangle.Width, e.TextRectangle.Height);
             base.OnRenderItemText(e);
+        }
+
+        protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
+        {
+            if (e.Vertical)
+            {
+                base.OnRenderSeparator(e);
+            }
+            else
+            {
+                var bgColor = ThemeListener.IsDarkMode ? Color.FromArgb(0x1A, 0xFF, 0xFF, 0xFF) : Color.FromArgb(0x1A, 0, 0, 0);
+                using (Pen pen = new Pen(bgColor, 1))
+                {
+                    Point start = new Point(10, 3);
+                    Point end = new Point(e.Item.Size.Width - 20, 3);
+                    e.Graphics.DrawLine(pen, start, end);
+                }
+            }
         }
     }
 }

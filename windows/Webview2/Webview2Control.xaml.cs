@@ -49,13 +49,22 @@ namespace Musiche.Webview2
                 CoreWebView2EnvironmentOptions environmentOptions = new CoreWebView2EnvironmentOptions();
                 if (File.Exists(Path.Combine(Utils.File.Webview2Path, Utils.File.DisableGPUName)))
                 {
-                    environmentOptions.AdditionalBrowserArguments = "--disable-gpu";
+                    environmentOptions.AdditionalBrowserArguments += " --disable-gpu";
                 }
+                environmentOptions.AdditionalBrowserArguments += " --enable-features=msWebView2EnableDraggableRegions";
                 _coreEnvironment = CoreWebView2Environment.CreateAsync(userDataFolder: Utils.File.Webview2Path, options: environmentOptions).Result;
             }
             catch (Exception ex)
             {
                 Logger.Logger.Error("Init CoreWebView2Environment Error: ", ex);
+            }
+        }
+
+        public void SetTheme(CoreWebView2PreferredColorScheme preferredColorScheme)
+        {
+            if(webview2.CoreWebView2 != null)
+            {
+                webview2.CoreWebView2.Profile.PreferredColorScheme = preferredColorScheme;
             }
         }
 
@@ -200,6 +209,29 @@ namespace Musiche.Webview2
                 }
             }
             CoreWebView2Environment.SetLoaderDllFolderPath(Utils.File.Webview2Path);
+        }
+
+        private bool IsWebView2Runtime()
+        {
+            try
+            {
+                var str = CoreWebView2Environment.GetAvailableBrowserVersionString();
+                if (!string.IsNullOrWhiteSpace(str))
+                {
+                    return true;
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return false;
+        }
+
+        public void ClearBrowserCache()
+        {
+            //M.wv2.CoreWebView2.Profile.ClearBrowsingDataAsync(); //會清除使用者資料
+            webview2.CoreWebView2.CallDevToolsProtocolMethodAsync("Network.clearBrowserCache", "{}");
         }
     }
 }

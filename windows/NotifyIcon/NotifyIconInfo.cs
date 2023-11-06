@@ -135,6 +135,7 @@ namespace Musiche.NotifyIcon
         internal void SetTitle(string title)
         {
             titleMenu.Text = title;
+            titleMenu.ToolTipText = title;
         }
     }
 }

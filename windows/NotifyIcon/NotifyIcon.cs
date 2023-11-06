@@ -35,7 +35,7 @@ namespace Musiche.NotifyIcon
             {
                 ContextMenuStrip = new ContextMenuStrip();
             }
-            notifyIcon.ContextMenuStrip.Width = 200;
+            notifyIcon.ContextMenuStrip.Width = 100;
             foreach (var menuItem in menuItems)
             {
                 notifyIcon.ContextMenuStrip.Items.Add(menuItem);
