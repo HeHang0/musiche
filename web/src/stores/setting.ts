@@ -230,6 +230,10 @@ export const useSettingStore = defineStore('setting', {
       this.setAppTheme({ id: darkModeMediaQuery.matches ? 'dark' : '' });
     },
     setAppTheme(appTheme?: AppTheme) {
+      let preferredColorScheme = 0;
+      if (!this.autoAppTheme) {
+        preferredColorScheme = appTheme?.id.includes('dark') ? 2 : 1;
+      }
       this.appTheme.id = appTheme?.id || '';
       this.appTheme.color = appTheme?.color || '';
       this.appTheme.image =
@@ -239,6 +243,7 @@ export const useSettingStore = defineStore('setting', {
         id: this.appTheme.id,
         name: this.appTheme.name
       });
+      musicOperate('/theme?theme=' + preferredColorScheme);
     },
     setCustomTheme(appTheme?: AppTheme) {
       this.customTheme.id = appTheme?.id || 'custom ';
@@ -300,7 +305,7 @@ export const useSettingStore = defineStore('setting', {
       fontEle.innerText = styleText;
     },
     setGpuAcceleration(_value?: boolean, noSave?: boolean) {
-      musicOperate('/gpu', this.pageValue.fadeIn ? '1' : undefined);
+      musicOperate('/gpu', this.pageValue.gpuAcceleration ? undefined : '1');
       !noSave && this.saveSetting();
     },
     setStartup() {

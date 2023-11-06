@@ -74,6 +74,7 @@ export interface LyricLine {
   progress: number;
   max: number;
   text: string;
+  duration: string;
 }
 
 export interface DirectoryInfo {

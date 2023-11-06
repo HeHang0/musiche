@@ -4,7 +4,6 @@ import {
   PlatformAPI,
   Playlist,
   RankingType,
-  Lyric,
   UserInfo,
   LoginStatus,
   MusicQuality
@@ -245,8 +244,8 @@ export async function parseLink(link: string): Promise<{
   return null;
 }
 
-const lyricCache = new Map<string, Lyric>();
-export async function lyric(music: Music): Promise<Lyric | null> {
+const lyricCache = new Map<string, string>();
+export async function lyric(music: Music): Promise<string> {
   const cache = lyricCache.get(music.type + music.id);
   if (cache) return cache;
   var text = '';
@@ -264,11 +263,10 @@ export async function lyric(music: Music): Promise<Lyric | null> {
     }
   }
   if (text) {
-    const lyric = { text: text };
-    lyricCache.set(music.type + music.id, lyric);
-    return lyric;
+    lyricCache.set(music.type + music.id, text);
+    return text;
   }
-  return null;
+  return '';
 }
 
 export function setDownloadQuality(quality: MusicQuality) {

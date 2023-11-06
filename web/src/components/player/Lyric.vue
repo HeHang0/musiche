@@ -1,14 +1,8 @@
 <script setup lang="ts">
 import { usePlayStore } from '../../stores/play';
-import { Ref, onMounted, onUnmounted, ref, watch } from 'vue';
-import { LyricLine } from '../../utils/type';
-import {
-  duration2Millisecond,
-  scrollToElementId,
-  parseLyric
-} from '../../utils/utils';
+import { Ref, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { clearArray, scrollToElementId } from '../../utils/utils';
 import { useRouter } from 'vue-router';
-import * as api from '../../utils/api/api';
 interface Props {
   pure?: boolean;
 }
@@ -16,54 +10,20 @@ const props = withDefaults(defineProps<Props>(), {
   pure: false
 });
 const play = usePlayStore();
-const musicLyric: Ref<LyricLine[]> = ref([]);
+const musicLyric: Ref<string[]> = ref([]);
 const currentLine: Ref<number> = ref(0);
 const lyricLineIdPrefix = 'lyric-line-';
 const router = useRouter();
-var currentLyricId = '';
-function loadLyric() {
-  currentLine.value = 0;
-  if (!play.music.length && !play.music.duration) {
-    return;
-  }
-  if (currentLyricId == `${play.music.type}${play.music.id}`) return;
-  api.lyric(play.music).then(lyric => {
-    if (!lyric) {
-      musicLyric.value = [];
-    } else {
-      if (!lyric.lines) {
-        lyric.lines = parseLyric(
-          lyric.text,
-          play.music.length || duration2Millisecond(play.music.duration)
-        );
-      }
-      currentLyricId = `${play.music.type}${play.music.id}`;
-      musicLyric.value = lyric.lines || [];
-    }
-  });
+function loadLyric(lines: string[]) {
+  clearArray(musicLyric.value);
+  musicLyric.value = lines;
 }
-function activeLyricLine() {
-  if (!play.playDetailShow) return;
-  for (let i = 0; i < musicLyric.value.length; i++) {
-    const line = musicLyric.value[i];
-    if (
-      line.progress <= play.playStatus.progress &&
-      line.max > play.playStatus.progress
-    ) {
-      for (let j = i + 1; j < musicLyric.value.length; j++) {
-        if (musicLyric.value[j].progress === line.progress) continue;
-        else {
-          i = j;
-          break;
-        }
-      }
-
-      if (currentLine.value != i) {
-        currentLine.value = i;
-        scrollToElementId(lyricLineIdPrefix + i, true, true);
-      }
-      return;
-    }
+function activeLyricLine(index: number, _text: string) {
+  if (currentLine.value != index) {
+    currentLine.value = index;
+    nextTick(() => {
+      scrollToElementId(lyricLineIdPrefix + index, true, true);
+    });
   }
 }
 function cancelDetail() {
@@ -86,14 +46,13 @@ function toAlbum() {
     router.push(`/album/${play.music.type}/${play.music.albumId}`);
   }
 }
-const unWatchProgress = watch(() => play.playStatus.progress, activeLyricLine);
-const unWatchMusicId = watch(() => play.music.id, loadLyric);
-const unWatchDuration = watch(() => play.music.duration, loadLyric);
-onMounted(loadLyric);
+onMounted(() => {
+  play.subscribeLyric(loadLyric);
+  play.subscribeLyricLine(activeLyricLine);
+});
 onUnmounted(() => {
-  unWatchProgress();
-  unWatchMusicId();
-  unWatchDuration();
+  play.subscribeLyric(loadLyric, true);
+  play.subscribeLyricLine(activeLyricLine, true);
 });
 </script>
 <template>
@@ -132,7 +91,7 @@ onUnmounted(() => {
         :id="lyricLineIdPrefix + index"
         :class="index == currentLine ? 'music-lyric-line-active' : ''"
         class="music-lyric-line">
-        {{ line.text }}
+        {{ line }}
       </div>
     </div>
   </div>

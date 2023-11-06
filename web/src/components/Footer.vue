@@ -108,7 +108,11 @@ const play = usePlayStore();
             播
           </span>
           <span class="music-icon" @click="play.next" title="下一首"> 后 </span>
-          <span class="music-icon" title="桌面歌词" style="opacity: 0">
+          <span
+            class="music-icon"
+            @click="play.showDesktopLyric(!play.desktopLyricShow)"
+            title="桌面歌词"
+            :style="play.desktopLyricShow ? 'opacity:1' : ''">
             词
           </span>
         </div>
@@ -124,6 +128,7 @@ const play = usePlayStore();
             v-model="play.playStatus.progress"
             :show-tooltip="false"
             :max="1000"
+            :title="play.playStatus.progress"
             @mousedown="play.playStatus.disableUpdateProgress = true"
             @change="play.changeProgress" />
           <span v-if="!props.full" class="music-footer-second-text">{{

@@ -12,8 +12,11 @@ import {
   millisecond2Duration
 } from '../utils/utils';
 import { useTitle } from '@vueuse/core';
+import { LyricChange, LyricLineChange, LyricManager } from '../utils/lyric';
 
 const title = useTitle();
+
+const lyricManager = new LyricManager();
 
 export const usePlayStore = defineStore('play', {
   state: () => {
@@ -31,6 +34,7 @@ export const usePlayStore = defineStore('play', {
       currentListShow: false,
       playDetailShow: false,
       selectPlaylistShow: false,
+      desktopLyricShow: false,
       playerMode: '',
       playStatus: {
         currentTime: '00:00',
@@ -52,6 +56,27 @@ export const usePlayStore = defineStore('play', {
     };
   },
   actions: {
+    subscribeLyric(callback: LyricChange, cancel?: boolean) {
+      lyricManager.subscribeLyric(callback, cancel, this.music);
+    },
+    subscribeLyricLine(callback: LyricLineChange, cancel?: boolean) {
+      lyricManager.subscribeLyricLine(callback, cancel, this.music);
+    },
+    closeDesktopLyric() {
+      this.desktopLyricShow = false;
+    },
+    showDesktopLyric(show: boolean) {
+      this.desktopLyricShow = show;
+      let title = this.music.name;
+      if (this.music.singer) {
+        title += ' - ' + this.music.singer;
+      }
+      lyricManager.showInDesktop(
+        title,
+        this.desktopLyricShow,
+        this.closeDesktopLyric
+      );
+    },
     clearMusicList() {
       this.musicList.splice(0, this.musicList.length);
       this.setCurrentMusic();
@@ -62,25 +87,20 @@ export const usePlayStore = defineStore('play', {
       this.pause();
     },
     setCurrentMusic(music?: Music, noSave?: boolean) {
-      if (!music || !music.id) {
-        music = {
-          id: '',
-          name: '',
-          image: '',
-          singer: '',
-          album: '',
-          albumId: '',
-          duration: '',
-          vip: false,
-          type: 'local'
-        };
-      } else {
-        // this.add([music]);
-      }
-      Object.keys(music).map(k => {
-        if ((this.music as any)[k] != (music as any)[k])
-          (this.music as any)[k] = (music as any)[k];
-      });
+      this.music.id = music?.id || '';
+      this.music.name = music?.name || '';
+      this.music.rawName = music?.rawName || '';
+      this.music.image = music?.image || '';
+      this.music.singer = music?.singer || '';
+      this.music.album = music?.album || '';
+      this.music.albumId = music?.albumId || '';
+      this.music.duration = music?.duration || '';
+      this.music.length = music?.length || 0;
+      this.music.vip = music?.vip || false;
+      this.music.remark = music?.remark || '';
+      this.music.type = music?.type || 'local';
+      this.music.url = music?.url || '';
+      this.music.lyricUrl = music?.lyricUrl || '';
       !noSave && storage.setValue(StorageKey.CurrentMusic, this.music);
     },
     setSortType(type: SortType) {
@@ -290,6 +310,7 @@ export const usePlayStore = defineStore('play', {
       this.addHistory([this.music]);
       this.setTitle();
       this.preparePlay = false;
+      lyricManager.updateLyric(this.music);
     },
     async pause() {
       this.checkingStatus = true;
@@ -412,11 +433,12 @@ export const usePlayStore = defineStore('play', {
         }
         if (data.totalTime && this.playStatus.totalTime != data.totalTime) {
           this.playStatus.totalTime = data.totalTime;
-          if (!this.music.length) {
-            this.music.length = duration2Millisecond(data.totalTime);
-          }
           if (!this.music.duration) {
             this.music.duration = data.totalTime;
+          }
+          if (!this.music.length) {
+            this.music.length = duration2Millisecond(data.totalTime);
+            lyricManager.updateLyric(this.music);
           }
         }
         if (
@@ -446,6 +468,7 @@ export const usePlayStore = defineStore('play', {
               (this.music.length * data.progress) / 1000
             );
           }
+          lyricManager.updateLyricLine(this.playStatus.progress);
         }
       } catch {}
     },

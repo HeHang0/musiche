@@ -1,5 +1,5 @@
 import { MessageParams } from 'element-plus';
-import { LyricLine, Music, MusicFileInfo } from './type';
+import { LyricLine, MusicFileInfo } from './type';
 
 interface SpecialService {
   MouseDownDrag: () => void;
@@ -104,8 +104,8 @@ export function duration2Millisecond(duration: string) {
   return millisecond + hour + minute + second;
 }
 
-export function parseLyric(text: string, length: number) {
-  if (!text || typeof text != 'string') text = '';
+export function parseLyric(text: string, length: number): LyricLine[] {
+  if (!text || typeof text != 'string') return [];
   let lines = text.split('\n');
   let lastProgress = 0;
   const lyricLines = [] as LyricLine[];
@@ -113,11 +113,15 @@ export function parseLyric(text: string, length: number) {
   lines.map(line => {
     const match = lyricRegex.exec(line);
     if (!match) return;
-    let progress = Math.round((1000 * duration2Millisecond(match[1])) / length);
+    let progress = Math.min(
+      Math.floor((1000 * duration2Millisecond(match[1])) / length),
+      1000
+    );
     progress = progress || lastProgress;
     lyricLines.push({
       progress: progress,
-      text: match[2] || '',
+      text: (match[2] || '').trim(),
+      duration: match[1] || '',
       max: 0
     });
     lastProgress = progress;
