@@ -16,10 +16,7 @@ namespace Musiche.Utils
             //privateFonts.AddMemoryFont(ptrData, length);
             //Marshal.FreeCoTaskMem(ptrData);
             File.CreateDirectoryIFNotExists(Path.GetDirectoryName(IconFontPath));
-            if (!System.IO.File.Exists(IconFontPath))
-            {
-                System.IO.File.WriteAllBytes(IconFontPath, Properties.Resources.iconfont);
-            }
+            System.IO.File.WriteAllBytes(IconFontPath, Properties.Resources.iconfont);
         }
     }
 }

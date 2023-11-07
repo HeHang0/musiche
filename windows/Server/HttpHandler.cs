@@ -294,9 +294,11 @@ namespace Musiche.Server
             string line = ctx.Request.DataAsString();
             if (!string.IsNullOrWhiteSpace(line))
             {
+                string durationString = ctx.Request.QueryString["duration"] ?? string.Empty;
+                double.TryParse(durationString, out double duration);
                 window.Dispatcher.Invoke(() =>
                 {
-                    window.SetLyricLine(line);
+                    window.SetLyricLine(line, duration);
                 });
             }
             await SendString(ctx, string.Empty);

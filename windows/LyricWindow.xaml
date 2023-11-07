@@ -8,18 +8,6 @@
         ShowInTaskbar="False" Height="100" Width="500" MinWidth="360" MinHeight="100"
         MouseEnter="Window_MouseEnter" MouseLeave="Window_MouseLeave"
         Loaded="Window_Loaded" Closing="Window_Closing" MouseLeftButtonDown="DragWindow">
-    <!--<WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="0" ResizeBorderThickness="8" CornerRadius="8" GlassFrameThickness="-1" UseAeroCaptionButtons="True" />
-    </WindowChrome.WindowChrome>-->
-    <Window.Resources>
-        <Style TargetType="Label">
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect ShadowDepth="0" BlurRadius="2"/>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </Window.Resources>
     <Border x:Name="LyricBorder" CornerRadius="8" Margin="5">
         <Grid>
             <Grid.RowDefinitions>
@@ -27,13 +15,17 @@
                 <RowDefinition></RowDefinition>
             </Grid.RowDefinitions>
             <StackPanel x:Name="IconPannel" Orientation="Horizontal" HorizontalAlignment="Center" Visibility="Collapsed">
-                <Label Name="LockLabel" Background="#01000000" Content="锁" Cursor="Hand" PreviewMouseLeftButtonDown="LockWindow" Tag="last" Width="40" FontSize="20" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                <Label Name="LockLabel" Background="#01000000" Content="锁" Cursor="Hand" PreviewMouseLeftButtonDown="LockWindow" Tag="last" Width="40" FontSize="20" HorizontalContentAlignment="Center" VerticalContentAlignment="Center">
+                    <Label.Effect>
+                        <DropShadowEffect Color="Transparent" ShadowDepth="0" BlurRadius="2"/>
+                    </Label.Effect>
+                </Label>
                 <Label Content="前" Cursor="Hand" PreviewMouseLeftButtonDown="MusicOperate" Tag="last" Width="40" FontSize="20" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
                 <Label Name="PlayOrPause" Content="播" Cursor="Hand" PreviewMouseLeftButtonDown="MusicOperate" Tag="playOrPause" Width="40" FontSize="20" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
                 <Label Content="后" Cursor="Hand" PreviewMouseLeftButtonDown="MusicOperate" Tag="next" Width="40" FontSize="20" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
-                <Label Content="关" Cursor="Hand" PreviewMouseLeftButtonDown="CloseWindow" Width="40" FontSize="14" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                <Label Content="关" Cursor="Hand" PreviewMouseLeftButtonDown="CloseWindow" Width="40" FontSize="13" FontWeight="Bold" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
             </StackPanel>
-            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden" PreviewMouseLeftButtonDown="DragWindow">
+            <ScrollViewer x:Name="LyricScroll" Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden" PreviewMouseLeftButtonDown="DragWindow">
                 <Label Background="#01000000" FontSize="20" Name="Lyric" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <Label.Effect>
                         <DropShadowEffect ShadowDepth="0" BlurRadius="2"/>

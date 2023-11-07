@@ -30,6 +30,7 @@ namespace Musiche
         Stream logStream = null;
         Hotkey.Hotkey hotkey = null;
         LyricWindow lyricWindow;
+        private bool dark = false;
         public MainWindow()
         {
             InitializeComponent();
@@ -217,15 +218,16 @@ namespace Musiche
         public void SetTheme(int preferredColorSchemeNumber)
         {
             var preferredColorScheme = CoreWebView2PreferredColorScheme.Auto;
-            var dark = ThemeListener.IsDarkMode;
+            dark = ThemeListener.IsDarkMode;
             if (Enum.IsDefined(typeof(CoreWebView2PreferredColorScheme), preferredColorSchemeNumber))
             {
                 preferredColorScheme = (CoreWebView2PreferredColorScheme)Enum.ToObject(typeof(CoreWebView2PreferredColorScheme), preferredColorSchemeNumber);
                 dark = preferredColorScheme == CoreWebView2PreferredColorScheme.Dark;
             }
             webview2.SetTheme(preferredColorScheme);
+            lyricWindow?.SetTheme(dark);
             var windowHandle = new WindowInteropHelper(this).EnsureHandle();
-            if (windowHandle == null || windowHandle == IntPtr.Zero) return;
+            if (windowHandle == IntPtr.Zero) return;
             Utils.Areo.Apply(windowHandle, dark);
         }
 
@@ -233,7 +235,7 @@ namespace Musiche
         {
             if(options.Show && lyricWindow == null)
             {
-                lyricWindow = new LyricWindow(webSocketHandler, options.Title);
+                lyricWindow = new LyricWindow(webSocketHandler, options.Title, dark);
                 lyricWindow.Show();
                 lyricWindow.Closed += LyricWindow_Closed;
             }
@@ -245,9 +247,9 @@ namespace Musiche
             lyricWindow = null;
         }
 
-        internal void SetLyricLine(string line)
+        internal void SetLyricLine(string line, double duration=0)
         {
-            lyricWindow?.SetLine(line);
+            lyricWindow?.SetLine(line, duration);
         }
     }
 }

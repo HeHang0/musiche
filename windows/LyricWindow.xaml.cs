@@ -8,6 +8,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
+using System.Windows.Threading;
 using Rectangle = System.Windows.Shapes.Rectangle;
 
 namespace Musiche
@@ -21,12 +22,15 @@ namespace Musiche
         private bool locked = false;
         private readonly DropShadowEffect lyricEffect;
         private readonly WebSocketHandler webSocketHandler;
-        private readonly Brush hoverBackground = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF));
-        private readonly Brush hoverBackgroundTransparent = new SolidColorBrush(Color.FromArgb(0x01, 0x00, 0x00, 0x00));
+        private static readonly Brush hoverBackgroundDark = new SolidColorBrush(Color.FromArgb(0x80, 0x00, 0x00, 0x00));
+        private static readonly Brush hoverBackgroundLight = new SolidColorBrush(Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF));
+        private static readonly Brush hoverBackgroundTransparent = new SolidColorBrush(Color.FromArgb(0x01, 0x00, 0x00, 0x00));
+        private Brush hoverBackground = hoverBackgroundLight;
         private readonly FontFamily defaultFontfamily = new FontFamily("Microsoft YaHei UI");
         private readonly string statusSavePath = Path.Combine(Utils.File.DataPath, "lyric.config.json");
         private Utils.WindowResize windowResize = null;
-        public LyricWindow(WebSocketHandler webSocketHandler, string title)
+        private DispatcherTimer lyricTimer = null;
+        public LyricWindow(WebSocketHandler webSocketHandler, string title, bool dark)
         {
             this.webSocketHandler = webSocketHandler;
             InitializeComponent();
@@ -36,6 +40,21 @@ namespace Musiche
             defaultFontfamily = Lyric.FontFamily;
             SetIcons();
             SetStatus();
+            SetTheme(dark);
+        }
+
+        public void SetTheme(bool dark)
+        {
+            hoverBackground = dark ? hoverBackgroundDark : hoverBackgroundLight;
+            foreach (object item in IconPannel.Children)
+            {
+                if (item is Label label)
+                {
+                    label.Foreground = dark ? Brushes.White : Brushes.Black;
+                }
+            }
+            if(LockLabel.Effect is DropShadowEffect effect)
+                effect.Color = dark ? Colors.Black : Colors.White;
         }
 
         private void SetStatus()
@@ -77,7 +96,6 @@ namespace Musiche
                 if(item is Label label)
                 {
                     label.FontFamily = fontFamily;
-                    label.FontWeight = FontWeights.Bold;
                 }
             }
         }
@@ -155,9 +173,33 @@ namespace Musiche
             }
         }
 
-        internal void SetLine(string line)
+        private double scrollStep = 0;
+        public void SetLine(string line, double duration=0)
         {
+            LyricScroll.ScrollToHorizontalOffset(0);
             Lyric.Content = line;
+            lyricTimer?.Stop();
+            //更新行, 591.4000000000001, 350, 591.4000000000001
+            System.Diagnostics.Trace.WriteLine($"更新行, {LyricScroll.ExtentWidth}, {LyricScroll.ActualWidth}, {Lyric.ActualWidth}");
+            if (duration > 0 && duration < 60000 && LyricScroll.ExtentWidth > LyricScroll.ActualWidth)
+            {
+                scrollStep = (LyricScroll.ExtentWidth - LyricScroll.ActualWidth) / (duration / 33);
+                lyricTimer = new DispatcherTimer();
+                lyricTimer.Interval = TimeSpan.FromMilliseconds(33);
+                lyricTimer.Tick += TimerSetScroll;
+                lyricTimer.Start();
+            }
+        }
+
+        private void TimerSetScroll(object sender, EventArgs e)
+        {
+            if (scrollStep <= 0) return;
+            LyricScroll.ScrollToHorizontalOffset(LyricScroll.HorizontalOffset+scrollStep);
+            if(LyricScroll.ExtentWidth - LyricScroll.ActualWidth <= 
+                LyricScroll.HorizontalOffset && sender is DispatcherTimer timer)
+            {
+                timer.Stop();
+            }
         }
 
         private void Window_MouseEnter(object sender, MouseEventArgs e)
@@ -253,6 +295,7 @@ namespace Musiche
         static extern int GetWindowLong(IntPtr hWnd, int nIndex);
         [DllImport("user32.dll")]
         static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
         private const int GWL_EX_STYLE = -20;
         private const int WS_EX_APPWINDOW = 0x00040000, WS_EX_TOOLWINDOW = 0x00000080;
     }
