@@ -12,7 +12,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
-using System.Windows.Media;
 
 namespace Musiche
 {
@@ -30,6 +29,7 @@ namespace Musiche
         readonly NotifyIconInfo notifyIcon;
         Stream logStream = null;
         Hotkey.Hotkey hotkey = null;
+        LyricWindow lyricWindow;
         public MainWindow()
         {
             InitializeComponent();
@@ -45,6 +45,12 @@ namespace Musiche
             taskbarInfo = new TaskbarInfo(webSocketHandler);
             notifyIcon = new NotifyIconInfo(webSocketHandler, ShowApp, ExitApp);
             TaskbarItemInfo = taskbarInfo.TaskbarItemInfo;
+            AppDomain.CurrentDomain.UnhandledException += UnhandledException;
+        }
+
+        private void UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            Logger.Logger.Error("UI Error", e.ExceptionObject);
         }
 
         private void AudioPlay_PlatStateChanged(object sender, NAudio.Wave.PlaybackState state)
@@ -52,6 +58,7 @@ namespace Musiche
             bool playing = state == NAudio.Wave.PlaybackState.Playing;
             notifyIcon?.AudioPlayStateChanged(playing);
             taskbarInfo?.AudioPlayStateChanged(playing);
+            lyricWindow?.AudioPlayStateChanged(playing);
         }
 
         private void MainWindow_SourceInitialized(object sender, EventArgs e)
@@ -219,7 +226,28 @@ namespace Musiche
             webview2.SetTheme(preferredColorScheme);
             var windowHandle = new WindowInteropHelper(this).EnsureHandle();
             if (windowHandle == null || windowHandle == IntPtr.Zero) return;
-            Utils.Areo.EnableBlur(windowHandle, dark);
+            Utils.Areo.Apply(windowHandle, dark);
+        }
+
+        public void SetLyric(LyricOptions options)
+        {
+            if(options.Show && lyricWindow == null)
+            {
+                lyricWindow = new LyricWindow(webSocketHandler, options.Title);
+                lyricWindow.Show();
+                lyricWindow.Closed += LyricWindow_Closed;
+            }
+            lyricWindow?.SetOptions(options);
+        }
+
+        private void LyricWindow_Closed(object sender, EventArgs e)
+        {
+            lyricWindow = null;
+        }
+
+        internal void SetLyricLine(string line)
+        {
+            lyricWindow?.SetLine(line);
         }
     }
 }

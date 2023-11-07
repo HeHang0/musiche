@@ -9,15 +9,12 @@ namespace Musiche.NotifyIcon
     public class ModernToolStripRenderer : ToolStripProfessionalRenderer
     {
         private readonly Font iconFont;
-        private readonly System.Drawing.Text.PrivateFontCollection privateFonts;
+        private readonly System.Drawing.Text.PrivateFontCollection pfc;
         public ModernToolStripRenderer()
         {
-            int length = Properties.Resources.iconfont.Length;
-            IntPtr ptrData = Marshal.AllocCoTaskMem(length);
-            Marshal.Copy(Properties.Resources.iconfont, 0, ptrData, length);
-            privateFonts = new System.Drawing.Text.PrivateFontCollection();
-            privateFonts.AddMemoryFont(ptrData, length);
-            iconFont = new Font(privateFonts.Families[0], 9, FontStyle.Bold);
+            pfc = new System.Drawing.Text.PrivateFontCollection();
+            pfc.AddFontFile(Utils.IconFont.IconFontPath);
+            iconFont = new Font(pfc.Families[0], 9, FontStyle.Bold);
         }
         protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
         {

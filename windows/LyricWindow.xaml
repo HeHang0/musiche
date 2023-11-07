@@ -1,0 +1,55 @@
+﻿<Window x:Class="Musiche.LyricWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Musiche"
+        mc:Ignorable="d" AllowsTransparency="True" WindowStyle="None" Background="{x:Null}"
+        ShowInTaskbar="False" Height="100" Width="500" MinWidth="360" MinHeight="100"
+        MouseEnter="Window_MouseEnter" MouseLeave="Window_MouseLeave"
+        Loaded="Window_Loaded" Closing="Window_Closing" MouseLeftButtonDown="DragWindow">
+    <!--<WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="8" CornerRadius="8" GlassFrameThickness="-1" UseAeroCaptionButtons="True" />
+    </WindowChrome.WindowChrome>-->
+    <Window.Resources>
+        <Style TargetType="Label">
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="0" BlurRadius="2"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Border x:Name="LyricBorder" CornerRadius="8" Margin="5">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="40"></RowDefinition>
+                <RowDefinition></RowDefinition>
+            </Grid.RowDefinitions>
+            <StackPanel x:Name="IconPannel" Orientation="Horizontal" HorizontalAlignment="Center" Visibility="Collapsed">
+                <Label Name="LockLabel" Background="#01000000" Content="锁" Cursor="Hand" PreviewMouseLeftButtonDown="LockWindow" Tag="last" Width="40" FontSize="20" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                <Label Content="前" Cursor="Hand" PreviewMouseLeftButtonDown="MusicOperate" Tag="last" Width="40" FontSize="20" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                <Label Name="PlayOrPause" Content="播" Cursor="Hand" PreviewMouseLeftButtonDown="MusicOperate" Tag="playOrPause" Width="40" FontSize="20" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                <Label Content="后" Cursor="Hand" PreviewMouseLeftButtonDown="MusicOperate" Tag="next" Width="40" FontSize="20" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+                <Label Content="关" Cursor="Hand" PreviewMouseLeftButtonDown="CloseWindow" Width="40" FontSize="14" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"/>
+            </StackPanel>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden" PreviewMouseLeftButtonDown="DragWindow">
+                <Label Background="#01000000" FontSize="20" Name="Lyric" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Label.Effect>
+                        <DropShadowEffect ShadowDepth="0" BlurRadius="2"/>
+                    </Label.Effect>
+                </Label>
+            </ScrollViewer>
+            <Grid x:Name="ResizeGrid" Grid.RowSpan="2" Visibility="Collapsed">
+                <Rectangle Fill="#01000000" PreviewMouseLeftButtonDown="SizeWindow" Tag="1" Cursor="SizeWE" Width="8" Margin="0,8,0,8" HorizontalAlignment="Left"/>
+                <Rectangle Fill="#01000000" PreviewMouseLeftButtonDown="SizeWindow" Tag="2" Cursor="SizeWE" Width="8" Margin="0,8,0,8" HorizontalAlignment="Right"/>
+                <Rectangle Fill="#01000000" PreviewMouseLeftButtonDown="SizeWindow" Tag="3" Cursor="SizeNS" Height="8" Margin="8,0,8,0" VerticalAlignment="Top"/>
+                <Rectangle Fill="#01000000" PreviewMouseLeftButtonDown="SizeWindow" Tag="4" Cursor="SizeNWSE" Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Top"></Rectangle>
+                <Rectangle Fill="#01000000" PreviewMouseLeftButtonDown="SizeWindow" Tag="5" Cursor="SizeNESW" Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Top"></Rectangle>
+                <Rectangle Fill="#01000000" PreviewMouseLeftButtonDown="SizeWindow" Tag="6" Cursor="SizeNS" Height="8" Margin="8,0,8,0" VerticalAlignment="Bottom"/>
+                <Rectangle Fill="#01000000" PreviewMouseLeftButtonDown="SizeWindow" Tag="7" Cursor="SizeNESW" Width="8" Height="8" HorizontalAlignment="Left" VerticalAlignment="Bottom"></Rectangle>
+                <Rectangle Fill="#01000000" PreviewMouseLeftButtonDown="SizeWindow" Tag="8" Cursor="SizeNWSE" Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Bottom"></Rectangle>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

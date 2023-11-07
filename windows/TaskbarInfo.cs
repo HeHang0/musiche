@@ -59,6 +59,7 @@ namespace Musiche
 
         private void AudioPlayPause(object sender, EventArgs e)
         {
+            AudioPlayStateChanged(ToolBarPlayPauseButton.Description == "播放");
             webSocketHandler.SendMessage("{\"type\": \"playOrPause\"}");
         }
 

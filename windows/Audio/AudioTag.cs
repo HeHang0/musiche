@@ -1,15 +1,7 @@
-﻿using NAudio.Wave;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.IO.Pipes;
-using System.Linq;
-using System.Security.Policy;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Musiche.Audio
 {
@@ -52,16 +44,19 @@ namespace Musiche.Audio
             AudioTag audioTag = new AudioTag(audioFile);
             try
             {
-                TagLib.File tagFile = TagLib.File.Create(audioFile);
-                audioTag.Name = tagFile.Tag.Title;
-                audioTag.Singer = tagFile.Tag.JoinedAlbumArtists;
-                audioTag.Album = tagFile.Tag.Album;
-                audioTag.Length = (int)Math.Floor(tagFile.Properties.Duration.TotalMilliseconds);
-                audioTag.Duration = tagFile.Properties.Duration.ToString("mm\\:ss");
-                if (picture && tagFile.Tag.Pictures.Length > 0)
-                {
-                    audioTag.SetPicture(tagFile.Tag.Pictures[0].Data.Data, tagFile.Tag.Pictures[0].MimeType);
-                }
+#if DEBUG
+#else
+                //TagLib.File tagFile = TagLib.File.Create(audioFile);
+                //audioTag.Name = tagFile.Tag.Title;
+                //audioTag.Singer = tagFile.Tag.JoinedAlbumArtists;
+                //audioTag.Album = tagFile.Tag.Album;
+                //audioTag.Length = (int)Math.Floor(tagFile.Properties.Duration.TotalMilliseconds);
+                //audioTag.Duration = tagFile.Properties.Duration.ToString("mm\\:ss");
+                //if (picture && tagFile.Tag.Pictures.Length > 0)
+                //{
+                //    audioTag.SetPicture(tagFile.Tag.Pictures[0].Data.Data, tagFile.Tag.Pictures[0].MimeType);
+                //}
+#endif
             }
             catch (Exception ex)
             {

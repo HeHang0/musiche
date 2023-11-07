@@ -77,6 +77,7 @@ namespace Musiche.NotifyIcon
 
         private void AudioPlayPause(object sender, EventArgs e)
         {
+            AudioPlayStateChanged(playPauseMenu.Text == "播放");
             webSocketHandler.SendMessage("{\"type\": \"playOrPause\"}");
         }
 

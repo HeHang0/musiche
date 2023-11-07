@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace Musiche.Webview2
+namespace Musiche.Utils
 {
-    public class SpecialService
+    public class WindowResize
     {
         public const int WM_NCLBUTTONDOWN = 0xA1;
         public const int HT_CAPTION = 0x2;
@@ -26,7 +26,7 @@ namespace Musiche.Webview2
 
         readonly IntPtr target;
 
-        public SpecialService(IntPtr target)
+        public WindowResize(IntPtr target)
         {
             this.target = target;
         }

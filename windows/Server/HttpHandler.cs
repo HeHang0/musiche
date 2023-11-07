@@ -270,10 +270,35 @@ namespace Musiche.Server
         {
             string themeString = ctx.Request.QueryString["theme"];
             int.TryParse(themeString, out int preferredColorScheme);
-            //window.Dispatcher.Invoke(() =>
-            //{
-            //    window.SetTheme(preferredColorScheme);
-            //});
+            window.Dispatcher.Invoke(() =>
+            {
+                window.SetTheme(preferredColorScheme);
+            });
+            await SendString(ctx, string.Empty);
+        }
+
+        [Router("/lyric")]
+        public async Task SetLyric(HttpListenerContext ctx)
+        {
+            LyricOptions options = JsonConvert.DeserializeObject<LyricOptions>(ctx.Request.DataAsString());
+            window.Dispatcher.Invoke(() =>
+            {
+                window.SetLyric(options);
+            });
+            await SendString(ctx, string.Empty);
+        }
+
+        [Router("/lyricline")]
+        public async Task SetLyricLine(HttpListenerContext ctx)
+        {
+            string line = ctx.Request.DataAsString();
+            if (!string.IsNullOrWhiteSpace(line))
+            {
+                window.Dispatcher.Invoke(() =>
+                {
+                    window.SetLyricLine(line);
+                });
+            }
             await SendString(ctx, string.Empty);
         }
 

@@ -19,6 +19,7 @@ namespace Musiche.Utils
             DataPath = Path.Combine(Roming, AppName, "Data");
             StoragePath = Path.Combine(DataPath, "Storage");
             Webview2Path = Path.Combine(DataPath, "Webview2");
+            CreateDirectoryIFNotExists(Webview2Path);
         }
 
         public static void CreateDirectoryIFNotExists(string path)

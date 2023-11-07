@@ -54,9 +54,17 @@ namespace Musiche.Utils
             public uint AnimationId;
         }
 
-        public static void EnableBlur(IntPtr handle, bool dark)
+        public static void Apply(IntPtr handle, uint color)
         {
-            var accent = new AccentPolicy();
+            AccentPolicy accent = new AccentPolicy();
+            accent.AccentState = AccentState.ACCENT_ENABLE_ACRYLICBLURBEHIND;
+            accent.GradientColor = color;
+            ApplyAccentPolicy(handle, accent);
+        }
+
+        public static void Apply(IntPtr handle, bool dark)
+        {
+            AccentPolicy accent = new AccentPolicy();
 
             if (OSVersion.IsSupportMica)
             {
@@ -87,6 +95,11 @@ namespace Musiche.Utils
             {
                 return;
             }
+            ApplyAccentPolicy(handle, accent);
+        }
+
+        private static void ApplyAccentPolicy(IntPtr handle, AccentPolicy accent)
+        {
 
             var accentStructSize = Marshal.SizeOf(accent);
 

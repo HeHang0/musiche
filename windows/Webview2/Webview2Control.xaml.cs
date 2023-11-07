@@ -102,7 +102,7 @@ namespace Musiche.Webview2
             webview2.CoreWebView2.Settings.IsBuiltInErrorPageEnabled = false;
             if (_parentWindow != null)
             {
-                webview2.CoreWebView2.AddHostObjectToScript("specialService", new SpecialService(new WindowInteropHelper(_parentWindow).Handle));
+                webview2.CoreWebView2.AddHostObjectToScript("specialService", new Utils.WindowResize(new WindowInteropHelper(_parentWindow).Handle));
             }
             webview2.CoreWebView2.AddHostObjectToScript("fileAccessor", new FileAccessor());
             SaveWindowStatus();
