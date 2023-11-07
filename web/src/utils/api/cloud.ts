@@ -67,7 +67,7 @@ export async function search(
   var data = {
     s: keywords.replace(/[\s]+/g, '+'),
     limit: limit,
-    offset: offset * 30,
+    offset: offset,
     type: type,
     strategy: 5,
     queryCorrect: true
@@ -626,11 +626,11 @@ export async function lyricFuzzyMatch(music: Music): Promise<string> {
   if (music.album && !keywords.includes(music.album)) {
     keywords += music.album + ' ';
   }
-  keywords = keywords.replace(/\-/g, '').replace(/[\s]+/, ' ');
+  keywords = keywords.replace(/\-/g, ' ').replace(/[\s]+/, ' ').trim();
   const res = await search(keywords);
   if (res.list.length === 0) return '';
   let lyricText = '';
-  const localLength = duration2Millisecond(music.duration);
+  const localLength = music.length || duration2Millisecond(music.duration);
   for (let i = 0; i < res.list.length; i++) {
     if (res.list[i].duration == music.duration) {
       lyricText = await lyric(res.list[i]);
@@ -641,6 +641,7 @@ export async function lyricFuzzyMatch(music: Music): Promise<string> {
     for (let i = 0; i < res.list.length; i++) {
       const remoteLength = duration2Millisecond(res.list[i].duration);
       if (
+        keywords.includes(res.list[i].name) &&
         remoteLength < localLength + 3000 &&
         remoteLength > localLength - 3000
       ) {

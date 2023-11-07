@@ -14,8 +14,8 @@ const total = ref(0);
 const musicList: Ref<Music[]> = ref([] as Music[]);
 const keywords = ref('');
 const loading = ref(false);
-const unWatch = watch(currentRoute, searchMusic);
-async function searchMusic() {
+const unWatch = watch(currentRoute, searchMusic.bind(null, true));
+async function searchMusic(clear: boolean = true) {
   if (currentRoute.value.meta.key != 'search') return;
   setting.currentMusicType = currentRoute.value.params.type as MusicType;
   setting.currentMusicTypeShow = true;
@@ -26,12 +26,18 @@ async function searchMusic() {
   if (await checkLink(kw)) {
     return;
   }
+  loading.value = true;
   keywords.value = kw;
   searchTextShow.value = true;
-  var result = await api.search(setting.currentMusicType, keywords.value, 0);
+  var result = await api.search(
+    setting.currentMusicType,
+    keywords.value,
+    musicList.value.length
+  );
   total.value = result.total;
-  musicList.value.splice(0, musicList.value.length);
+  clear && musicList.value.splice(0, musicList.value.length);
   result.list.map((m: Music) => musicList.value.push(m));
+  loading.value = false;
 }
 async function checkLink(link: string) {
   if (!/^(http|https):\/\//.test(link)) return false;
@@ -107,6 +113,10 @@ onUnmounted(unWatch);
     </div>
     <el-scrollbar>
       <MusicList :list="musicList" search :loading="loading" />
+      <div
+        v-if="total > musicList.length && !loading"
+        class="load-more"
+        @click="searchMusic(false)"></div>
     </el-scrollbar>
   </div>
 </template>

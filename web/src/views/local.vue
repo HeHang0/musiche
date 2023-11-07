@@ -14,6 +14,7 @@ import {
   webView2Services
 } from '../utils/utils';
 import { fileToMusic, fileHandlerDB, pathToMusic } from '../utils/api/local';
+import { useThrottleFn } from '@vueuse/core';
 
 const play = usePlayStore();
 const setting = useSettingStore();
@@ -22,6 +23,7 @@ const musicListAll = [] as Music[];
 const loading = ref(false);
 const selectLocalDirShow = ref(false);
 const searchKey = ref('');
+const startSearchThrottle = useThrottleFn(startSearch, 500);
 function startSearch() {
   musicList.value = searchKey.value
     ? musicListAll.filter(
@@ -231,7 +233,9 @@ onMounted(syncLocalMusic);
           class="music-local-header-search"
           v-model="searchKey"
           placeholder="搜索"
+          :readonly="loading"
           @keyup.enter.native="startSearch"
+          @input="startSearchThrottle"
           clearable>
           <template #prefix>
             <el-icon
