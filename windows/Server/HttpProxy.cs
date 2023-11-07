@@ -52,34 +52,6 @@ namespace Musiche.Server
                     response.ContentEncoding ?? string.Empty,
                     response.CharacterSet ?? string.Empty,
                     resHeaders);
-                //using (Stream responseStream = response.GetResponseStream())
-                //{
-
-                //    if (response.ContentEncoding?.ToLower() == "gzip")
-                //    {
-                //        using (Stream gzipStream = new GZipStream(responseStream, CompressionMode.Decompress))
-                //        {
-                //            return new ProxyResponseData(
-                //                Utils.StreamToBytes(gzipStream),
-                //                (int)response.StatusCode,
-                //                response.ContentType,
-                //                response.ContentEncoding,
-                //                response.CharacterSet ?? string.Empty,
-                //                resHeaders);
-                //        }
-                //    }
-                //    else
-                //    {
-                //        return new ProxyResponseData(
-                //            responseStream,
-                //            response.ContentLength,
-                //            (int)response.StatusCode,
-                //            response.ContentType,
-                //            response.ContentEncoding ?? string.Empty,
-                //            response.CharacterSet ?? string.Empty,
-                //            resHeaders);
-                //    }
-                //}
             }
             catch (Exception ex)
             {

@@ -13,15 +13,15 @@ namespace Musiche.Server
 {
     public class WebSocketHandler : Handler, IHandler
     {
-        private readonly Dictionary<string, MethodInfo> routers;
+        private readonly Dictionary<string, Func<WebSocket, Task>> routers;
         private readonly HashSet<WebSocket> webSockets = new HashSet<WebSocket>();
         public WebSocketHandler(MainWindow window, AudioPlay audioPlay) : base(window, audioPlay)
         {
-            routers = Utils.ReadRouter(this);
+            routers = Router.ReadWebSocketRouter(this);
         }
 
         [Router("/status")]
-        public async Task WSStatus(WebSocket webSocket, string[] commands)
+        public async Task WSStatus(WebSocket webSocket)
         {
             var status = await GetStatus();
             status.Add("type", "status");
@@ -70,11 +70,9 @@ namespace Musiche.Server
                         foreach (var message in messageList)
                         {
                             var commands = message.Split(',');
-                            routers.TryGetValue(commands[0].ToUpper(), out MethodInfo methodInfo);
-                            if (methodInfo != null)
+                            if (routers.TryGetValue(commands[0].ToUpper(), out Func<WebSocket, Task> func))
                             {
-                                var task = methodInfo.Invoke(this, new object[] { webSocket, commands }) as Task;
-                                if (task != null) await task;
+                                await func(webSocket);
                             }
                         }
                     }

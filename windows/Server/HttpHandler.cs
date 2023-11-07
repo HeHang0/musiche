@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -13,17 +12,19 @@ namespace Musiche.Server
 {
     public class HttpHandler : Handler, IHandler
     {
-        private readonly Dictionary<string, MethodInfo> routers = new Dictionary<string, MethodInfo>();
-        private readonly HashSet<string> installChineseFonts = new HashSet<string>();
+        private readonly Dictionary<string, Func<HttpListenerContext, Task>> routers;
+        private static readonly string installChineseFontsJson = string.Empty;
         private readonly FileHandler fileHandler = new FileHandler();
         public HttpHandler(MainWindow window, AudioPlay audioPlay) : base(window, audioPlay)
         {
-            InitFonts();
-            routers = Utils.ReadRouter(this);
+            routers = Router.ReadHttpRouter(this);
         }
 
-        private void InitFonts()
+        static HttpHandler()
         {
+            ServicePointManager.ServerCertificateValidationCallback +=
+            (sender, certificate, chain, sslPolicyErrors) => true;
+            HashSet<string> installChineseFonts = new HashSet<string>();
             foreach (var family in System.Windows.Media.Fonts.SystemFontFamilies)
             {
                 foreach (var keyPair in family.FamilyNames)
@@ -35,12 +36,7 @@ namespace Musiche.Server
                     }
                 }
             }
-        }
-
-        static HttpHandler()
-        {
-            ServicePointManager.ServerCertificateValidationCallback +=
-            (sender, certificate, chain, sslPolicyErrors) => true;
+            installChineseFontsJson = JsonConvert.SerializeObject(installChineseFonts);
         }
 
         [Router("*")]
@@ -59,6 +55,13 @@ namespace Musiche.Server
                 ctx.Response.Headers.Set("Location", "/?redirect=" + ctx.Request.Url.PathAndQuery);
                 ctx.Response.StatusCode = (int)HttpStatusCode.Redirect;
             }
+        }
+
+        [Router("/version")]
+        public async Task GetVersion(HttpListenerContext ctx)
+        {
+            byte[] data = fileHandler.GetFile("version");
+            await SendString(ctx, data != null ? Encoding.UTF8.GetString(data) : Utils.App.Version);
         }
 
         [Router("/title")]
@@ -235,7 +238,7 @@ namespace Musiche.Server
         [Router("/fonts")]
         public async Task InstalledFonts(HttpListenerContext ctx)
         {
-            await SendString(ctx, JsonConvert.SerializeObject(installChineseFonts), "text/json");
+            await SendString(ctx, installChineseFontsJson, "text/json");
         }
 
         [Router("/image")]
@@ -466,20 +469,27 @@ namespace Musiche.Server
                 return;
             }
             string router = context.Request.Url?.LocalPath.TrimEnd('/') ?? "*";
-            routers.TryGetValue(router.ToUpper(), out MethodInfo methodInfo);
-            if (methodInfo == null)
+            routers.TryGetValue(router.ToUpper(), out Func<HttpListenerContext, Task> func);
+            if (func == null)
             {
-                methodInfo = routers["*"];
+                func = routers["*"];
             }
             try
             {
-                if (methodInfo?.Invoke(this, new object[] { context }) is Task task) await task;
-                context.Response.Close();
+                if (func == null)
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                }
+                else
+                {
+                    await func(context);
+                }
             }
             catch (Exception ex)
             {
                 Logger.Logger.Error("Handle Http Error: ", ex);
             }
+            finally { context.Response.Close(); }
         }
     }
 }

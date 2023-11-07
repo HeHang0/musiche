@@ -44,19 +44,16 @@ namespace Musiche.Audio
             AudioTag audioTag = new AudioTag(audioFile);
             try
             {
-#if DEBUG
-#else
-                //TagLib.File tagFile = TagLib.File.Create(audioFile);
-                //audioTag.Name = tagFile.Tag.Title;
-                //audioTag.Singer = tagFile.Tag.JoinedAlbumArtists;
-                //audioTag.Album = tagFile.Tag.Album;
-                //audioTag.Length = (int)Math.Floor(tagFile.Properties.Duration.TotalMilliseconds);
-                //audioTag.Duration = tagFile.Properties.Duration.ToString("mm\\:ss");
-                //if (picture && tagFile.Tag.Pictures.Length > 0)
-                //{
-                //    audioTag.SetPicture(tagFile.Tag.Pictures[0].Data.Data, tagFile.Tag.Pictures[0].MimeType);
-                //}
-#endif
+                TagLib.File tagFile = TagLib.File.Create(audioFile);
+                audioTag.Name = tagFile.Tag.Title;
+                audioTag.Singer = tagFile.Tag.JoinedAlbumArtists;
+                audioTag.Album = tagFile.Tag.Album;
+                audioTag.Length = (int)Math.Floor(tagFile.Properties.Duration.TotalMilliseconds);
+                audioTag.Duration = tagFile.Properties.Duration.ToString("mm\\:ss");
+                if (picture && tagFile.Tag.Pictures.Length > 0)
+                {
+                    audioTag.SetPicture(tagFile.Tag.Pictures[0].Data.Data, tagFile.Tag.Pictures[0].MimeType);
+                }
             }
             catch (Exception ex)
             {
