@@ -1,11 +1,14 @@
-import { LyricLine, Music } from './type';
+import { LyricLine, LyricOptionsKey, Music } from './type';
 import * as api from './api/api';
-import { clearArray, parseLyric } from './utils';
+import { clearArray, parseLyric, webView2Services } from './utils';
+import { musicOperate } from './http';
 
 export type LyricChange = (lines: string[]) => void;
 export type LyricLineChange = (index: number, text: string) => void;
 
 export class LyricManager {
+  private static lyricOption = {};
+  private static lyricDesktopShow = false;
   private index: number = -1;
   private title: string = '';
   private progress: number = 0;
@@ -21,6 +24,17 @@ export class LyricManager {
   private video: HTMLVideoElement | null = null;
 
   constructor() {}
+
+  public static setLyricOptions(options: Record<LyricOptionsKey, any>) {
+    this.lyricOption = options;
+    if (webView2Services.enabled) {
+      musicOperate(
+        '/lyric',
+        JSON.stringify({ ...options, show: LyricManager.lyricDesktopShow })
+      );
+      return;
+    }
+  }
 
   public updateLyricLine(progress: number) {
     if (this.lyricList.length == 0) return;
@@ -167,14 +181,27 @@ export class LyricManager {
     this.canvasContext.fillText(text || this.title || '', 300, 60, 600);
   };
 
+  private setWebviewLine(_index: number, text: string) {
+    musicOperate('/lyricline', text);
+  }
+
   public showInDesktop(
     title: string,
     show: boolean = true,
     callback: (() => void) | null = null
   ) {
+    if (webView2Services.enabled) {
+      LyricManager.lyricDesktopShow = show;
+      musicOperate(
+        '/lyric',
+        JSON.stringify({ ...LyricManager.lyricOption, show, title })
+      );
+      this.subscribeLyricLine(this.setWebviewLine, !show);
+      return;
+    }
     if (!show) {
       this.subscribeLyricLine(this.drawCanvas, true);
-      document.exitPictureInPicture();
+      if (document.pictureInPictureElement) document.exitPictureInPicture();
       this.video?.pause();
       if (this.video) {
         const track = (this.video?.srcObject as any)?.getVideoTracks();
@@ -216,7 +243,7 @@ export class LyricManager {
     this.video.style.left = '0';
     this.video.style.top = '0';
     this.video.style.opacity = '0';
-    this.video.style.zIndex = '-1';
+    this.video.style.zIndex = '-123';
     this.video.muted = true;
     this.video.autoplay = true;
     this.video.width = 300;

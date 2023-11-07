@@ -8,6 +8,7 @@ import { WarningFilled, PictureFilled } from '@element-plus/icons-vue';
 import Login from '../components/Login.vue';
 
 import { useSettingStore } from '../stores/setting';
+import { usePlayStore } from '../stores/play';
 import { musicOperate } from '../utils/http';
 import { musicTypeInfoAll } from '../utils/platform';
 import {
@@ -116,6 +117,46 @@ const musicQualities: {
     title: '标准'
   }
 ];
+const lyricColors: Record<
+  string,
+  {
+    name: string;
+    effect: string;
+  }
+> = {
+  '#ffb0b0': {
+    name: '红',
+    effect: '#cb7474'
+  },
+  '#e0c3ff': {
+    name: '晖',
+    effect: '#8e76c2'
+  },
+  '#fcbede': {
+    name: '粉',
+    effect: '#be80a0'
+  },
+  '#acd3e5': {
+    name: '蓝',
+    effect: '#5495b4'
+  },
+  '#dcf6c3': {
+    name: '绿',
+    effect: '#67905c'
+  },
+  '#ded8f8': {
+    name: '紫',
+    effect: '#998dc9'
+  },
+  '#fadda7': {
+    name: '黄',
+    effect: '#fadcd5'
+  },
+  '#bfbfbf': {
+    name: '灰',
+    effect: '#8b8b8b'
+  }
+};
 
 const currentId = ref(
   currentRoute.value.hash.substring(1) || 'music-header-account'
@@ -123,6 +164,7 @@ const currentId = ref(
 const tableEle: Ref<HTMLTableElement | null> = ref(null);
 const defaultFonts = ['宋体', '等线', '仿宋', '黑体', '楷体', '微软雅黑'];
 const setting = useSettingStore();
+const play = usePlayStore();
 const currentVersion = ref('');
 const remoteVersion = ref('');
 const delayMinute = ref(0);
@@ -623,7 +665,104 @@ onUnmounted(unWatch);
         </tr>
         <tr>
           <td></td>
-          <td></td>
+          <td class="music-setting-lyric">
+            <div class="music-setting-lyric-item">
+              <el-checkbox
+                v-model="play.desktopLyricShow"
+                @change="play.showDesktopLyric"
+                size="large">
+                启用桌面歌词
+              </el-checkbox>
+              <el-checkbox
+                v-if="webView2Services.enabled"
+                v-model="setting.pageValue.lyric.topmost"
+                @change="setting.setLyricOptions"
+                size="large">
+                启用歌词总在最前
+              </el-checkbox>
+            </div>
+            <div class="music-setting-lyric-item">
+              <span class="music-setting-lyric-item-title">字体</span>
+              <el-select
+                v-model="setting.pageValue.lyric.fontFamily"
+                @change="setting.setLyricOptions">
+                <el-option key="" label="默认" value="" />
+                <el-option
+                  v-for="item in setting.fonts || defaultFonts"
+                  :key="item"
+                  :label="item"
+                  :title="item"
+                  :value="item">
+                  <div
+                    class="text-overflow-1"
+                    style="width: 120px"
+                    :style="{ fontFamily: `${item}` }">
+                    {{ item }}
+                  </div>
+                </el-option>
+              </el-select>
+            </div>
+            <div class="music-setting-lyric-item">
+              <span class="music-setting-lyric-item-title">字号</span>
+              <el-select
+                class="short"
+                v-model="setting.pageValue.lyric.fontSize"
+                @change="setting.setLyricOptions">
+                <el-option
+                  v-for="(_item, index) in new Array(50)"
+                  :key="index"
+                  :label="index + 20"
+                  :value="index + 20">
+                  {{ index + 20 }}
+                </el-option>
+              </el-select>
+            </div>
+            <div class="music-setting-lyric-item">
+              <span class="music-setting-lyric-item-title">字体加粗</span>
+              <el-checkbox
+                v-model="setting.pageValue.lyric.fontBold"
+                @change="setting.setLyricOptions"
+                size="large">
+              </el-checkbox>
+            </div>
+            <div class="music-setting-lyric-item">
+              <span class="music-setting-lyric-item-title">字体描边</span>
+              <el-checkbox
+                v-model="setting.pageValue.lyric.effect"
+                @change="setting.setLyricOptions"
+                size="large">
+              </el-checkbox>
+            </div>
+            <div class="music-setting-lyric-item">
+              <span class="music-setting-lyric-item-title">配色方案</span>
+              <el-select
+                class="short"
+                v-model="setting.pageValue.lyric.fontColor"
+                @change="
+                  setting.setLyricEffectColor(
+                    lyricColors[setting.pageValue.lyric.fontColor].effect
+                  )
+                ">
+                <el-option
+                  v-for="key in Object.keys(lyricColors)"
+                  :key="key"
+                  :label="lyricColors[key].name"
+                  :value="key">
+                  {{ lyricColors[key].name }}
+                </el-option>
+              </el-select>
+              <span
+                class="music-setting-lyric-item-fix-color"
+                :style="'--fix-color:' + setting.pageValue.lyric.fontColor"
+                >字体色</span
+              >
+              <span
+                class="music-setting-lyric-item-fix-color"
+                :style="'--fix-color:' + setting.pageValue.lyric.effectColor"
+                >描边色</span
+              >
+            </div>
+          </td>
         </tr>
         <tr>
           <td></td>
@@ -858,6 +997,33 @@ onUnmounted(unWatch);
       }
       .el-checkbox {
         margin-left: 32px;
+      }
+    }
+  }
+  &-lyric {
+    &-item {
+      display: flex;
+      align-items: center;
+      margin: 5px 0;
+      &-title {
+        font-weight: bold;
+        margin-right: 20px;
+      }
+      .el-select.short {
+        width: 80px;
+      }
+      &-fix-color {
+        margin-left: 20px;
+        display: flex;
+        align-items: center;
+        &::before {
+          content: '';
+          display: inline-block;
+          width: 15px;
+          height: 15px;
+          margin-right: 5px;
+          background-color: var(--fix-color);
+        }
       }
     }
   }

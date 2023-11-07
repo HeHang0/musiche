@@ -21,7 +21,8 @@ export enum StorageKey {
   UserInfo = 'user-info',
   LocalDirectories = 'local-directories',
   PlayQuality = 'play-quality',
-  DownloadQuality = 'download-quality'
+  DownloadQuality = 'download-quality',
+  LyricOptions = 'lyric-options'
 }
 
 async function setValue<T>(key: string, value: T) {

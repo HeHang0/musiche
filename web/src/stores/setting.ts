@@ -9,11 +9,13 @@ import {
   UserInfo,
   DirectoryInfo,
   AppTheme,
-  MusicQuality
+  MusicQuality,
+  LyricOptionsKey
 } from '../utils/type';
 import { StorageKey, storage } from '../utils/storage';
 import * as api from '../utils/api/api';
 import { messageOption, webView2Services } from '../utils/utils';
+import { LyricManager } from '../utils/lyric';
 const controlKeys = [
   'ctrl',
   'control',
@@ -61,6 +63,15 @@ export const useSettingStore = defineStore('setting', {
       onlyAddMusicListAtDbClick: false,
       globalShortcutUsed: false,
       systemMediaShortcutUsed: false,
+      lyric: {
+        topmost: true,
+        fontFamily: '',
+        fontSize: 22,
+        fontBold: true,
+        effect: true,
+        effectColor: '#cb7474',
+        fontColor: '#ffb0b0'
+      } as Record<LyricOptionsKey, any>,
       shortcut: {
         play: {
           ctrlKey: true,
@@ -250,6 +261,19 @@ export const useSettingStore = defineStore('setting', {
       this.customTheme.image = appTheme?.image || '';
       this.customTheme.name = '自定义';
       storage.setValue(StorageKey.CustomTheme, this.customTheme);
+    },
+    setLyricOptions() {
+      LyricManager.setLyricOptions({
+        ...this.pageValue.lyric,
+        effectColor: this.pageValue.lyric.effect
+          ? this.pageValue.lyric.effectColor
+          : ''
+      });
+      this.saveSetting();
+    },
+    setLyricEffectColor(effectColor: string) {
+      this.pageValue.lyric.effectColor = effectColor;
+      this.setLyricOptions();
     },
     setPlayQuality(value: MusicQuality, noSave?: boolean) {
       this.playQuality = value;
@@ -475,6 +499,7 @@ export const useSettingStore = defineStore('setting', {
       }
       const settingCache: any = await storage.getValue(StorageKey.Setting);
       const ignoreKeys = [
+        'lyric',
         'shortcut',
         'shortcutText',
         'globalShortcut',
@@ -488,6 +513,13 @@ export const useSettingStore = defineStore('setting', {
             (this.pageValue as any)[key] !== settingCache[key]
           ) {
             (this.pageValue as any)[key] = settingCache[key];
+          } else if (key === 'lyric' && settingCache[key]) {
+            Object.keys(settingCache[key]).map((option: string) => {
+              if (settingCache[key][option] && option in this.pageValue.lyric) {
+                this.pageValue.lyric[option as LyricOptionsKey] =
+                  settingCache[key][option];
+              }
+            });
           } else if (key === 'shortcut' && settingCache[key]) {
             Object.keys(settingCache[key]).map((operate: any) => {
               if (
@@ -574,6 +606,12 @@ export const useSettingStore = defineStore('setting', {
         (await storage.getValue(StorageKey.DownloadQuality)) || 'ZQ',
         true
       );
+      LyricManager.setLyricOptions({
+        ...this.pageValue.lyric,
+        effectColor: this.pageValue.lyric.effect
+          ? this.pageValue.lyric.effectColor
+          : ''
+      });
     }
   }
 });

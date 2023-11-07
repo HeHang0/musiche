@@ -139,6 +139,9 @@ export class MusicConnection {
         case 'loop':
           this.play.setSortType(result.data);
           break;
+        case 'lyric':
+          this.play.showDesktopLyric(Boolean(result.data));
+          break;
       }
     } catch {}
   }

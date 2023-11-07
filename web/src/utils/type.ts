@@ -125,6 +125,15 @@ export interface ShortcutKey {
   status?: string;
 }
 
+export type LyricOptionsKey =
+  | 'effect'
+  | 'topmost'
+  | 'fontFamily'
+  | 'fontSize'
+  | 'fontBold'
+  | 'effectColor'
+  | 'fontColor';
+
 export type MusicQuality = 'PQ' | 'SQ' | 'HQ' | 'ZQ';
 
 export type LoginStatus = 'success' | 'fail' | 'waiting' | 'authorizing';

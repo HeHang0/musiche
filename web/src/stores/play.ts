@@ -64,6 +64,7 @@ export const usePlayStore = defineStore('play', {
     },
     closeDesktopLyric() {
       this.desktopLyricShow = false;
+      lyricManager.showInDesktop('', false);
     },
     showDesktopLyric(show: boolean) {
       this.desktopLyricShow = show;
