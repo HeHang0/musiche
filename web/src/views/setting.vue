@@ -1004,13 +1004,13 @@ onUnmounted(unWatch);
     &-item {
       display: flex;
       align-items: center;
-      margin: 5px 0;
+      margin-top: 15px;
+      &:first-child {
+        margin-top: 0;
+      }
       &-title {
         font-weight: bold;
         margin-right: 20px;
-      }
-      .el-select.short {
-        width: 80px;
       }
       &-fix-color {
         margin-left: 20px;
@@ -1024,6 +1024,15 @@ onUnmounted(unWatch);
           margin-right: 5px;
           background-color: var(--fix-color);
         }
+      }
+      .el-select.short {
+        width: 80px;
+      }
+      .el-checkbox {
+        height: 24px;
+      }
+      :deep(.el-input__inner) {
+        height: 26px;
       }
     }
   }

@@ -44,7 +44,7 @@ onUnmounted(unWatch);
     <el-scrollbar :class="webView2Services.enabled ? 'wide-scrollbar' : ''">
       <div class="music-header-content">
         <el-button
-          :disabled="!canBack"
+          v-show="canBack"
           class="music-header-back music-button-pure music-icon"
           @click="back">
           <span style="opacity: 0.8">左</span>
@@ -100,6 +100,7 @@ onUnmounted(unWatch);
     width: 100%;
   }
   &-back {
+    margin-right: 9px;
     &:hover {
       span {
         opacity: 1 !important;
@@ -109,7 +110,7 @@ onUnmounted(unWatch);
   &-search {
     width: 320px;
     height: 37px;
-    margin-left: 10px;
+    margin-left: 1px;
     :deep(.el-input__wrapper) {
       background: var(--music-search-background);
       &.is-focus {

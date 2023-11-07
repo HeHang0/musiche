@@ -4,7 +4,11 @@ import { clearArray, parseLyric, webView2Services } from './utils';
 import { musicOperate } from './http';
 
 export type LyricChange = (lines: string[]) => void;
-export type LyricLineChange = (index: number, text: string) => void;
+export type LyricLineChange = (
+  index: number,
+  text: string,
+  duration?: number
+) => void;
 
 export class LyricManager {
   private static lyricOption = {};
@@ -170,9 +174,18 @@ export class LyricManager {
   }
 
   private publishLyricLine() {
-    const text = this.lyricList[this.index]?.text;
-    if (!text) return;
-    this.lyricLineChanges.forEach(m => m.call(this, this.index, text));
+    const line = this.lyricList[this.index];
+    if (!line || !line.text) return;
+    this.lyricLineChanges.forEach(m =>
+      m.call(
+        this,
+        this.index,
+        line.text,
+        webView2Services?.enabled
+          ? (this.length * (line.max - line.progress)) / 1000
+          : undefined
+      )
+    );
   }
 
   private drawCanvas = (_index: number, text: string) => {
@@ -181,8 +194,8 @@ export class LyricManager {
     this.canvasContext.fillText(text || this.title || '', 300, 60, 600);
   };
 
-  private setWebviewLine(_index: number, text: string) {
-    musicOperate('/lyricline', text);
+  private setWebviewLine(_index: number, text: string, duration?: number) {
+    musicOperate('/lyricline?duration=' + (duration || ''), text);
   }
 
   public showInDesktop(
