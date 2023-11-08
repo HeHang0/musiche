@@ -380,15 +380,21 @@ function createMyPlaylists() {
         display: none;
       }
     }
-    &-menu .el-menu-item {
-      margin: 2px 5px;
-      justify-content: center;
-      padding: 0 var(--el-menu-base-level-padding) !important;
-      span:first-child {
-        margin-right: 0;
+    &-menu {
+      .el-menu-item {
+        margin: 2px 5px;
+        justify-content: center;
+        padding: 0 var(--el-menu-base-level-padding) !important;
+        span:first-child {
+          margin-right: 0;
+        }
+        span:last-child {
+          display: none;
+        }
       }
-      span:last-child {
-        display: none;
+      .el-divider {
+        margin: 10px;
+        width: calc(100% - 20px);
       }
     }
   }

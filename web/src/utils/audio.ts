@@ -26,6 +26,14 @@ export class AudioPlayer {
     this.fadeIn = fadeIn;
   }
 
+  mediaMeta(meta: MediaMetadataInit) {
+    if (!navigator.mediaSession) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      ...meta,
+      title: meta.title || document.title
+    });
+  }
+
   async process(type: string, data?: string) {
     switch (type) {
       case 'play':
@@ -40,6 +48,8 @@ export class AudioPlayer {
         return this.volume(parseInt(data || '0'));
       case 'status':
         return this.status();
+      case 'media':
+        return this.mediaMeta(JSON.parse(data || '{}'));
     }
     return {};
   }

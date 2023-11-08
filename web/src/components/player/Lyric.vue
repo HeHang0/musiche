@@ -56,7 +56,7 @@ onUnmounted(() => {
 });
 </script>
 <template>
-  <div class="music-lyric" :style="pure ? 'text-align: center' : ''">
+  <div class="music-lyric" :class="pure ? 'music-lyric-pure' : ''">
     <div class="music-lyric-header">
       <div class="music-lyric-name text-overflow-1" :title="play.music.name">
         {{ play.music.name }}
@@ -65,7 +65,7 @@ onUnmounted(() => {
         class="music-lyric-desc"
         v-show="play.music.album || play.music.singer"
         :style="pure ? 'justify-content: center' : ''">
-        <div v-if="!props.pure" class="text-overflow-1">
+        <div v-if="play.music.album" class="text-overflow-1">
           <span>专辑：</span
           ><span
             class="music-lyric-desc-album"
@@ -104,6 +104,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  &-pure {
+    text-align: center;
+  }
   &-header {
     height: 100px;
     font-size: 26px;
@@ -157,6 +160,12 @@ onUnmounted(() => {
     &-header {
       height: unset;
       margin-bottom: 10px;
+    }
+    &-pure {
+      .music-lyric-desc {
+        flex-direction: column;
+        align-items: center;
+      }
     }
   }
 }

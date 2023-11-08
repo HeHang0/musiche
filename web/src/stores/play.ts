@@ -247,7 +247,7 @@ export const usePlayStore = defineStore('play', {
         this.setCurrentMusic(this.musicList[0]);
       }
     },
-    async play(music?: Music, musicList?: Music[]) {
+    async play(music?: Music, musicList?: Music[], auto?: boolean) {
       if (this.preparePlay) {
         return;
       }
@@ -271,8 +271,7 @@ export const usePlayStore = defineStore('play', {
         this.musicList.splice(0, this.musicList.length);
         this.add(musicList);
       }
-      const lastMusicId = this.music.id;
-      const lastMusicType = this.music.type;
+      const lastMusic = { ...this.music };
       if (music) {
         if (
           this.musicList.findIndex(
@@ -289,17 +288,18 @@ export const usePlayStore = defineStore('play', {
         ElMessage(messageOption('当前音乐无法播放'));
         this.preparePlay = false;
         if (this.playStatus.playing) {
+          this.setCurrentMusic(lastMusic);
           return;
         }
         const musicIndex = this.musicList.findIndex(
           n => music && music.id == n.id && music.type == n.type
         );
-        musicIndex >= 0 && this.musicList.splice(0, 1);
+        musicIndex >= 0 && this.musicList.splice(musicIndex, 1);
         this.musicList.length > 0 && this.next(true);
         return;
       }
       if (
-        (music.id != lastMusicId || music.type != lastMusicType) &&
+        (music.id != lastMusic.id || music.type != lastMusic.type) &&
         this.playStatus.stopped &&
         this.playStatus.progress > 0
       ) {
@@ -354,7 +354,7 @@ export const usePlayStore = defineStore('play', {
       }
       if (currentIndex < 0 || currentIndex >= this.musicList.length)
         currentIndex = 0;
-      this.play(this.musicList[currentIndex]);
+      this.play(this.musicList[currentIndex], undefined, auto);
     },
     async last() {
       this.nextPlay = null;
@@ -482,6 +482,15 @@ export const usePlayStore = defineStore('play', {
         title.value = '音乐和';
       }
       musicOperate('/title', title.value);
+      musicOperate(
+        '/media',
+        JSON.stringify({
+          album: this.music.album || undefined,
+          artist: this.music.singer || undefined,
+          artwork: this.music.image ? [{ src: this.music.image }] : [],
+          title: this.music.name || title.value
+        } as MediaMetadataInit)
+      );
     },
     changePlayerMode(mode: string) {
       this.playerMode = mode;

@@ -354,9 +354,8 @@ function openMenu(music: Music, e: any) {
   }
   &-header {
     display: flex;
-    border-bottom: 1px solid var(--music-button-info-border-color);
+    border-bottom: 1px solid var(--music-side-divider-color);
     font-size: 13px;
-    // color: var(--el-text-color-placeholder);
     opacity: 0.6;
     margin-bottom: 8px;
     cursor: default;
