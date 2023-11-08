@@ -16,6 +16,7 @@
   --music-side-background: rgba(106, 143, 172, 0.1);
   --music-footer-background: rgba(100, 100, 100, 0.12);
   --music-background: rgba(255, 255, 255);
+  --music-background-hover: rgba(255, 255, 255, 1);
   --music-sub-background: rgba(179, 179, 179, 0.1);
   --music-affix-background: rgb(247, 247, 247);
   --music-page-padding-horizontal: 38px;
@@ -41,6 +42,11 @@
   --music-search-background: linear-gradient(to right,
       rgb(235, 240, 251),
       rgb(248, 239, 241));
+
+  @media (max-width: 720px),
+  (max-height: 720px) {
+    --music-page-padding-horizontal: 10px;
+  }
 }
 
 .dark {
@@ -113,8 +119,11 @@ html.custom.dark {
 }
 
 html,
-body {
+body,
+#app {
   overflow: hidden;
+  height: 100%;
+  width: 100%;
 }
 
 body {

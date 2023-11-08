@@ -89,9 +89,12 @@ function clear() {
 <style lang="less">
 .music-current-list {
   width: 400px !important;
+  max-width: 100% !important;
   height: calc(100% - 192px) !important;
+  min-height: 80% !important;
   border-radius: var(--music-border-radius);
-  margin-top: 95px;
+  top: 50% !important;
+  transform: translateY(-50%);
   .el-drawer__body {
     padding: 0;
   }

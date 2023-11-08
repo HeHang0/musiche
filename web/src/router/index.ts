@@ -74,7 +74,11 @@ const routers: RouteRecordRaw[] = [
   {
     path: '/local',
     name: '本地音乐',
-    meta: { key: 'local', icon: '乐' },
+    meta: {
+      key: 'local',
+      icon: '乐',
+      show: Boolean((window as any).showDirectoryPicker)
+    },
     component: () => import(`../views/local.vue`)
   },
   {

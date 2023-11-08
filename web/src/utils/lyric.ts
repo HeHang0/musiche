@@ -11,7 +11,7 @@ export type LyricLineChange = (
 ) => void;
 
 export class LyricManager {
-  private static lyricOption = {};
+  private static lyricOption = {} as Record<LyricOptionsKey, any>;
   private static lyricDesktopShow = false;
   private index: number = -1;
   private title: string = '';
@@ -23,9 +23,9 @@ export class LyricManager {
   private lyricList: LyricLine[] = [];
   private lyricChanges: LyricChange[] = [];
   private lyricLineChanges: LyricLineChange[] = [];
-  private canvasContext: CanvasRenderingContext2D | null = null;
-  private canvas: HTMLCanvasElement | null = null;
-  private video: HTMLVideoElement | null = null;
+  private static canvasContext: CanvasRenderingContext2D | null = null;
+  private static canvas: HTMLCanvasElement | null = null;
+  private static video: HTMLVideoElement | null = null;
 
   constructor() {}
 
@@ -188,10 +188,27 @@ export class LyricManager {
     );
   }
 
-  private drawCanvas = (_index: number, text: string) => {
+  private static drawCanvas = (_index: number, text: string) => {
     if (!this.canvas || !this.canvasContext) return;
     this.canvasContext.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.canvasContext.fillText(text || this.title || '', 300, 60, 600);
+    let fontStyle = [];
+    if (this.lyricOption) {
+      if (this.lyricOption.fontSize) {
+        fontStyle.push(this.lyricOption.fontSize * 1.25 + 'px');
+      }
+      if (this.lyricOption.fontFamily) {
+        fontStyle.push(this.lyricOption.fontFamily);
+      }
+      if (this.lyricOption.fontBold) {
+        fontStyle.push('bold');
+      }
+    }
+    this.canvasContext.font = fontStyle.join(' ');
+    this.canvasContext.strokeStyle = this.lyricOption?.effectColor ?? '';
+    this.canvasContext.fillStyle = this.lyricOption?.fontColor ?? 'white';
+    this.canvasContext.lineWidth = 3;
+    this.canvasContext.strokeText(text || '', 300, 60, 600);
+    this.canvasContext.fillText(text || '', 300, 60, 600);
   };
 
   private setWebviewLine(_index: number, text: string, duration?: number) {
@@ -213,56 +230,54 @@ export class LyricManager {
       return;
     }
     if (!show) {
-      this.subscribeLyricLine(this.drawCanvas, true);
+      this.subscribeLyricLine(LyricManager.drawCanvas, true);
       if (document.pictureInPictureElement) document.exitPictureInPicture();
-      this.video?.pause();
-      if (this.video) {
-        const track = (this.video?.srcObject as any)?.getVideoTracks();
-        track && this.canvas?.captureStream().removeTrack(track[0]);
-        this.video.srcObject = null;
-        this.video.src = '';
+      LyricManager.video?.pause();
+      if (LyricManager.video) {
+        const track = (LyricManager.video?.srcObject as any)?.getVideoTracks();
+        track && LyricManager.canvas?.captureStream().removeTrack(track[0]);
+        LyricManager.video.srcObject = null;
+        LyricManager.video.src = '';
       }
-      this.video?.remove();
-      this.canvas?.remove();
-      this.video = null;
-      this.canvas = null;
-      this.canvasContext = null;
+      LyricManager.video?.remove();
+      LyricManager.canvas?.remove();
+      LyricManager.video = null;
+      LyricManager.canvas = null;
+      LyricManager.canvasContext = null;
       return;
     }
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = 600;
-    this.canvas.height = 120;
-    this.canvas.style.width = '300px';
-    this.canvas.style.height = '60px';
-    this.canvasContext = this.canvas.getContext('2d');
-    if (!this.canvasContext) {
-      this.canvas.remove();
-      this.canvas = null;
+    LyricManager.canvas = document.createElement('canvas');
+    LyricManager.canvas.width = 600;
+    LyricManager.canvas.height = 120;
+    LyricManager.canvas.style.width = '300px';
+    LyricManager.canvas.style.height = '60px';
+    LyricManager.canvasContext = LyricManager.canvas.getContext('2d');
+    if (!LyricManager.canvasContext) {
+      LyricManager.canvas.remove();
+      LyricManager.canvas = null;
       return;
     }
-    this.canvasContext.font = '60px Microsoft YaHei';
-    this.canvasContext.textAlign = 'center';
-    this.canvasContext.fillStyle = '#fff';
-    this.canvasContext.textBaseline = 'middle';
-    this.canvasContext.fillText(title, 300, 60, 600);
-
-    this.video = document.createElement('video');
-    this.video.addEventListener('loadedmetadata', () => {
+    LyricManager.canvasContext.textAlign = 'center';
+    LyricManager.canvasContext.textBaseline = 'middle';
+    LyricManager.drawCanvas(0, title);
+    LyricManager.video = document.createElement('video');
+    LyricManager.video.addEventListener('loadedmetadata', () => {
       console.log('loadedmetadata');
-      this.video?.requestPictureInPicture();
+      LyricManager.video?.requestPictureInPicture();
     });
-    callback && this.video.addEventListener('leavepictureinpicture', callback);
-    this.video.style.position = 'fixed';
-    this.video.style.left = '0';
-    this.video.style.top = '0';
-    this.video.style.opacity = '0';
-    this.video.style.zIndex = '-123';
-    this.video.muted = true;
-    this.video.autoplay = true;
-    this.video.width = 300;
-    this.video.height = 60;
-    this.video.srcObject = this.canvas.captureStream();
-    document.body.appendChild(this.video);
-    this.subscribeLyricLine(this.drawCanvas);
+    callback &&
+      LyricManager.video.addEventListener('leavepictureinpicture', callback);
+    LyricManager.video.style.position = 'fixed';
+    LyricManager.video.style.left = '0';
+    LyricManager.video.style.top = '0';
+    LyricManager.video.style.opacity = '0';
+    LyricManager.video.style.zIndex = '-123';
+    LyricManager.video.muted = true;
+    LyricManager.video.autoplay = true;
+    LyricManager.video.width = 300;
+    LyricManager.video.height = 60;
+    LyricManager.video.srcObject = LyricManager.canvas.captureStream();
+    document.body.appendChild(LyricManager.video);
+    this.subscribeLyricLine(LyricManager.drawCanvas);
   }
 }

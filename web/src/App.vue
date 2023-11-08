@@ -55,7 +55,7 @@ new MusicConnection(webView2Services.enabled);
         </el-main>
       </el-container>
     </el-container>
-    <Footer />
+    <Footer v-show="play.musicList.length > 0" />
     <PlayDetail />
     <WindowHelper v-if="webView2Services.enabled" />
   </el-container>
@@ -63,8 +63,8 @@ new MusicConnection(webView2Services.enabled);
 
 <style lang="less" scoped>
 .music-layout {
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
   overflow: hidden;
   .el-main {
     padding: 0;
@@ -75,14 +75,14 @@ new MusicConnection(webView2Services.enabled);
   }
   &-top {
     overflow: hidden;
-    height: calc(100vh - 80px);
+    flex: unset;
+    height: calc(100% - 80px);
     &-full {
-      height: 100vh;
+      height: 100%;
     }
   }
-  &-top,
-  .music-footer {
-    width: 100vw;
+  &-top {
+    width: 100%;
   }
 }
 .music-main {

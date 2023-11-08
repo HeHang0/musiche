@@ -85,4 +85,26 @@ const props = withDefaults(defineProps<Props>(), {
     }
   }
 }
+@media (max-width: 720px), (max-height: 720px) {
+  .music-play-list {
+    grid-column-gap: 4px;
+    grid-row-gap: 2px;
+    grid-template-columns: repeat(auto-fill, minmax(40%, 1fr));
+    a {
+      padding: 0;
+    }
+    &-item {
+      width: unset;
+      height: unset;
+      &-name {
+        width: 100%;
+      }
+      &-image {
+        width: 100%;
+        height: 100%;
+        border-radius: var(--music-border-radius);
+      }
+    }
+  }
+}
 </style>

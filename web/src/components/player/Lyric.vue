@@ -152,4 +152,12 @@ onUnmounted(() => {
     }
   }
 }
+@media (max-width: 720px), (max-height: 720px) {
+  .music-lyric {
+    &-header {
+      height: unset;
+      margin-bottom: 10px;
+    }
+  }
+}
 </style>

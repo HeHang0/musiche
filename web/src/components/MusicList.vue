@@ -588,4 +588,32 @@ function openMenu(music: Music, e: any) {
     }
   }
 }
+@media (max-width: 720px), (max-height: 720px) {
+  .music-list {
+    &-header {
+      &-title {
+        flex: 1;
+      }
+      &-lover {
+        width: 30px !important;
+      }
+      &-album,
+      &-duration {
+        display: none !important;
+      }
+    }
+    &-item {
+      &-title {
+        flex: 1;
+      }
+      &-lover {
+        width: 30px !important;
+      }
+      &-album,
+      &-duration {
+        display: none !important;
+      }
+    }
+  }
+}
 </style>

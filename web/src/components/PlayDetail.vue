@@ -28,11 +28,29 @@ function setThemeColor() {
       )};--music-slider-color-end: ${color}`;
     });
 }
+const canFullScreen = Boolean(
+  document.body.requestFullscreen ||
+    (document.body as any).mozRequestFullScreen ||
+    (document.body as any).webkitRequestFullScreen ||
+    (document.body as any).msRequestFullscreen
+);
+const cancelFullScreen =
+  document.exitFullscreen ||
+  (document as any).mozCancelFullScreen ||
+  (document as any).webkitExitFullscreen ||
+  (document as any).msExitFullscreen;
 function requestFullscreen() {
   if (document.fullscreenElement) {
-    document.exitFullscreen();
+    cancelFullScreen && cancelFullScreen.call(null);
   } else {
-    pageElement.value?.requestFullscreen();
+    if (!pageElement.value) return;
+
+    const requestFullscreen =
+      pageElement.value.requestFullscreen ||
+      (pageElement.value as any).mozRequestFullScreen ||
+      (pageElement.value as any).webkitRequestFullScreen ||
+      (pageElement.value as any).msRequestFullscreen;
+    requestFullscreen && requestFullscreen.call(null);
   }
 }
 function checkFullscreen() {
@@ -96,6 +114,7 @@ beforeResolve(() => {
             >下</el-button
           >
           <el-button
+            v-if="canFullScreen"
             class="music-button-pure music-icon"
             style="transform: rotateY(180deg)"
             @click="requestFullscreen">
@@ -136,8 +155,8 @@ beforeResolve(() => {
 .music-play-detail-layout {
   position: relative;
   overflow: hidden;
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
   display: flex;
   flex-direction: column;
   --music-slider-color-start: rgba(92, 213, 229, 0);
@@ -180,8 +199,8 @@ beforeResolve(() => {
   }
   &-body {
     z-index: 1;
-    height: calc(100vh - 160px);
-    width: 100vw;
+    height: calc(100% - 160px);
+    width: 100%;
     position: relative;
   }
   &-footer {
@@ -197,8 +216,8 @@ beforeResolve(() => {
 </style>
 <style lang="less">
 .music-play-detail {
-  width: 100vw !important;
-  height: 100vh !important;
+  width: 100% !important;
+  height: 100% !important;
   background-color: black;
   box-shadow: none;
   .el-drawer__body {

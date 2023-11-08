@@ -32,4 +32,34 @@ const play = usePlayStore();
     width: 40vw;
   }
 }
+
+@media (max-width: 720px), (max-height: 720px) {
+  .music-play-detail-default {
+    &-lyric {
+      height: unset;
+      padding-top: 0;
+      margin-bottom: 10px;
+    }
+    // &-jukebox {
+    //   height: 100%;
+    //   width: 40vw;
+    // }
+  }
+}
+
+@media (max-width: 720px) {
+  .music-play-detail-default {
+    flex-direction: column;
+    &-lyric {
+      height: 50%;
+      width: 100%;
+      padding: 10px 20px;
+    }
+    &-jukebox {
+      height: 50%;
+      width: 100%;
+      padding: 10px 20px;
+    }
+  }
+}
 </style>

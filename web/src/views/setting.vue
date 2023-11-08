@@ -19,6 +19,7 @@ import {
   ShortcutType
 } from '../utils/type';
 import {
+  getImageFile,
   imageToDataUrl,
   scrollToElementId,
   webView2Services
@@ -315,23 +316,9 @@ function getCardBackground(appTheme: AppTheme) {
 }
 
 async function setCustomTheme() {
-  const image: FileSystemFileHandle[] = await (
-    window as any
-  ).showOpenFilePicker({
-    multiple: false,
-    excludeAcceptAllOption: true,
-    types: [
-      {
-        description: '图像',
-        accept: {
-          'image/*': ['.png', '.gif', '.jpeg', '.jpg', '.bmp', '.webp', '.tif']
-        }
-      }
-    ]
-  });
-  if (!image || image.length === 0) return;
-  const file = await image[0].getFile();
-  const fileUrl = URL.createObjectURL(file);
+  const imageFile: File | null = await getImageFile();
+  if (!imageFile) return;
+  const fileUrl = URL.createObjectURL(imageFile);
   const dataUrl = await imageToDataUrl(fileUrl, 1920);
   URL.revokeObjectURL(fileUrl);
   new ThemeColor(dataUrl, (_: string, dark?: boolean) => {
@@ -802,8 +789,9 @@ onUnmounted(unWatch);
 <style lang="less" scoped>
 .music-setting {
   height: 100%;
+  display: flex;
+  flex-direction: column;
   &-header {
-    height: 90px;
     font-weight: bold;
     display: flex;
     flex-direction: column;
@@ -814,14 +802,15 @@ onUnmounted(unWatch);
       font-size: 24px;
     }
     &-sub {
+      display: flex;
+      flex-wrap: wrap;
+      column-gap: 30px;
+      row-gap: 5px;
       padding-bottom: 5px;
       margin-bottom: 5px;
       span {
         opacity: 0.6;
         cursor: pointer;
-      }
-      span + span {
-        margin-left: 30px;
       }
     }
     span&-active {
@@ -849,9 +838,10 @@ onUnmounted(unWatch);
     cursor: pointer;
   }
   &-body {
-    height: calc(100% - 90px);
+    flex: 1;
     padding: 0 var(--music-page-padding-horizontal);
     table {
+      display: block;
       width: 100%;
       border-spacing: 0;
       & > tr {
@@ -1126,6 +1116,22 @@ onUnmounted(unWatch);
         margin-left: 20px;
         :deep(.el-radio__inner) {
           box-shadow: 0 0 3px var(--music-background);
+        }
+      }
+    }
+  }
+}
+@media (max-width: 720px), (max-height: 720px) {
+  .music-setting {
+    &-body {
+      table > tr {
+        display: flex;
+        flex-direction: column;
+        & > td:first-child {
+          padding: 0;
+        }
+        & > td:last-child {
+          padding-top: 20px;
         }
       }
     }

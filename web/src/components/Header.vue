@@ -41,36 +41,34 @@ onUnmounted(unWatch);
 </script>
 <template>
   <el-header class="music-header">
-    <el-scrollbar :class="webView2Services.enabled ? 'wide-scrollbar' : ''">
-      <div class="music-header-content">
-        <el-button
-          v-show="canBack"
-          class="music-header-back music-button-pure music-icon"
-          @click="back">
-          <span style="opacity: 0.8">左</span>
-        </el-button>
-        <el-input
-          class="music-header-search"
-          v-model="searchKey"
-          placeholder="搜索音乐、歌手、歌词、链接"
-          @keyup.enter.native="startSearch"
-          clearable>
-          <template #prefix>
-            <el-icon
-              class="el-input__icon music-header-search-icon"
-              @click="startSearch">
-              <Search />
-            </el-icon>
-          </template>
-        </el-input>
-        <MusicTypeEle
-          v-show="setting.currentMusicTypeShow"
-          :value="setting.currentMusicType"
-          size="large"
-          @change="changeMusicType"
-          style="margin-right: 12px" />
-      </div>
-    </el-scrollbar>
+    <div class="music-header-content">
+      <el-button
+        v-if="canBack"
+        class="music-header-back music-button-pure music-icon"
+        @click="back">
+        <span style="opacity: 0.8">左</span>
+      </el-button>
+      <el-input
+        class="music-header-search"
+        v-model="searchKey"
+        placeholder="搜索音乐、歌手、歌词、链接"
+        @keyup.enter.native="startSearch"
+        clearable>
+        <template #prefix>
+          <el-icon
+            class="el-input__icon music-header-search-icon"
+            @click="startSearch">
+            <Search />
+          </el-icon>
+        </template>
+      </el-input>
+      <MusicTypeEle
+        v-show="setting.currentMusicTypeShow"
+        :value="setting.currentMusicType"
+        size="large"
+        @change="changeMusicType"
+        style="margin-right: 12px" />
+    </div>
     <div class="music-header-operate">
       <span class="music-icon" @click="push('/setting')" title="设置">
         设
@@ -137,6 +135,36 @@ onUnmounted(unWatch);
       font-weight: bold;
       &:hover {
         opacity: 1;
+      }
+    }
+  }
+}
+
+@media (max-width: 720px), (max-height: 720px) {
+  .music-header {
+    min-width: unset;
+    padding-left: 10px;
+    padding-right: 10px;
+    &-content {
+      min-width: unset;
+      flex-wrap: wrap;
+    }
+    &-search {
+      width: calc(100% - 13px);
+    }
+    button + &-search {
+      width: calc(100% - 50px);
+    }
+    .el-radio-group {
+      width: 100%;
+      margin-right: 0;
+      margin-left: 0;
+      :deep(.el-radio-button) {
+        flex: 1;
+      }
+      :deep(.el-radio-button__inner) {
+        width: 100%;
+        padding: 2px 10px !important;
       }
     }
   }

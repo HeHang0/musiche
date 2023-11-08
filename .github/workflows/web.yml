@@ -35,7 +35,7 @@ jobs:
           cd web
           yarn
           yarn build:zip
-          echo '<html><head><script>if(!localStorage.getItem("musiche-proxy-address"))localStorage.setItem("musiche-proxy-address","https://proxy.picapico.top/proxy");localStorage.setItem("musiche-router-prefix","musiche");let pathname=location.pathname.substring(9);let redirect=pathname?`${(location.search?"&":"?")}redirect=${pathname}`:"";location.href="/musiche"+location.search+redirect;</script></head></html>' > dist/404.html
+          echo '<html><head><script>if(!localStorage.getItem("musiche-proxy-address"))localStorage.setItem("musiche-proxy-address","https://music.picapico.top/proxy");localStorage.setItem("musiche-router-prefix","musiche");let pathname=location.pathname.substring(9);let redirect=pathname?`${(location.search?"&":"?")}redirect=${pathname}`:"";location.href="/musiche"+location.search+redirect;</script></head></html>' > dist/404.html
           cd ..\windows
           echo "<Weavers><Costura/></Weavers>" > FodyWeavers.xml
           mv ..\web\web.zip Resources\web.zip

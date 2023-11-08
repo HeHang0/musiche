@@ -12,7 +12,6 @@ const play = usePlayStore();
 </script>
 <template>
   <el-footer
-    v-show="play.musicList.length > 0"
     class="music-footer"
     :class="props.full ? ' music-footer-full' : ''">
     <div class="music-footer-layout">
@@ -27,7 +26,7 @@ const play = usePlayStore();
         <span class="music-icon" v-else @click="play.addMyLove([play.music])">
           恨
         </span>
-        <span class="music-footer-second-text" style="margin-left: 20px">
+        <span class="music-footer-second-text">
           {{ play.playStatus.currentTime }}
           &nbsp;/&nbsp;
           {{ play.playStatus.totalTime || play.music.duration }}
@@ -178,8 +177,11 @@ const play = usePlayStore();
   opacity: 0.8;
 }
 .music-footer {
+  position: fixed;
+  bottom: 0;
   background-color: var(--music-footer-background);
   height: 80px;
+  width: 100vw;
   border-top: 1px solid var(--music-side-divider-color);
   padding: 0;
   &-play {
@@ -221,6 +223,11 @@ const play = usePlayStore();
     height: 100%;
     min-width: 880px;
     padding: var(--el-footer-padding);
+    &-left {
+      .music-footer-second-text {
+        margin-left: 20px;
+      }
+    }
     &-left,
     &-right {
       width: 300px;
@@ -343,6 +350,41 @@ const play = usePlayStore();
   }
   :deep(.el-scrollbar__bar.is-vertical) {
     display: none !important;
+  }
+}
+@media (max-width: 720px), (max-height: 720px) {
+  .music-footer {
+    &-title {
+      display: none;
+    }
+    &-layout {
+      min-width: 100%;
+      &-left {
+        width: 60px;
+      }
+      &-right {
+        width: unset;
+        .el-slider {
+          display: none;
+        }
+      }
+      &-center {
+        &-progress {
+          padding: 0;
+        }
+        &-operate {
+          span + span {
+            margin-left: 10px;
+          }
+        }
+      }
+    }
+    &-layout-left {
+      .music-footer-second-text {
+        margin-left: 5px;
+        text-align: center;
+      }
+    }
   }
 }
 </style>

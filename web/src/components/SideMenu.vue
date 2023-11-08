@@ -192,6 +192,7 @@ function createMyPlaylists() {
   width: 205px;
   background-color: var(--music-side-background);
   color: var(--music-side-text-color);
+  transition: width 0.3s ease-in-out;
   .music-icon {
     margin-right: 5px;
   }
@@ -365,5 +366,36 @@ function createMyPlaylists() {
 }
 :deep(.el-dialog__body) {
   padding: 0;
+}
+@media (max-width: 720px), (max-height: 720px) {
+  .music-aside {
+    width: 50px;
+    &-title {
+      padding: 20px 0 0 5px;
+      &-logo {
+        width: 40px;
+        height: 40px;
+      }
+      &-text {
+        display: none;
+      }
+    }
+    &-menu .el-menu-item {
+      margin: 2px 5px;
+      justify-content: center;
+      padding: 0 var(--el-menu-base-level-padding) !important;
+      span:first-child {
+        margin-right: 0;
+      }
+      span:last-child {
+        display: none;
+      }
+    }
+  }
+  .el-sub-menu {
+    :deep(.el-sub-menu__icon-arrow) {
+      right: 5px !important;
+    }
+  }
 }
 </style>

@@ -284,3 +284,47 @@ export function messageOption(message: string, html?: boolean): MessageParams {
     grouping: true
   };
 }
+
+export async function getImageFile(): Promise<File | null> {
+  if ((window as any).showOpenFilePicker) {
+    const image: FileSystemFileHandle[] = await (
+      window as any
+    ).showOpenFilePicker({
+      multiple: false,
+      excludeAcceptAllOption: true,
+      types: [
+        {
+          description: '图像',
+          accept: {
+            'image/*': [
+              '.png',
+              '.gif',
+              '.jpeg',
+              '.jpg',
+              '.bmp',
+              '.webp',
+              '.tif'
+            ]
+          }
+        }
+      ]
+    });
+    if (!image || image.length === 0) return null;
+    return await image[0].getFile();
+  } else {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    let timeout: any = null;
+    const event: any = await new Promise(resolve => {
+      input.onchange = resolve;
+      input.click();
+      timeout = setTimeout(() => {
+        resolve(null); // 用户没有选择文件，手动调用 resolve 表示取消选择
+      }, 60000);
+    });
+    clearTimeout(timeout);
+    input.remove();
+    return (event.target.files && event.target.files[0]) || '';
+  }
+}

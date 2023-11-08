@@ -127,6 +127,8 @@ onUnmounted(unWatch);
     color: var(--music-highlight-color);
   }
   height: 100%;
+  display: flex;
+  flex-direction: column;
   &-header {
     display: flex;
     align-items: center;
@@ -136,7 +138,6 @@ onUnmounted(unWatch);
       align-items: center;
     }
     padding: 0 var(--music-page-padding-horizontal);
-    height: 45px;
   }
   &-title {
     font-weight: bold;
@@ -153,8 +154,16 @@ onUnmounted(unWatch);
   }
   .el-scrollbar {
     margin-top: 5px;
-    height: calc(100% - 50px);
+    flex: 1;
     padding: 0 calc(var(--music-page-padding-horizontal) - 10px);
+  }
+}
+@media (max-width: 720px), (max-height: 720px) {
+  .music-search {
+    &-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
   }
 }
 </style>
