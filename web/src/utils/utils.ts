@@ -328,3 +328,18 @@ export async function getImageFile(): Promise<File | null> {
     return (event.target.files && event.target.files[0]) || '';
   }
 }
+
+export function highlightKeys(text: string, keywords: string): string {
+  if (!text) return '';
+  if (!keywords) return text;
+  let highlight = text;
+  const keys = keywords.split(/[\s]+/);
+  keys.forEach(n => {
+    if (n)
+      highlight = highlight.replace(
+        n,
+        `<span class="highlight-text">${n}</span>`
+      );
+  });
+  return highlight;
+}

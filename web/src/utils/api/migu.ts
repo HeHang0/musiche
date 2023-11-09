@@ -12,6 +12,7 @@ import {
   duration2Millisecond,
   durationTrim,
   formatCookies,
+  highlightKeys,
   parseCookie,
   second2Duration
 } from '../utils';
@@ -43,7 +44,7 @@ export function setPlayQuality(quality: MusicQuality) {
 export async function search(keywords: string, offset: number) {
   var url = `https://m.music.migu.cn/migumusic/h5/search/all?text=${encodeURIComponent(
     keywords
-  ).replace(/%20/g, '+')}&pageNo=${offset + 1}&pageSize=30`;
+  ).replace(/%20/g, '+')}&pageNo=${Math.round(offset / 30) + 1}&pageSize=30`;
   var res = await httpProxy({
     url: url,
     method: 'GET',
@@ -62,6 +63,7 @@ export async function search(keywords: string, offset: number) {
     list.push({
       id: m.copyrightId,
       name: m.name,
+      highlightName: highlightKeys(m.name, keywords),
       image: padProtocol(m.mediumPic),
       singer: Array.isArray(m.singers)
         ? m.singers.map((n: any) => n.name).join(' / ')

@@ -102,6 +102,7 @@ export const usePlayStore = defineStore('play', {
       this.music.type = music?.type || 'local';
       this.music.url = music?.url || '';
       this.music.lyricUrl = music?.lyricUrl || '';
+      this.music.audition = music?.audition || false;
       !noSave && storage.setValue(StorageKey.CurrentMusic, this.music);
     },
     setSortType(type: SortType) {
@@ -247,7 +248,7 @@ export const usePlayStore = defineStore('play', {
         this.setCurrentMusic(this.musicList[0]);
       }
     },
-    async play(music?: Music, musicList?: Music[], auto?: boolean) {
+    async play(music?: Music, musicList?: Music[]) {
       if (this.preparePlay) {
         return;
       }
@@ -283,6 +284,7 @@ export const usePlayStore = defineStore('play', {
         this.setCurrentMusic(music);
       }
       await api.musicDetail(music);
+      this.music.audition = music.audition;
       if (!music.url) {
         console.log('fail', music);
         ElMessage(messageOption('当前音乐无法播放'));
@@ -354,7 +356,7 @@ export const usePlayStore = defineStore('play', {
       }
       if (currentIndex < 0 || currentIndex >= this.musicList.length)
         currentIndex = 0;
-      this.play(this.musicList[currentIndex], undefined, auto);
+      this.play(this.musicList[currentIndex]);
     },
     async last() {
       this.nextPlay = null;
@@ -433,6 +435,9 @@ export const usePlayStore = defineStore('play', {
           this.playStatus.currentTime = data.currentTime || '00:00';
         }
         if (data.totalTime && this.playStatus.totalTime != data.totalTime) {
+          if (this.music.audition && this.music.duration) {
+            data.totalTime = this.music.duration;
+          }
           this.playStatus.totalTime = data.totalTime;
           if (!this.music.duration) {
             this.music.duration = data.totalTime;
@@ -457,7 +462,11 @@ export const usePlayStore = defineStore('play', {
           !this.playStatus.disableUpdateProgress &&
           this.playStatus.progress != data.progress
         ) {
-          localStorage.setItem(StorageKey.Progress, data.progress as any);
+          if (this.music.audition && this.music.length) {
+            data.progress = (60000 * data.progress) / this.music.length;
+          } else {
+            localStorage.setItem(StorageKey.Progress, data.progress as any);
+          }
           this.playStatus.progress = data.progress || 0;
           if (
             data.progress &&

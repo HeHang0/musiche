@@ -8,7 +8,12 @@ import {
   LoginStatus,
   MusicQuality
 } from '../type';
-import { formatCookies, generateGuid, millisecond2Duration } from '../utils';
+import {
+  formatCookies,
+  generateGuid,
+  highlightKeys,
+  millisecond2Duration
+} from '../utils';
 import RankingHotImage from '../../assets/images/ranking-hot.jpg';
 import RankingNewImage from '../../assets/images/ranking-new.jpg';
 import RankingSoarImage from '../../assets/images/ranking-soar.jpg';
@@ -44,24 +49,25 @@ function parseAlbumImage(music: any) {
   //'https://y.qq.com/music/photo_new/T002R300x300M000' + almubMid + '_1.jpg'
 }
 
-function getSearchlUrl(keywords: string, offset: number, jSoup?: boolean) {
-  const format = jSoup ? 'jsoup' : 'json';
-  const guid = Math.abs(
-    (Math.round(2147483647 * Math.random()) * new Date().valueOf()) % 1e10
-  ).toString();
-  const callback = jSoup ? `qqMusicUrl${guid}` : '';
-  var url =
-    'http://i.y.qq.com/s.music/fcgi-bin/search_for_qq_cp?' +
-    'g_tk=938407465&uin=0&inCharset=utf-8&outCharset=utf-8' +
-    `&format=${format}&jsonpCallback=${callback}` +
-    `&flag=1&ie=utf-8&sem=1&aggr=0&perpage=30&n=30&p=${offset + 1}` +
-    '&zhidaqu=1&catZhida=1&t=0&remoteplace=txt.mqq.all&_=1459991037831' +
-    `&notice=0&platform=h5&needNewCode=1&w=${encodeURIComponent(
-      keywords
-    ).replace(/%20/g, '+')}`;
+function parseMusic(m: any): Music {
+  const fileName = Array.isArray(m.vs) ? m.vs.find((n: any) => n) : void 0;
+  const size = Math.round(
+    (m.size128 || (m.file && m.file.size_128mp3) || 0) / 16
+  );
   return {
-    url,
-    callback
+    id: m.songmid || m.mid,
+    name: m.songname || m.name,
+    image: parseAlbumImage(m),
+    singer: Array.isArray(m.singer)
+      ? m.singer.map((n: any) => n.name).join(' / ')
+      : '',
+    album: m.albumname || (m.album && m.album.name) || '',
+    albumId: m.albummid || (m.album && m.album.mid) || '',
+    duration: millisecond2Duration(size),
+    length: size,
+    vip: Boolean(m.pay && (m.pay.payplay || m.pay.pay_play)),
+    remark: fileName ? `RS02${fileName}.mp3` : void 0,
+    type: musicType
   };
 }
 
@@ -76,67 +82,40 @@ export function setPlayQuality(quality: MusicQuality) {
   playQuality = quality;
 }
 
-export async function search(
-  keywords: string,
-  offset: number,
-  jSoup?: boolean
-) {
-  const { callback, url } = getSearchlUrl(keywords, offset, jSoup);
-  let json: any = null;
-  if (callback) {
-    let callbackTimeout: any = null;
-    let script: any = null;
-    json = await new Promise(resolve => {
-      (window as any)[callback] = resolve;
-      script = document.createElement('script')!;
-      script.src = url;
-      document.head.appendChild(script);
-      callbackTimeout = setTimeout(() => {
-        delete (window as any)[callback];
-        script?.remove();
-        resolve(null);
-      }, 5000);
-    });
-    script?.remove();
-    clearTimeout(callbackTimeout);
-    delete (window as any)[callback];
-  } else {
-    var res = await httpProxy({
-      url: url,
-      method: 'GET',
-      data: '',
-      headers: {
-        Referer: 'http://y.qq.com'
+export async function search(keywords: string, offset: number) {
+  var res = await httpProxy({
+    url: 'https://u.y.qq.com/cgi-bin/musicu.fcg',
+    method: 'POST',
+    data: JSON.stringify({
+      comm: {
+        mina: 1,
+        appid: 'wxada7aab80ba27074',
+        ct: 25
+      },
+      req: {
+        method: 'DoSearchForQQMusicMobile',
+        module: 'music.search.SearchBrokerCgiServer',
+        param: {
+          remoteplace: 'miniapp.wxada7aab80ba27074',
+          search_type: 7,
+          query: keywords,
+          page_num: Math.round(offset / 30) + 1,
+          num_per_page: 30,
+          grp: 0
+        }
       }
-    });
-    try {
-      json = await res.json();
-      if (!json['data']['song']) throw new Error('获取失败');
-    } catch (e) {
-      return search(keywords, offset, true);
+    }),
+    headers: {
+      'content-type': 'application/json'
     }
-  }
-
-  const ret = json['data']['song'];
+  });
+  const ret = await res.json();
   const list: Music[] = [];
-  const total: number = ret.totalnum;
-  ret.list.map((m: any) => {
-    list.push({
-      id: m.songmid,
-      name: m.songname,
-      highlightName: m.songname_hilight,
-      image: parseAlbumImage(m),
-      singer: Array.isArray(m.singer)
-        ? m.singer.map((n: any) => n.name).join(' / ')
-        : '',
-      album: m.albumname,
-      albumId: m.albummid,
-      duration: millisecond2Duration(m.size128 / 16),
-      length: m.size128 / 16,
-      vip: Boolean(m.pay && m.pay.payplay),
-      remark: '',
-      type: musicType
-    });
+  const total: number = ret.req.data.meta.sum;
+  ret.req.data.body.item_song.map((m: any) => {
+    const music = parseMusic(m);
+    music.highlightName = highlightKeys(music.name, keywords);
+    list.push(music);
   });
   return {
     total,
@@ -329,21 +308,7 @@ export async function playlistDetail1(id: string) {
   };
   const total: number = ret.total_song_num;
   ret.songlist.map((m: any) => {
-    list.push({
-      id: m.songmid,
-      name: m.songname,
-      image: parseAlbumImage(m),
-      singer: Array.isArray(m.singer)
-        ? m.singer.map((n: any) => n.name).join(' / ')
-        : '',
-      album: m.albumname,
-      albumId: m.albummid,
-      duration: millisecond2Duration(m.size128 / 16),
-      length: m.size128 / 16,
-      vip: Boolean(m.pay && m.pay.payplay),
-      remark: '',
-      type: musicType
-    });
+    list.push(parseMusic(m));
   });
   return {
     list,
@@ -416,22 +381,7 @@ export async function playlistDetail(id: string, offset: number) {
   };
   const total: number = resData.dirinfo.songnum;
   resData.songlist.map((m: any) => {
-    const size = m.file.size_128mp3 / 16;
-    list.push({
-      id: m.mid,
-      name: m.name,
-      image: parseAlbumImage(m),
-      singer: Array.isArray(m.singer)
-        ? m.singer.map((n: any) => n.name).join(' / ')
-        : '',
-      album: m.album.name,
-      albumId: m.album.mid,
-      duration: millisecond2Duration(size),
-      length: size,
-      vip: Boolean(m.pay && (m.pay.payplay || m.pay.pay_play)),
-      remark: '',
-      type: musicType
-    });
+    list.push(parseMusic(m));
   });
   return {
     list,
@@ -469,21 +419,7 @@ export async function albumDetail(id: string) {
   playlist.description = playlist.description?.replace(/\n+/g, '<br />');
   const total: number = ret.data.total_song_num;
   ret.data.list.map((m: any) => {
-    list.push({
-      id: m.songmid,
-      name: m.songname,
-      image: albumImage,
-      singer: Array.isArray(m.singer)
-        ? m.singer.map((n: any) => n.name).join(' / ')
-        : '',
-      album: m.albumname,
-      albumId: m.albummid,
-      duration: millisecond2Duration(m.size128 / 16),
-      length: m.size128 / 16,
-      vip: Boolean(m.pay && m.pay.payplay),
-      remark: '',
-      type: musicType
-    });
+    list.push(parseMusic(m));
   });
   return {
     list,
@@ -575,21 +511,7 @@ export async function rankingFirst(ranking: RankingType, offset: number) {
   const total: number = json.req_1.data.data.totalNum;
   const list: Music[] = [];
   json.req_1.data.songInfoList.map((m: any) => {
-    list.push({
-      id: m.mid,
-      name: m.name,
-      image: parseAlbumImage(m),
-      singer: Array.isArray(m.singer)
-        ? m.singer.map((n: any) => n.name).join(' / ')
-        : '',
-      album: m.album.name,
-      albumId: m.album.id,
-      duration: millisecond2Duration(m.file.size128mp3 / 16),
-      length: m.file.size128mp3 / 16,
-      vip: Boolean(m.pay && m.pay.payplay),
-      remark: '',
-      type: musicType
-    });
+    list.push(parseMusic(m));
   });
   return {
     list,
@@ -636,110 +558,11 @@ export async function ranking(ranking: RankingType, offset: number) {
   const total: number = ret.totalnum;
   ret.songlist.map((item: any) => {
     const m = item.data;
-    list.push({
-      id: m.songmid,
-      name: m.songname,
-      image: parseAlbumImage(m),
-      singer: Array.isArray(m.singer)
-        ? m.singer.map((n: any) => n.name).join(' / ')
-        : '',
-      album: m.albumname,
-      albumId: m.albummid,
-      duration: millisecond2Duration(m.size128 / 16),
-      length: m.size128 / 16,
-      vip: Boolean(m.pay && m.pay.payplay),
-      remark: '',
-      type: musicType
-    });
+    list.push(parseMusic(m));
   });
   return {
     list,
     total
-  };
-}
-
-export async function musicDetail2(music: Music) {
-  const guid = generateGuid();
-  //const fileType = {"128":{"s":"M500","e":".mp3"},"320":{"s":"M800","e":".mp3"},"m4a":{"s":"C400","e":".m4a"},"ape":{"s":"A000","e":".ape"},"flac":{"s":"F000","e":".flac"}}
-  const songmidList = [music.id];
-  const fileInfo = {
-    s: 'M500',
-    e: '.mp3'
-  };
-  const uin = '0';
-  const file = songmidList.map(_ => `${fileInfo.s}${_}${_}${fileInfo.e}`);
-  const data = {
-    req_0: {
-      module: 'vkey.GetVkeyServer',
-      method: 'CgiGetVkey',
-      param: {
-        filename: file,
-        guid,
-        songmid: songmidList,
-        songtype: [0],
-        uin,
-        loginflag: 1,
-        platform: '20'
-      }
-    },
-    loginUin: uin,
-    comm: {
-      uin,
-      format: 'json',
-      ct: 24,
-      cv: 0
-    }
-  };
-  var res = await httpProxy({
-    url:
-      `https://u.y.qq.com/cgi-bin/musicu.fcg?format=json&sign=zzannc1o6o9b4i971602f3554385022046ab796512b7012&data=` +
-      encodeURIComponent(JSON.stringify(data)),
-    method: 'GET',
-    data: '',
-    headers: {
-      Referer: 'http://y.qq.com'
-    }
-  });
-  let ret = await res.json();
-  console.log(ret);
-}
-
-function getMusicDetailUrl(id: string, jsoup?: boolean) {
-  const format = jsoup ? 'jsoup' : 'json';
-  const guid = Math.abs(
-    (Math.round(2147483647 * Math.random()) * new Date().valueOf()) % 1e10
-  ).toString();
-  const callback = jsoup ? `qqMusicUrl${guid}` : '';
-  var data = {
-    req: {
-      module: 'CDN.SrfCdnDispatchServer',
-      method: 'GetCdnDispatch',
-      param: { guid: guid, calltype: 0, userip: '' }
-    },
-    req_0: {
-      module: 'vkey.GetVkeyServer',
-      method: 'CgiGetVkey',
-      param: {
-        guid: guid,
-        songmid: [id],
-        songtype: [0],
-        uin: '0',
-        loginflag: 1,
-        platform: '20'
-      }
-    },
-    comm: { uin: 0, format: format, ct: 20, cv: 0 }
-  };
-
-  var url =
-    `https://u.y.qq.com/cgi-bin/musicu.fcg?callback=${callback}&g_tk=5381&platform=yqq` +
-    `&jsonpCallback=${callback}&loginUin=0&hostUin=0&format=${format}&inCharset=utf8` +
-    `&outCharset=utf-8&notice=0&needNewCode=0&data=${encodeURIComponent(
-      JSON.stringify(data)
-    )}`;
-  return {
-    url,
-    callback
   };
 }
 
@@ -752,62 +575,62 @@ function parseMusicUrl(ret: any) {
     ret.req_0.data.midurlinfo[0] &&
     ret.req_0.data.midurlinfo[0].purl
   ) {
-    return (
-      'http://dl.stream.qqmusic.qq.com/' + ret.req_0.data.midurlinfo[0].purl
-    );
+    const urlPrefix =
+      ret.req_0.data.sip.find((m: any) => Boolean(m)) ||
+      'http://dl.stream.qqmusic.qq.com/';
+    return urlPrefix + ret.req_0.data.midurlinfo[0].purl;
   }
   return '';
 }
 
 export async function downloadUrl(
   music: Music,
-  quality?: MusicQuality,
-  jsoup?: boolean
+  _quality?: MusicQuality,
+  audition?: boolean
 ): Promise<string> {
-  const { url, callback } = getMusicDetailUrl(music.id, jsoup); //jsoup);
-  var musicUrl = '';
-  if (callback) {
-    let callbackTimeout: any = null;
-    let script: any = null;
-    const ret = await new Promise(resolve => {
-      (window as any)[callback] = resolve;
-      script = document.createElement('script')!;
-      script.src = url;
-      document.head.appendChild(script);
-      callbackTimeout = setTimeout(() => {
-        delete (window as any)[callback];
-        script?.remove();
-        resolve(null);
-      }, 5000);
-    });
-    script?.remove();
-    clearTimeout(callbackTimeout);
-    delete (window as any)[callback];
-    musicUrl = parseMusicUrl(ret);
-  } else {
-    var res = await httpProxy({
-      url: url,
-      method: 'GET',
-      data: '',
-      headers: {
-        Referer: 'http://y.qq.com',
-        Cookie: qqCookie
+  var res = await httpProxy({
+    url: 'https://u.y.qq.com/cgi-bin/musicu.fcg',
+    method: 'POST',
+    data: JSON.stringify({
+      comm: {
+        cv: 4747474,
+        ct: 24,
+        format: 'json',
+        inCharset: 'utf-8',
+        outCharset: 'utf-8',
+        notice: 0,
+        platform: 'yqq.json',
+        needNewCode: 1
+      },
+      req_0: {
+        module: 'vkey.GetVkeyServer',
+        method: 'CgiGetVkey',
+        param: {
+          guid: generateGuid().substring(0, 10),
+          songmid: [music.id],
+          songtype: [0],
+          uin: '',
+          loginflag: 1,
+          platform: '20',
+          filename: audition && music.remark ? [music.remark] : []
+        }
       }
-    });
-    const ret = await res.json();
-    musicUrl = parseMusicUrl(ret);
-    if (!musicUrl) {
-      return await downloadUrl(music, quality, true);
+    }),
+    headers: {
+      Referer: 'https://y.qq.com',
+      Cookie: qqCookie
     }
-  }
-  return musicUrl;
+  });
+  const ret = await res.json();
+  return parseMusicUrl(ret);
 }
 
-export async function musicDetail(
-  music: Music,
-  _jsoup?: boolean
-): Promise<Music> {
-  music.url = await downloadUrl(music, playQuality, true);
+export async function musicDetail(music: Music): Promise<Music> {
+  music.url = await downloadUrl(music, playQuality);
+  if (!music.url) {
+    music.url = await downloadUrl(music, playQuality, true);
+    music.audition = true;
+  }
   return music;
 }
 

@@ -46,6 +46,7 @@ export interface Music {
   type: MusicType;
   url?: string;
   lyricUrl?: string;
+  audition?: boolean;
 }
 
 export interface Playlist {

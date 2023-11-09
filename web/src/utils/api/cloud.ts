@@ -11,6 +11,7 @@ import {
 import { httpProxy } from '../http';
 import {
   duration2Millisecond,
+  highlightKeys,
   millisecond2Duration,
   parseCookie
 } from '../utils';
@@ -93,21 +94,12 @@ export async function search(
   const ret = await res.json();
   const list: Music[] = [];
   const total: number = ret.result.songCount;
-  var keys = keywords.split(/[\s]+/);
   ret.result.songs.map((m: any) => {
-    var highlightName = m.name;
-    type == 1 &&
-      keys.map(n => {
-        highlightName = highlightName.replace(
-          n,
-          `<span class="c_tx_highlight">${n}</span>`
-        );
-      });
     const album = m.al || m.album || {};
     list.push({
       id: m.id,
       name: m.name,
-      highlightName: highlightName,
+      highlightName: highlightKeys(m.name, keywords),
       image: (album.picUrl || '') + '?param=100y100',
       singer: parseSinger(m.ar || m.artists),
       album: album.name || '',

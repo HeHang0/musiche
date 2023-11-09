@@ -123,7 +123,7 @@ onUnmounted(unWatch);
 
 <style lang="less" scoped>
 .music-search {
-  .c_tx_highlight {
+  :deep(.highlight-text) {
     color: var(--music-highlight-color);
   }
   height: 100%;

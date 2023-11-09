@@ -56,7 +56,7 @@ onUnmounted(() => {
 });
 </script>
 <template>
-  <div class="music-lyric" :class="pure ? 'music-lyric-pure' : ''">
+  <div class="music-lyric" :class="props.pure ? 'music-lyric-pure' : ''">
     <div class="music-lyric-header">
       <div class="music-lyric-name text-overflow-1" :title="play.music.name">
         {{ play.music.name }}
@@ -64,7 +64,7 @@ onUnmounted(() => {
       <div
         class="music-lyric-desc"
         v-show="play.music.album || play.music.singer"
-        :style="pure ? 'justify-content: center' : ''">
+        :style="props.pure ? 'justify-content: center' : ''">
         <div v-if="play.music.album" class="text-overflow-1">
           <span>专辑：</span
           ><span
