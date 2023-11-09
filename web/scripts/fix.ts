@@ -59,10 +59,7 @@ function transformIndexHtmlHandler(html: string) {
     prependedHtml += '\n    ' + scriptPwa;
     html = html.replace(matchScript, '');
   }
-  return html.replace(
-    '<head>',
-    '<head>' + prependedHtml.replaceAll('="./', '="/musiche/')
-  );
+  return html.replace('<head>', '<head>' + prependedHtml);
 }
 
 export const FixPwaPlugin = function () {

@@ -177,8 +177,6 @@ const play = usePlayStore();
   opacity: 0.8;
 }
 .music-footer {
-  position: fixed;
-  bottom: 0;
   background-color: var(--music-footer-background);
   height: 80px;
   width: 100vw;

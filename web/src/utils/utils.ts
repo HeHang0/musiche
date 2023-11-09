@@ -42,6 +42,13 @@ try {
   webView2Services.enabled = !!webView2Services.specialService;
 } catch (error) {}
 
+export const isInStandaloneMode = Boolean(
+  'standalone' in window.navigator && window.navigator.standalone
+);
+export const isIOS = !!navigator.userAgent.match(
+  /\(i[^;]+;( U;)? CPU.+Mac OS X/
+);
+
 export function scrollToElementId(
   id: string,
   center?: boolean,

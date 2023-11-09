@@ -6,7 +6,7 @@ import Footer from './components/Footer.vue';
 import CurrentList from './components/CurrentList.vue';
 import PlayDetail from './components/PlayDetail.vue';
 import WindowHelper from './components/WindowHelper.vue';
-import { webView2Services } from './utils/utils';
+import { isIOS, isInStandaloneMode, webView2Services } from './utils/utils';
 import { MusicConnection } from './stores/connection';
 import { usePlayStore } from './stores/play';
 import { useSettingStore } from './stores/setting';
@@ -29,13 +29,16 @@ iconLink.rel = 'icon';
 iconLink.href = LogoCircleImage;
 document.head.appendChild(iconLink);
 new MusicConnection(webView2Services.enabled);
+let rootClass = webView2Services.enabled ? 'webview-host' : '';
+if (isInStandaloneMode) rootClass += ' standalone';
+if (isIOS) rootClass += ' ios';
 </script>
 
 <template>
   <el-container
     class="music-layout"
     direction="vertical"
-    :class="webView2Services.enabled ? 'webview-host' : ''"
+    :class="rootClass"
     :style="
       setting.appTheme.image
         ? `background: url(${setting.appTheme.image}) 50% 50% / cover`
@@ -74,11 +77,7 @@ new MusicConnection(webView2Services.enabled);
   }
   &-top {
     overflow: hidden;
-    flex: unset;
-    height: calc(100% - 80px);
-    &-full {
-      height: 100%;
-    }
+    flex: 1;
   }
   &-top {
     width: 100%;
@@ -87,12 +86,16 @@ new MusicConnection(webView2Services.enabled);
 .music-main {
   position: relative;
   overflow-x: hidden;
+  :deep(.el-scrollbar > .el-scrollbar__wrap > .el-scrollbar__view) {
+    position: relative;
+    min-height: 100%;
+  }
 }
-</style>
-
-<style lang="less">
-.music-main > .el-scrollbar > .el-scrollbar__wrap > .el-scrollbar__view {
-  position: relative;
-  min-height: 100%;
+@media (max-width: 720px) {
+  .music-layout.standalone.ios {
+    .music-footer {
+      padding-bottom: 10px;
+    }
+  }
 }
 </style>
