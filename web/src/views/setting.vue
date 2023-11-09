@@ -25,7 +25,7 @@ import {
   webView2Services
 } from '../utils/utils';
 
-import LogoImageCircle from '../assets/images/logo-circle.png';
+import { LogoCircleImage } from '../utils/logo';
 import { ThemeColor } from '../utils/color';
 
 const { currentRoute, replace } = useRouter();
@@ -475,7 +475,7 @@ onUnmounted(unWatch);
                   <el-icon v-if="!theme.color && !theme.image"
                     ><PictureFilled
                   /></el-icon>
-                  <img :src="LogoImageCircle" />
+                  <img :src="LogoCircleImage" />
                   <el-checkbox
                     v-if="setting.appTheme.id == theme.id"
                     checked></el-checkbox>

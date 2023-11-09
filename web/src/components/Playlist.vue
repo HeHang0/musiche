@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Playlist } from '../utils/type';
-import LogoImage from '../assets/images/logo.png';
+import { LogoImage } from '../utils/logo';
 interface Props {
   list: Playlist[];
   loading?: boolean;

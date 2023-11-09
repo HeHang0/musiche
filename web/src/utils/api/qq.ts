@@ -76,6 +76,7 @@ var playQuality: MusicQuality = 'PQ';
 
 export function setDownloadQuality(quality: MusicQuality) {
   downloadQuality = quality;
+  console.log(downloadQuality);
 }
 
 export function setPlayQuality(quality: MusicQuality) {

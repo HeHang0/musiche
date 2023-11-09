@@ -1,7 +1,7 @@
 import CloudMusicImage from '../assets/images/cloud-music.webp';
 import QQMusicImage from '../assets/images/qq-music.png';
 import MiguMusicImage from '../assets/images/migu-music.webp';
-import LogoCircle from '../assets/images/logo-circle.png';
+import { LogoCircleImage } from '../utils/logo';
 import { MusicType } from './type';
 
 const images: Record<string, string> = {
@@ -29,7 +29,7 @@ export const musicTypeInfo: Record<
     get: function (_target, prop: MusicType) {
       return {
         name: names[prop] || 'Musiche',
-        image: images[prop] || LogoCircle,
+        image: images[prop] || LogoCircleImage,
         type: prop
       };
     }

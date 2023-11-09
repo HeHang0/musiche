@@ -21,7 +21,7 @@
     "noFallthroughCasesInSwitch": true,
 
     "composite": true,
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client", "vite-plugin-pwa/client"]
   },
   "include": [
     "src/**/*.ts",

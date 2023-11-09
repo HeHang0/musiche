@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { usePlayStore } from '../stores/play';
 import { SortType } from '../utils/type';
-import LogoImage from '../assets/images/logo.png';
+import { LogoImage } from '../utils/logo';
 interface Props {
   full?: boolean;
 }

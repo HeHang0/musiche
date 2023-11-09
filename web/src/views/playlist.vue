@@ -5,7 +5,7 @@ import * as api from '../utils/api/api';
 import { usePlayStore } from '../stores/play';
 import { Music, MusicType, Playlist } from '../utils/type';
 import MusicList from '../components/MusicList.vue';
-import LogoImage from '../assets/images/logo.png';
+import { LogoImage } from '../utils/logo';
 import { useSettingStore } from '../stores/setting';
 const { currentRoute, replace } = useRouter();
 const play = usePlayStore();

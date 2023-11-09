@@ -2,8 +2,7 @@
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { usePlayStore } from '../stores/play';
-import LogoImage from '../assets/images/logo-circle.png';
-import LogoCircleImage from '../assets/images/logo-circle.png';
+import { LogoImage, LogoCircleImage } from '../utils/logo';
 import { useSettingStore } from '../stores/setting';
 const { options } = useRouter();
 const route = useRoute();

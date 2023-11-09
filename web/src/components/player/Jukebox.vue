@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Ref, ref } from 'vue';
 import { usePlayStore } from '../../stores/play';
-import LogoImage from '../../assets/images/logo.png';
+import { LogoImage } from '../../utils/logo';
 const play = usePlayStore();
 const discElement: Ref<HTMLImageElement | null> = ref(null);
 </script>

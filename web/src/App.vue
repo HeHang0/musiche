@@ -7,11 +7,10 @@ import CurrentList from './components/CurrentList.vue';
 import PlayDetail from './components/PlayDetail.vue';
 import WindowHelper from './components/WindowHelper.vue';
 import { webView2Services } from './utils/utils';
-import LogoImage from './assets/images/logo.png';
-import LogoCircleImage from './assets/images/logo-circle.png';
 import { MusicConnection } from './stores/connection';
 import { usePlayStore } from './stores/play';
 import { useSettingStore } from './stores/setting';
+import { LogoCircleImage, LogoImage } from './utils/logo';
 
 const play = usePlayStore();
 const setting = useSettingStore();
