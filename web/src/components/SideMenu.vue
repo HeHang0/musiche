@@ -372,7 +372,7 @@ function toHome() {
 :deep(.el-dialog__body) {
   padding: 0;
 }
-@media (max-width: 720px), (max-height: 720px) {
+@media (max-width: 800px) {
   .music-aside {
     width: calc(50px + calc(env(safe-area-inset-left, 0) / 1.5));
     padding-left: calc(env(safe-area-inset-left, 0) / 1.5);

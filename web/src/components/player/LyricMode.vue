@@ -12,8 +12,5 @@ import Lyric from './Lyric.vue';
 .music-mode-lyric {
   height: 100%;
   width: 100%;
-  & > .music-lyric {
-    padding: 30px 0;
-  }
 }
 </style>

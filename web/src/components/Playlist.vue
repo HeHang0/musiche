@@ -87,7 +87,7 @@ const props = withDefaults(defineProps<Props>(), {
     }
   }
 }
-@media (max-width: 720px), (max-height: 720px) {
+@media (max-width: 800px) {
   .music-play-list {
     grid-column-gap: 4px;
     grid-row-gap: 4px;

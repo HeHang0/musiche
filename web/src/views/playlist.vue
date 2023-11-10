@@ -356,14 +356,14 @@ onUnmounted(unWatch);
     padding: 0 calc(var(--music-page-padding-horizontal) - 10px);
   }
 }
-@media (max-width: 720px), (max-height: 720px) {
+@media (max-width: 800px) {
   .music-playlist {
     & > .el-scrollbar {
       padding: 0 !important;
     }
   }
 }
-@media (max-width: 720px) and (orientation: portrait) {
+@media (max-width: 800px) and (orientation: portrait) {
   .music-playlist {
     &-header {
       flex-direction: column;

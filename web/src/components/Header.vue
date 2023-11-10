@@ -141,7 +141,7 @@ onUnmounted(unWatch);
   }
 }
 
-@media (max-width: 720px), (max-height: 720px) {
+@media (max-width: 800px) {
   .music-header {
     min-width: unset;
     &-content {

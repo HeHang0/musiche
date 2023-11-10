@@ -74,7 +74,7 @@ const discElement: Ref<HTMLImageElement | null> = ref(null);
     }
   }
 }
-@media (max-width: 720px), (max-height: 720px) {
+@media (max-width: 800px) {
   .music-jukebox {
     &-stylus {
       img {

@@ -86,6 +86,7 @@ onUnmounted(() => {
       </div>
     </div>
     <div class="music-lyric-content" v-show="musicLyric.length > 0">
+      <div class="music-lyric-line">&nbsp;</div>
       <div
         v-for="(line, index) in musicLyric"
         :id="lyricLineIdPrefix + index"
@@ -93,6 +94,7 @@ onUnmounted(() => {
         class="music-lyric-line">
         {{ line }}
       </div>
+      <div class="music-lyric-line">&nbsp;</div>
     </div>
   </div>
 </template>
@@ -104,6 +106,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  padding: var(--music-page-padding-horizontal);
   &-pure {
     text-align: center;
   }
@@ -141,6 +144,13 @@ onUnmounted(() => {
     &::-webkit-scrollbar-thumb {
       background-color: transparent;
     }
+    -webkit-mask: linear-gradient(
+      0,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 1) 15%,
+      rgba(0, 0, 0, 1) 85%,
+      rgba(0, 0, 0, 0) 100%
+    );
   }
   &-line {
     opacity: 0.6;
@@ -156,14 +166,11 @@ onUnmounted(() => {
     }
   }
 }
-@media (max-width: 720px), (max-height: 720px) {
+@media (max-width: 800px) {
   .music-lyric {
     &-header {
       height: unset;
       margin-bottom: 10px;
-    }
-    &-pure {
-      padding: 0 0 10px 0;
     }
   }
 }

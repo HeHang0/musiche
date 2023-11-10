@@ -2,6 +2,7 @@
 import { usePlayStore } from '../stores/play';
 import { SortType } from '../utils/type';
 import { LogoImage } from '../utils/logo';
+import { isIOS } from '../utils/utils';
 interface Props {
   full?: boolean;
 }
@@ -44,16 +45,16 @@ const play = usePlayStore();
           <img :src="play.music.image || LogoImage" />
         </div>
         <div class="music-footer-title">
-          <div class="music-footer-title-name" :title="play.music.name">
+          <div
+            class="music-footer-title-name text-overflow-1"
+            :title="play.music.name">
             {{ play.music.name || '' }}
           </div>
-          <div class="music-footer-title-singer">
-            <span class="music-list-item-vip music-icon" v-if="play.music.vip">
-              V
-            </span>
-            <div :title="play.music.singer">
-              {{ play.music.singer || '' }}
-            </div>
+          <div
+            class="music-footer-title-singer text-overflow-1"
+            :class="play.music.vip ? 'music-footer-title-vip' : ''"
+            :title="play.music.singer">
+            <span>{{ play.music.singer || '' }}</span>
           </div>
         </div>
       </div>
@@ -152,10 +153,11 @@ const play = usePlayStore();
             </span>
           </template>
         </el-popover>
-        <span class="music-icon" title="静音" @click="play.mute">
+        <span v-if="!isIOS" class="music-icon" title="静音" @click="play.mute">
           {{ play.playStatus.volume > 0 ? '音' : '静' }}
         </span>
         <el-slider
+          v-if="!isIOS"
           v-model="play.playStatus.volume"
           @mousedown="play.playStatus.disableUpdateVolume = true"
           @change="play.changeVolume"
@@ -221,7 +223,7 @@ const play = usePlayStore();
     display: flex;
     align-items: center;
     height: 100%;
-    min-width: 880px;
+    width: 100%;
     padding: var(--el-footer-padding);
     &-left {
       .music-footer-second-text {
@@ -230,7 +232,9 @@ const play = usePlayStore();
     }
     &-left,
     &-right {
-      width: 300px;
+      max-width: 300px;
+      width: 30%;
+      min-width: 150px;
       display: flex;
       align-items: center;
     }
@@ -250,7 +254,7 @@ const play = usePlayStore();
       display: flex;
       flex-direction: column;
       align-items: center;
-      min-width: 0;
+      min-width: 225px;
       &-operate {
         text-align: center;
         span + span {
@@ -259,7 +263,6 @@ const play = usePlayStore();
       }
       &-progress {
         width: 100%;
-        padding: 0 20px;
         display: flex;
         align-items: center;
         & > span:first-child {
@@ -314,35 +317,37 @@ const play = usePlayStore();
   }
   &-title {
     height: 100%;
-    display: flex;
-    align-items: flex-start;
-    flex-direction: column;
-    justify-content: center;
-    margin-left: 15px;
+    // display: flex;
+    // align-items: flex-start;
+    // flex-direction: column;
+    // justify-content: center;
+    margin: 0 15px;
+    width: calc(100% - 90px);
     &-name {
-      width: 220px;
-    }
-    &-name,
-    &-singer > div {
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
+      width: 100%;
     }
     &-singer {
-      display: flex;
-      align-items: center;
-      width: 220px;
-      span {
-        color: #ff5252;
-        margin-right: 5px;
-        line-height: 12px;
-        opacity: 1;
-        cursor: default;
-      }
-      div {
+      width: 100%;
+      & > span {
         font-size: 13px;
         opacity: 0.6;
       }
+    }
+    &-vip {
+      padding-left: 25px;
+      &::before {
+        content: 'V';
+        font-family: 'icon-font';
+        position: absolute;
+        font-size: 24px;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #ff5252;
+        opacity: 1;
+      }
+      // font-size: 24px;
+      // cursor: default;
     }
   }
   :deep(.el-scrollbar__view) {
@@ -352,37 +357,33 @@ const play = usePlayStore();
     display: none !important;
   }
 }
-@media (max-width: 720px), (max-height: 720px) {
+@media (max-width: 800px) {
   .music-footer {
     &-title {
       display: none;
     }
     &-layout {
-      min-width: 100%;
       &-left {
         width: 60px;
+        min-width: unset;
+        .music-footer-second-text {
+          margin-left: 5px;
+          text-align: center;
+        }
       }
       &-right {
         width: unset;
+        min-width: unset;
         .el-slider {
           display: none;
         }
       }
       &-center {
-        &-progress {
-          padding: 0;
-        }
         &-operate {
           span + span {
             margin-left: 10px;
           }
         }
-      }
-    }
-    &-layout-left {
-      .music-footer-second-text {
-        margin-left: 5px;
-        text-align: center;
       }
     }
   }

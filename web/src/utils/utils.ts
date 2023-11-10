@@ -46,8 +46,11 @@ export const isInStandaloneMode = Boolean(
   ('standalone' in window.navigator && window.navigator.standalone) ||
     window.matchMedia('(display-mode: standalone)').matches
 );
-export const isIOS = !!navigator.userAgent.match(
-  /\(i[^;]+;( U;)? CPU.+Mac OS X/
+export const isIOS = !!(
+  navigator.userAgent.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/) ||
+  (/Mac OS X/.test(navigator.userAgent) &&
+    navigator.maxTouchPoints &&
+    navigator.maxTouchPoints > 2)
 );
 
 export function scrollToElementId(
@@ -100,8 +103,7 @@ export function getRandomInt(min: number, max: number, ignore?: number) {
 }
 
 export function fixNotchIPhoneHeight() {
-  if (!('standalone' in window.navigator && window.navigator.standalone))
-    return;
+  if (!isInStandaloneMode || !isIOS) return;
   const computeStyle = getComputedStyle(document.documentElement);
   const sat = computeStyle.getPropertyValue('--sat') || '0';
   const sal = computeStyle.getPropertyValue('--sal') || '0';

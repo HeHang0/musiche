@@ -586,7 +586,7 @@ function openMenu(music: Music, e: any) {
     }
   }
 }
-@media (max-width: 720px), (max-height: 720px) {
+@media (max-width: 800px) {
   .music-list {
     &-header {
       &-title {

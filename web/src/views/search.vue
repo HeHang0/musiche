@@ -158,7 +158,7 @@ onUnmounted(unWatch);
     padding: 0 calc(var(--music-page-padding-horizontal) - 10px);
   }
 }
-@media (max-width: 720px), (max-height: 720px) {
+@media (max-width: 800px) {
   .music-search {
     &-header {
       flex-direction: column;

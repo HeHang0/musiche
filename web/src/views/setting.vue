@@ -1132,7 +1132,7 @@ onUnmounted(unWatch);
     }
   }
 }
-@media (max-width: 720px), (max-height: 720px) {
+@media (max-width: 800px) {
   .music-setting {
     &-body {
       table > tr {

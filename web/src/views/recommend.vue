@@ -115,7 +115,7 @@ onUnmounted(unWatch);
 .music-recommend {
   height: 100%;
   padding: 0 var(--music-page-padding-horizontal);
-  @media (max-width: 720px), (max-height: 720px) {
+  @media (max-width: 800px) {
     padding: 0 10px;
   }
 }

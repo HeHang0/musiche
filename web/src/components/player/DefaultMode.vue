@@ -24,7 +24,7 @@ const play = usePlayStore();
   justify-content: space-evenly;
   &-lyric {
     height: calc(100% - 50px);
-    width: 40vw;
+    width: 45vw;
     padding-top: 50px;
   }
   &-jukebox {
@@ -33,7 +33,7 @@ const play = usePlayStore();
   }
 }
 
-@media (max-width: 720px), (max-height: 720px) {
+@media (max-width: 800px) {
   .music-play-detail-default {
     &-lyric {
       height: unset;
@@ -47,7 +47,7 @@ const play = usePlayStore();
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 800px) {
   .music-play-detail-default {
     flex-direction: column;
     &-lyric {
