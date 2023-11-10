@@ -178,10 +178,11 @@ const play = usePlayStore();
 }
 .music-footer {
   background-color: var(--music-footer-background);
-  height: 80px;
+  height: calc(80px + calc(env(safe-area-inset-bottom, 0) / 2));
   width: 100vw;
   border-top: 1px solid var(--music-side-divider-color);
   padding: 0;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0) / 2);
   &-play {
     display: inline-block;
     width: 38px;
@@ -203,6 +204,7 @@ const play = usePlayStore();
     }
   }
   &-full {
+    padding-bottom: env(safe-area-inset-bottom, 0);
     background-color: rgba(255, 255, 255, 0.1);
     color: white;
     border-top: none;

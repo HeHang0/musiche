@@ -162,10 +162,7 @@ onUnmounted(() => {
       margin-bottom: 10px;
     }
     &-pure {
-      .music-lyric-desc {
-        flex-direction: column;
-        align-items: center;
-      }
+      padding: 0 0 10px 0;
     }
   }
 }

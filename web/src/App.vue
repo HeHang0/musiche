@@ -71,6 +71,7 @@ if (isIOS) rootClass += ' ios';
   .el-main {
     padding: 0;
     margin-top: 5px;
+    padding-right: calc(env(safe-area-inset-right, 0) / 1.5);
   }
   &-right {
     background: var(--music-sub-background);
@@ -89,13 +90,6 @@ if (isIOS) rootClass += ' ios';
   :deep(.el-scrollbar > .el-scrollbar__wrap > .el-scrollbar__view) {
     position: relative;
     min-height: 100%;
-  }
-}
-@media (max-width: 720px) {
-  .music-layout.standalone.ios {
-    .music-footer {
-      padding-bottom: 10px;
-    }
   }
 }
 </style>

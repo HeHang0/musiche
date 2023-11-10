@@ -89,7 +89,7 @@ const props = withDefaults(defineProps<Props>(), {
   .music-play-list {
     grid-column-gap: 4px;
     grid-row-gap: 2px;
-    grid-template-columns: repeat(auto-fill, minmax(40%, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     a {
       padding: 0;
     }

@@ -79,7 +79,7 @@ onUnmounted(unWatch);
 </template>
 <style lang="less" scoped>
 .music-header {
-  height: 80px;
+  height: calc(80px + env(safe-area-inset-top, 0));
   transition: padding 0.5s;
   --el-header-height: 80px;
   --el-header-padding: 0;
@@ -87,9 +87,10 @@ onUnmounted(unWatch);
   align-content: center;
   justify-content: space-between;
   align-items: center;
-  padding-top: 10px;
+  padding-top: env(safe-area-inset-top, 10px);
   padding-left: var(--music-page-padding-horizontal);
   padding-right: var(--music-page-padding-horizontal);
+
   &-content {
     display: flex;
     align-items: center;
@@ -143,8 +144,6 @@ onUnmounted(unWatch);
 @media (max-width: 720px), (max-height: 720px) {
   .music-header {
     min-width: unset;
-    padding-left: 10px;
-    padding-right: 10px;
     &-content {
       min-width: unset;
       flex-wrap: wrap;

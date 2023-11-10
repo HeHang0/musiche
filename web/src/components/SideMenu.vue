@@ -368,9 +368,10 @@ function createMyPlaylists() {
 }
 @media (max-width: 720px), (max-height: 720px) {
   .music-aside {
-    width: 50px;
+    width: calc(50px + calc(env(safe-area-inset-left, 0) / 1.5));
+    padding-left: calc(env(safe-area-inset-left, 0) / 1.5);
     &-title {
-      padding: 20px 0 0 5px;
+      padding: env(safe-area-inset-top, 20px) 0 0 5px;
       &-logo {
         width: 40px;
         height: 40px;

@@ -722,32 +722,34 @@ onUnmounted(unWatch);
             </div>
             <div class="music-setting-lyric-item">
               <span class="music-setting-lyric-item-title">配色方案</span>
-              <el-select
-                class="short"
-                v-model="setting.pageValue.lyric.fontColor"
-                @change="
-                  setting.setLyricEffectColor(
-                    lyricColors[setting.pageValue.lyric.fontColor].effect
-                  )
-                ">
-                <el-option
-                  v-for="key in Object.keys(lyricColors)"
-                  :key="key"
-                  :label="lyricColors[key].name"
-                  :value="key">
-                  {{ lyricColors[key].name }}
-                </el-option>
-              </el-select>
-              <span
-                class="music-setting-lyric-item-fix-color"
-                :style="'--fix-color:' + setting.pageValue.lyric.fontColor"
-                >字体色</span
-              >
-              <span
-                class="music-setting-lyric-item-fix-color"
-                :style="'--fix-color:' + setting.pageValue.lyric.effectColor"
-                >描边色</span
-              >
+              <div class="music-setting-lyric-item-color">
+                <el-select
+                  class="short"
+                  v-model="setting.pageValue.lyric.fontColor"
+                  @change="
+                    setting.setLyricEffectColor(
+                      lyricColors[setting.pageValue.lyric.fontColor].effect
+                    )
+                  ">
+                  <el-option
+                    v-for="key in Object.keys(lyricColors)"
+                    :key="key"
+                    :label="lyricColors[key].name"
+                    :value="key">
+                    {{ lyricColors[key].name }}
+                  </el-option>
+                </el-select>
+                <span
+                  class="music-setting-lyric-item-fix-color"
+                  :style="'--fix-color:' + setting.pageValue.lyric.fontColor">
+                  字体色
+                </span>
+                <span
+                  class="music-setting-lyric-item-fix-color"
+                  :style="'--fix-color:' + setting.pageValue.lyric.effectColor">
+                  描边色
+                </span>
+              </div>
             </div>
           </td>
         </tr>
@@ -981,6 +983,11 @@ onUnmounted(unWatch);
     & > div {
       display: flex;
       flex-direction: column;
+      width: 100%;
+      & > .radio-group-vertical {
+        width: 100%;
+        overflow-x: auto;
+      }
       & > span {
         font-weight: bold;
         margin-right: 32px;
@@ -993,7 +1000,7 @@ onUnmounted(unWatch);
   &-lyric {
     &-item {
       display: flex;
-      align-items: center;
+      align-items: baseline;
       margin-top: 15px;
       &:first-child {
         margin-top: 0;
@@ -1001,6 +1008,9 @@ onUnmounted(unWatch);
       &-title {
         font-weight: bold;
         margin-right: 20px;
+      }
+      &-color {
+        display: flex;
       }
       &-fix-color {
         margin-left: 20px;
@@ -1017,6 +1027,7 @@ onUnmounted(unWatch);
       }
       .el-select.short {
         width: 80px;
+        height: 32px;
       }
       .el-checkbox {
         height: 24px;
@@ -1132,6 +1143,17 @@ onUnmounted(unWatch);
         }
         & > td:last-child {
           padding-top: 20px;
+        }
+      }
+    }
+    &-lyric {
+      &-item {
+        &-fix-color {
+          margin-left: 0;
+          margin-top: 5px;
+        }
+        &-color {
+          flex-direction: column;
         }
       }
     }
