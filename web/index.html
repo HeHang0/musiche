@@ -1,18 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
   <head>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <style id="safe-area-style">
+      body {
+        background-color: white;
+      }
+      :root {
+        --sat: env(safe-area-inset-top);
+        --sar: env(safe-area-inset-right);
+        --sab: env(safe-area-inset-bottom);
+        --sal: env(safe-area-inset-left);
+      }
+    </style>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#f7f7f7" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent" />
+    <meta name="theme-color" content="#f7f7f7" />
     <meta name="format-detection" content="telephone=no" />
     <title>音乐和</title>
+    <script id="pwa-fix">
+      function pwaFixIOS() {
+        const computeStyle = getComputedStyle(document.documentElement);
+        const sat = computeStyle.getPropertyValue('--sat') || '0';
+        const sal = computeStyle.getPropertyValue('--sal') || '0';
+        const sar = computeStyle.getPropertyValue('--sar') || '0';
+        const sab = computeStyle.getPropertyValue('--sab') || '0';
+        const isInStandaloneMode = Boolean(
+          'standalone' in window.navigator && window.navigator.standalone
+        );
+        const isIOS = !!(
+          navigator.userAgent.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/) ||
+          (/Mac OS X/.test(navigator.userAgent) &&
+            navigator.maxTouchPoints &&
+            navigator.maxTouchPoints > 2)
+        );
+        if (
+          isInStandaloneMode &&
+          isIOS &&
+          (!sat.startsWith('0') ||
+            !sal.startsWith('0') ||
+            !sar.startsWith('0') ||
+            !sab.startsWith('0'))
+        ) {
+          document.body.parentElement.style.height = '100vh';
+        }
+        window.removeEventListener('load', pwaFixIOS);
+        document.getElementById('safe-area-style')?.remove();
+        document.getElementById('pwa-fix')?.remove();
+      }
+      window.addEventListener('load', pwaFixIOS);
+    </script>
   </head>
   <body>
     <div id="app"></div>

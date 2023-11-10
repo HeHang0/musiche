@@ -36,6 +36,20 @@ function transformIndexHtmlHandler(html: string) {
   if (matchLink.test(html)) {
     html = html.replace(matchLink, '');
   }
+  let indexJS = '';
+  const matchIndexJS =
+    /<script.+?src="\.([\S]+index[\S]+\.js)"[^>]*>[\s]*<\/script>/;
+  if (matchIndexJS.test(html)) {
+    indexJS = matchIndexJS.exec(html)[1];
+    html = html.replace(matchIndexJS, '');
+  }
+  let indexCSS = '';
+  const matchIndexCSS =
+    /<link[\s]+rel="stylesheet"[\s]+href="\.([\S]+index[\S]+\.css)"[^>]*>/;
+  if (matchIndexCSS.test(html)) {
+    indexCSS = matchIndexCSS.exec(html)[1];
+    html = html.replace(matchIndexCSS, '');
+  }
   const matchScript = /<script[\s]+id="vite\-plugin\-pwa[^>]+><\/script>/;
   if (matchScript.test(html)) {
     let scriptPwa = html.match(matchScript)[0];
@@ -43,23 +57,48 @@ function transformIndexHtmlHandler(html: string) {
     scriptPwa = scriptPwa.replace(
       '</script>',
       `
+      let routerPrefix = localStorage.getItem('musiche-router-prefix') || '';
+      if (routerPrefix) routerPrefix = '/' + routerPrefix;
+      const indexJS = '${indexJS}';
+      const indexCSS = '${indexCSS}';
+      if(indexJS){
+        const indexScript = document.createElement('script');
+        indexScript.type = 'module';
+        indexScript.crossorigin = "anonymous";
+        indexScript.src = routerPrefix + indexJS;
+        document.head.appendChild(indexScript);
+      }
+      if(indexCSS){
+        const indexStyle = document.createElement('link');
+        indexStyle.rel = 'stylesheet';
+        indexStyle.href = routerPrefix + indexCSS;
+        document.head.appendChild(indexStyle);
+      }
+      const iconLink = document.createElement('link');
+      iconLink.rel = 'icon';
+      iconLink.href = routerPrefix + '/logo-circle.png';
+      document.head.appendChild(iconLink);
+      function registerSW(){
+        navigator.serviceWorker.register(routerPrefix + '/sw.js', { scope: './' });
+        window.removeEventListener('load', registerSW);
+        document.getElementById('vite-plugin-pwa:register-sw').remove();
+      }
       if ('serviceWorker' in navigator) {
-        let routerPrefix = localStorage.getItem('musiche-router-prefix') || '';
-        if (routerPrefix) routerPrefix = '/' + routerPrefix;
         const link = document.createElement('link');
         link.rel = 'manifest';
         link.href = routerPrefix + '/manifest.json';
         document.head.appendChild(link);
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register(routerPrefix + '/sw.js', { scope: './' });
-        });
+        window.addEventListener('load', registerSW);
+      }else {
+        document.getElementById('vite-plugin-pwa:register-sw').remove();
       }
     </script>`
     );
-    prependedHtml += '\n    ' + scriptPwa;
+    prependedHtml += scriptPwa + '    \n';
     html = html.replace(matchScript, '');
+    html = html.replace(/[\n]{2,}/g, '\n');
   }
-  return html.replace('<head>', '<head>' + prependedHtml);
+  return html.replace('</head>', prependedHtml + '</head>');
 }
 
 export const FixPwaPlugin = function () {

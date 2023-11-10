@@ -14,7 +14,12 @@ import {
 } from '../utils/type';
 import { StorageKey, storage } from '../utils/storage';
 import * as api from '../utils/api/api';
-import { messageOption, webView2Services } from '../utils/utils';
+import {
+  isInStandaloneMode,
+  isIOS,
+  messageOption,
+  webView2Services
+} from '../utils/utils';
 import { LyricManager } from '../utils/lyric';
 const controlKeys = [
   'ctrl',
@@ -32,8 +37,6 @@ const controlKeys = [
   'metaright'
 ];
 const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-const appleMobileWebAppStatusBarStyle: HTMLMetaElement | null =
-  document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
 const themeColor: HTMLMetaElement | null = document.querySelector(
   'meta[name="theme-color"]'
 );
@@ -48,7 +51,7 @@ export const useSettingStore = defineStore('setting', {
     playQuality: 'SQ' as MusicQuality,
     downloadQuality: 'ZQ' as MusicQuality,
     appTheme: {
-      id: ''
+      id: isInStandaloneMode && isIOS ? 'dark' : ''
     } as AppTheme,
     customTheme: {
       id: 'custom ',
@@ -260,11 +263,6 @@ export const useSettingStore = defineStore('setting', {
         id: this.appTheme.id,
         name: this.appTheme.name
       });
-      if (appleMobileWebAppStatusBarStyle) {
-        appleMobileWebAppStatusBarStyle.content = dark
-          ? 'light-content'
-          : 'dark-content';
-      }
       if (themeColor) {
         themeColor.content = dark ? '#13131a' : '#f7f7f7';
       }

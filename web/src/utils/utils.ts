@@ -102,22 +102,6 @@ export function getRandomInt(min: number, max: number, ignore?: number) {
   }
 }
 
-export function fixNotchIPhoneHeight() {
-  if (!isInStandaloneMode || !isIOS) return;
-  const computeStyle = getComputedStyle(document.documentElement);
-  const sat = computeStyle.getPropertyValue('--sat') || '0';
-  const sal = computeStyle.getPropertyValue('--sal') || '0';
-  const sar = computeStyle.getPropertyValue('--sar') || '0';
-  const sab = computeStyle.getPropertyValue('--sab') || '0';
-  if (
-    !sat.startsWith('0') ||
-    !sal.startsWith('0') ||
-    !sar.startsWith('0') ||
-    !sab.startsWith('0')
-  )
-    document.body.parentElement!.style.height = '100vh';
-}
-
 export function duration2Millisecond(duration: string) {
   if (!duration || typeof duration != 'string') duration = '';
   duration = duration.replace(/[\[\]\s]/g, '');

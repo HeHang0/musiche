@@ -10,6 +10,8 @@ export type LyricLineChange = (
   duration?: number
 ) => void;
 
+const devicePixelRatio = window.devicePixelRatio || 1;
+
 export class LyricManager {
   private static lyricOption = {} as Record<LyricOptionsKey, any>;
   private static lyricDesktopShow = false;
@@ -201,7 +203,7 @@ export class LyricManager {
     let fontStyle = [];
     if (this.lyricOption) {
       if (this.lyricOption.fontSize) {
-        fontStyle.push(this.lyricOption.fontSize * 1.25 + 'px');
+        fontStyle.push(this.lyricOption.fontSize * devicePixelRatio + 'px');
       }
       if (this.lyricOption.fontFamily) {
         fontStyle.push(this.lyricOption.fontFamily);
@@ -214,8 +216,8 @@ export class LyricManager {
     this.canvasContext.strokeStyle = this.lyricOption?.effectColor ?? '';
     this.canvasContext.fillStyle = this.lyricOption?.fontColor ?? 'white';
     this.canvasContext.lineWidth = 3;
-    this.canvasContext.strokeText(text || '', 300, 60, 600);
-    this.canvasContext.fillText(text || '', 300, 60, 600);
+    this.canvasContext.strokeText(text || '', 300, 60, 300 * devicePixelRatio);
+    this.canvasContext.fillText(text || '', 300, 60, 300 * devicePixelRatio);
   };
 
   private setWebviewLine(_index: number, text: string, duration?: number) {
@@ -254,8 +256,8 @@ export class LyricManager {
       return;
     }
     LyricManager.canvas = document.createElement('canvas');
-    LyricManager.canvas.width = 600;
-    LyricManager.canvas.height = 120;
+    LyricManager.canvas.width = 300 * devicePixelRatio;
+    LyricManager.canvas.height = 60 * devicePixelRatio;
     LyricManager.canvas.style.width = '300px';
     LyricManager.canvas.style.height = '60px';
     LyricManager.canvasContext = LyricManager.canvas.getContext('2d');

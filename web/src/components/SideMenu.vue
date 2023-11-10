@@ -194,8 +194,10 @@ function toHome() {
 </template>
 <style lang="less" scoped>
 .music-aside {
+  --safe-area-left: calc(env(safe-area-inset-left, 0) / 1.5);
   width: 205px;
   background-color: var(--music-side-background);
+  padding-left: var(--safe-area-left);
   color: var(--music-side-text-color);
   transition: width 0.3s ease-in-out;
   .music-icon {
@@ -374,8 +376,7 @@ function toHome() {
 }
 @media (max-width: 800px) {
   .music-aside {
-    width: calc(50px + calc(env(safe-area-inset-left, 0) / 1.5));
-    padding-left: calc(env(safe-area-inset-left, 0) / 1.5);
+    width: 50px;
     &-title {
       padding: env(safe-area-inset-top, 20px) 0 0 5px;
       &-logo {
