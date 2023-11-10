@@ -115,7 +115,8 @@ onUnmounted(() => {
     font-size: 16px;
     display: flex;
     & > div {
-      width: 200px;
+      max-width: 200px;
+      text-align: left;
       & > span {
         opacity: 0.6;
         cursor: default;

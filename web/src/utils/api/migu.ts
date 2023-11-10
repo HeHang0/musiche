@@ -631,6 +631,9 @@ export async function singerSongs(id: string) {
 }
 
 export async function lyric(music: Music): Promise<string> {
+  if (!music.lyricUrl) {
+    await musicDetail(music);
+  }
   if (!music.lyricUrl) return '';
   const res = await fetch(parseHttpProxyAddress(music.lyricUrl));
   return await res.text();

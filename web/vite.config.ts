@@ -24,11 +24,11 @@ const plugins = [
       name: 'Musiche',
       short_name: 'Musiche',
       description: '音乐播放器[支持网易云、QQ音乐、咪咕音乐].',
-      start_url: '',
-      scope: '.',
+      start_url: '/musiche/recommend',
+      scope: '/musiche/',
       display: 'standalone',
       background_color: '#ffffff',
-      theme_color: '#000000',
+      theme_color: '#ffffff',
       icons: [
         {
           src: 'logo-circle.png',

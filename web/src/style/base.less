@@ -49,6 +49,13 @@
   }
 }
 
+:root {
+  --sat: env(safe-area-inset-top);
+  --sar: env(safe-area-inset-right);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+}
+
 .dark {
   --music-background: rgb(19, 19, 26);
   --music-background-hover: rgb(33, 33, 39);
@@ -122,8 +129,8 @@ html,
 body,
 #app {
   overflow: hidden;
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
   margin: 0;
   padding: 0;
 }
@@ -226,4 +233,15 @@ body {
   white-space: pre-line;
   overflow-wrap: break-word;
   line-height: 1.6;
+}
+
+.text-overflow-3 {
+  /* flex: 1; */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  white-space: pre-line;
+  overflow-wrap: break-word;
 }

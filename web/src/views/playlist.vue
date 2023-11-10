@@ -361,11 +361,14 @@ onUnmounted(unWatch);
     & > .el-scrollbar {
       padding: 0 !important;
     }
+  }
+}
+@media (max-width: 720px) and (orientation: portrait) {
+  .music-playlist {
     &-header {
       flex-direction: column;
       align-items: flex-start;
       height: unset !important;
-      padding: 0 10px;
       &-image {
         height: unset;
         width: 100%;

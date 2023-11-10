@@ -19,6 +19,7 @@ export class LyricManager {
   private id: string = '';
   private length: number = 0;
   private parsed: boolean = false;
+  private parsing: boolean = false;
   private music: Music | null = null;
   private lyricList: LyricLine[] = [];
   private lyricChanges: LyricChange[] = [];
@@ -79,7 +80,11 @@ export class LyricManager {
 
   public updateLyric(music: Music) {
     const remoteId = `${music.type}${music.id}`;
-    if (this.parsed && this.id == remoteId && this.length == music.length) {
+    if (
+      (this.parsed || this.parsing) &&
+      this.id == remoteId &&
+      this.length == music.length
+    ) {
       return;
     }
     this.id = remoteId;
@@ -141,7 +146,9 @@ export class LyricManager {
 
   private async parseLyric() {
     if (!this.music || this.parsed) return;
+    this.parsing = true;
     const lyric = await api.lyric(this.music);
+    this.parsing = false;
     if (!lyric) {
       this.publishLyric();
       return;

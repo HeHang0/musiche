@@ -41,16 +41,17 @@ const cancelFullScreen =
   (document as any).msExitFullscreen;
 function requestFullscreen() {
   if (document.fullscreenElement) {
-    cancelFullScreen && cancelFullScreen.call(null);
+    cancelFullScreen && cancelFullScreen.call(document);
   } else {
     if (!pageElement.value) return;
-
-    const requestFullscreen =
-      pageElement.value.requestFullscreen ||
-      (pageElement.value as any).mozRequestFullScreen ||
-      (pageElement.value as any).webkitRequestFullScreen ||
-      (pageElement.value as any).msRequestFullscreen;
-    requestFullscreen && requestFullscreen.call(null);
+    if (pageElement.value.requestFullscreen)
+      pageElement.value.requestFullscreen();
+    else if ((pageElement.value as any).mozRequestFullScreen)
+      (pageElement.value as any).mozRequestFullScreen();
+    else if ((pageElement.value as any).webkitRequestFullScreen)
+      (pageElement.value as any).webkitRequestFullScreen();
+    else if ((pageElement.value as any).msRequestFullscreen)
+      (pageElement.value as any).msRequestFullscreen();
   }
 }
 function checkFullscreen() {
@@ -174,8 +175,8 @@ beforeResolve(() => {
     --el-dropdown-menu-box-shadow: transparent;
     --el-dropdown-menuItem-hover-fill: transparent;
     --el-dropdown-menuItem-hover-color: transparent;
-    padding-left: var(--music-page-padding-horizontal);
-    padding-right: var(--music-page-padding-horizontal);
+    padding: env(safe-area-inset-top, 0) var(--music-page-padding-horizontal) 0
+      var(--music-page-padding-horizontal);
     .music-button-pure {
       width: 40px;
       height: 40px;

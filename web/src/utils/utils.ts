@@ -43,7 +43,8 @@ try {
 } catch (error) {}
 
 export const isInStandaloneMode = Boolean(
-  'standalone' in window.navigator && window.navigator.standalone
+  ('standalone' in window.navigator && window.navigator.standalone) ||
+    window.matchMedia('(display-mode: standalone)').matches
 );
 export const isIOS = !!navigator.userAgent.match(
   /\(i[^;]+;( U;)? CPU.+Mac OS X/
@@ -96,6 +97,23 @@ export function getRandomInt(min: number, max: number, ignore?: number) {
       return result;
     }
   }
+}
+
+export function fixNotchIPhoneHeight() {
+  if (!('standalone' in window.navigator && window.navigator.standalone))
+    return;
+  const computeStyle = getComputedStyle(document.documentElement);
+  const sat = computeStyle.getPropertyValue('--sat') || '0';
+  const sal = computeStyle.getPropertyValue('--sal') || '0';
+  const sar = computeStyle.getPropertyValue('--sar') || '0';
+  const sab = computeStyle.getPropertyValue('--sab') || '0';
+  if (
+    !sat.startsWith('0') ||
+    !sal.startsWith('0') ||
+    !sar.startsWith('0') ||
+    !sab.startsWith('0')
+  )
+    document.body.parentElement!.style.height = '100vh';
 }
 
 export function duration2Millisecond(duration: string) {

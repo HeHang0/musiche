@@ -20,14 +20,27 @@ export class AudioPlayer {
       this.statusChange.bind(this, undefined)
     );
     this.audio.addEventListener('timeupdate', this.timeUpdate.bind(this));
+    this.initMediaMeta();
   }
+  initMediaMeta() {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.setActionHandler('stop', this.pause);
+    navigator.mediaSession.setActionHandler(
+      'previoustrack',
+      this.sendMessage.bind(this, 'last', true)
+    );
 
+    navigator.mediaSession.setActionHandler(
+      'nexttrack',
+      this.sendMessage.bind(this, 'next', true)
+    );
+  }
   setFadeIn(fadeIn: boolean) {
     this.fadeIn = fadeIn;
   }
 
   mediaMeta(meta: MediaMetadataInit) {
-    if (!navigator.mediaSession) return;
+    if (!('mediaSession' in navigator)) return;
     navigator.mediaSession.metadata = new MediaMetadata({
       ...meta,
       title: meta.title || document.title

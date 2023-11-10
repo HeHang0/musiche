@@ -19,7 +19,9 @@ const props = withDefaults(defineProps<Props>(), {
         <img
           class="music-play-list-item-image"
           :src="item.image || LogoImage" />
-        <div class="music-play-list-item-name" v-html="item.name"></div>
+        <div
+          class="music-play-list-item-name text-overflow-3"
+          v-html="item.name"></div>
       </div>
     </RouterLink>
     <el-skeleton class="music-play-list-item" animated :loading="loading">
@@ -36,9 +38,9 @@ const props = withDefaults(defineProps<Props>(), {
 <style lang="less" scoped>
 .music-play-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
   grid-column-gap: 5px;
-  grid-row-gap: 10px;
+  grid-row-gap: 5px;
   width: 100%;
   padding-bottom: 10px;
   & > a {
@@ -46,8 +48,9 @@ const props = withDefaults(defineProps<Props>(), {
   }
   &-item {
     cursor: pointer;
-    width: 180px;
-    height: 180px;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1;
     position: relative;
     color: white;
     border-radius: var(--music-border-radius);
@@ -61,8 +64,7 @@ const props = withDefaults(defineProps<Props>(), {
       font-size: 20px;
       font-weight: bold;
 
-      width: 180px;
-      //   height: 55px;
+      width: 100%;
       padding: 5px 10px;
       position: absolute;
       bottom: 0;
@@ -76,8 +78,8 @@ const props = withDefaults(defineProps<Props>(), {
     }
     &-image,
     .el-skeleton__image {
-      width: 180px;
-      height: 180px;
+      width: 100%;
+      height: 100%;
       transition: transform 0.5s;
     }
     .el-skeleton__image {
@@ -88,23 +90,8 @@ const props = withDefaults(defineProps<Props>(), {
 @media (max-width: 720px), (max-height: 720px) {
   .music-play-list {
     grid-column-gap: 4px;
-    grid-row-gap: 2px;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    a {
-      padding: 0;
-    }
-    &-item {
-      width: unset;
-      height: unset;
-      &-name {
-        width: 100%;
-      }
-      &-image {
-        width: 100%;
-        height: 100%;
-        border-radius: var(--music-border-radius);
-      }
-    }
+    grid-row-gap: 4px;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   }
 }
 </style>

@@ -34,6 +34,9 @@ const controlKeys = [
 const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 const appleMobileWebAppStatusBarStyle: HTMLMetaElement | null =
   document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+const themeColor: HTMLMetaElement | null = document.querySelector(
+  'meta[name="theme-color"]'
+);
 export const useSettingStore = defineStore('setting', {
   state: () => ({
     maximized: false,
@@ -259,8 +262,11 @@ export const useSettingStore = defineStore('setting', {
       });
       if (appleMobileWebAppStatusBarStyle) {
         appleMobileWebAppStatusBarStyle.content = dark
-          ? 'black-translucent'
-          : 'default';
+          ? 'light-content'
+          : 'dark-content';
+      }
+      if (themeColor) {
+        themeColor.content = dark ? '#13131a' : '#f7f7f7';
       }
       musicOperate('/theme?theme=' + preferredColorScheme);
     },

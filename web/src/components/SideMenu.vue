@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { usePlayStore } from '../stores/play';
 import { LogoImage, LogoCircleImage } from '../utils/logo';
 import { useSettingStore } from '../stores/setting';
-const { options } = useRouter();
+const { options, push } = useRouter();
 const route = useRoute();
 const play = usePlayStore();
 const setting = useSettingStore();
@@ -28,12 +28,18 @@ function createMyPlaylists() {
   play.createMyPlaylists(playListName.value);
   createPlaylistShow.value = false;
 }
+function toHome() {
+  push('/');
+}
 </script>
 
 <template>
   <el-aside class="music-aside">
     <div class="music-aside-title">
-      <img :src="LogoCircleImage" class="music-aside-title-logo" />
+      <img
+        :src="LogoCircleImage"
+        class="music-aside-title-logo"
+        @click="toHome" />
       <span class="music-aside-title-text"> 音乐和 </span>
     </div>
     <el-scrollbar>

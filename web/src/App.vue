@@ -6,7 +6,7 @@ import Footer from './components/Footer.vue';
 import CurrentList from './components/CurrentList.vue';
 import PlayDetail from './components/PlayDetail.vue';
 import WindowHelper from './components/WindowHelper.vue';
-import { isIOS, isInStandaloneMode, webView2Services } from './utils/utils';
+import { fixNotchIPhoneHeight, webView2Services } from './utils/utils';
 import { MusicConnection } from './stores/connection';
 import { usePlayStore } from './stores/play';
 import { useSettingStore } from './stores/setting';
@@ -29,9 +29,8 @@ iconLink.rel = 'icon';
 iconLink.href = LogoCircleImage;
 document.head.appendChild(iconLink);
 new MusicConnection(webView2Services.enabled);
+fixNotchIPhoneHeight();
 let rootClass = webView2Services.enabled ? 'webview-host' : '';
-if (isInStandaloneMode) rootClass += ' standalone';
-if (isIOS) rootClass += ' ios';
 </script>
 
 <template>
