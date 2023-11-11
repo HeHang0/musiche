@@ -63,8 +63,7 @@ onUnmounted(() => {
       </div>
       <div
         class="music-lyric-desc"
-        v-show="play.music.album || play.music.singer"
-        :style="props.pure ? 'justify-content: center' : ''">
+        v-show="play.music.album || play.music.singer">
         <div v-if="play.music.album" class="text-overflow-1">
           <span>专辑：</span
           ><span
@@ -86,15 +85,17 @@ onUnmounted(() => {
       </div>
     </div>
     <div class="music-lyric-content" v-show="musicLyric.length > 0">
-      <div class="music-lyric-line">&nbsp;</div>
-      <div
-        v-for="(line, index) in musicLyric"
-        :id="lyricLineIdPrefix + index"
-        :class="index == currentLine ? 'music-lyric-line-active' : ''"
-        class="music-lyric-line">
-        {{ line }}
+      <div>
+        <div class="music-lyric-line">&nbsp;</div>
+        <div
+          v-for="(line, index) in musicLyric"
+          :id="lyricLineIdPrefix + index"
+          :class="index == currentLine ? 'music-lyric-line-active' : ''"
+          class="music-lyric-line">
+          {{ line }}
+        </div>
+        <div class="music-lyric-line">&nbsp;</div>
       </div>
-      <div class="music-lyric-line">&nbsp;</div>
     </div>
   </div>
 </template>
@@ -109,8 +110,8 @@ onUnmounted(() => {
   padding: var(--music-page-padding-horizontal);
   &-pure {
     text-align: center;
-    .music-lyric-content {
-      align-items: center;
+    .music-lyric -desc {
+      justify-content: center;
     }
   }
   &-header {
@@ -139,16 +140,20 @@ onUnmounted(() => {
       }
     }
   }
+
   &-content {
     flex: 1;
-    min-width: 0;
-    overflow-y: auto;
+    height: 0;
+    width: 100%;
     display: flex;
-    align-items: flex-start;
-    flex-direction: column;
-    justify-content: center;
-    &::-webkit-scrollbar-thumb {
-      background-color: transparent;
+    align-items: center;
+    & > div {
+      width: 100%;
+      max-height: 100%;
+      overflow-y: auto;
+      &::-webkit-scrollbar-thumb {
+        background-color: transparent;
+      }
     }
     -webkit-mask: linear-gradient(
       0,
@@ -159,6 +164,7 @@ onUnmounted(() => {
     );
   }
   &-line {
+    width: 100%;
     opacity: 0.6;
     font-size: 24px;
     line-height: 55px;
