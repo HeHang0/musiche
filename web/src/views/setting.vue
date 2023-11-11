@@ -21,6 +21,8 @@ import {
 import {
   getImageFile,
   imageToDataUrl,
+  isIOS,
+  isInStandaloneMode,
   scrollToElementId,
   webView2Services
 } from '../utils/utils';
@@ -28,7 +30,7 @@ import {
 import { LogoCircleImage } from '../utils/logo';
 import { ThemeColor } from '../utils/color';
 
-const { currentRoute, replace } = useRouter();
+const { currentRoute, replace, options } = useRouter();
 const subItems = [
   {
     name: '账号',
@@ -203,6 +205,40 @@ const unWatch = watch(
     );
   }
 );
+const installPromptShow = ref(isIOS);
+let installPrompt: any = null;
+function onBeforeInstallPrompt(event: any) {
+  installPrompt = event;
+  installPromptShow.value = true;
+  event.preventDefault();
+}
+if (isInStandaloneMode && !isIOS && 'BeforeInstallPromptEvent' in window)
+  window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt, true);
+function installPWA() {
+  if (isInStandaloneMode) return;
+  if (isIOS) {
+    const shareButton = document.createElement('button');
+    shareButton.setAttribute('aria-label', 'Share');
+    shareButton.click();
+    shareButton.remove();
+  } else {
+    installPrompt && installPrompt.prompt();
+  }
+}
+
+function forceRefreshPage() {
+  let historyBase = options.history.base || '';
+  const substringLength = historyBase ? historyBase.length + 2 : 1;
+  if (historyBase && !historyBase.startsWith('/'))
+    historyBase = '/' + historyBase;
+  location.href =
+    location.origin +
+    historyBase +
+    '?redirect=' +
+    location.pathname.substring(substringLength) +
+    '&_=' +
+    new Date().valueOf();
+}
 
 function setItemsIdTitle() {
   setting.currentMusicTypeShow = false;
@@ -283,7 +319,9 @@ async function checkLocalVersion() {
 }
 
 async function checkRemoveVersion() {
-  const res = await fetch('https://hehang0.github.io/musiche/version');
+  const res = await fetch(
+    'https://hehang0.github.io/musiche/version?_=' + new Date().valueOf()
+  );
   remoteVersion.value = await res.text();
 }
 
@@ -757,11 +795,16 @@ onUnmounted(unWatch);
           <td></td>
           <td class="music-setting-about">
             <span> 当前版本 {{ currentVersion }} </span>
+            <span v-if="currentVersion != remoteVersion">
+              最新版本 {{ remoteVersion }}
+            </span>
             <span
               v-if="
-                webView2Services.enabled && currentVersion != remoteVersion
-              ">
-              最新版本 {{ remoteVersion }}
+                !webView2Services.enabled && currentVersion != remoteVersion
+              "
+              class="music-setting-about-update"
+              @click="forceRefreshPage">
+              点击更新
             </span>
             <div
               class="music-setting-about-download"
@@ -777,9 +820,21 @@ onUnmounted(unWatch);
                 class="music-setting-about-card"
                 href="https://hehang0.github.io/musiche/Musiche.net6.exe"
                 target="_blank">
-                <img
-                  src="https://dotnet.microsoft.com/icons/brand-dotnet.png" />
+                <div class="logo-app" style="--logo-app-color: #512bd4">
+                  .NET
+                </div>
                 <p>PC版(NET6)</p>
+              </a>
+              <a
+                v-if="!isInStandaloneMode && installPromptShow"
+                class="music-setting-about-card"
+                @click.stop="installPWA">
+                <div
+                  class="logo-app"
+                  style="--logo-app-color: var(--music-primary-color)">
+                  PWA
+                </div>
+                <p>WebAPP</p>
               </a>
             </div>
           </td>
@@ -1043,6 +1098,10 @@ onUnmounted(unWatch);
     &-download {
       display: flex;
     }
+    &-update {
+      cursor: pointer;
+      color: -webkit-link;
+    }
     &-card {
       display: flex;
       flex-direction: column;
@@ -1050,12 +1109,28 @@ onUnmounted(unWatch);
       align-items: center;
       margin: 20px 30px 0 0;
       text-decoration: none;
+      cursor: pointer;
+      color: -webkit-link;
       &:hover {
-        text-decoration: underline;
+        p {
+          text-decoration: underline;
+        }
       }
+      .logo-app,
       img {
         width: 50px;
         height: 50px;
+        border-radius: var(--music-border-radius);
+      }
+      .logo-app {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 19px;
+        color: white;
+        font-weight: bold;
+        font-family: 'Arial';
+        background-color: var(--logo-app-color);
       }
       p {
         margin-top: 10px;
