@@ -2,7 +2,6 @@
 import { ElMessageBox } from 'element-plus';
 import { Ref, h, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useDebounceFn } from '@vueuse/core';
 import { WarningFilled, PictureFilled } from '@element-plus/icons-vue';
 
 import Login from '../components/Login.vue';
@@ -192,17 +191,19 @@ const themes = ref([
     color: 'rgb(255,58,58)'
   }
 ] as AppTheme[]);
-var scrollByRouter = false;
+let scrolling = false;
+function setScrolling() {
+  scrolling = true;
+  setTimeout(() => {
+    scrolling = false;
+  }, 1000);
+}
 const unWatch = watch(
   () => currentRoute.value.hash,
   hash => {
     currentId.value = hash.substring(1) || 'music-header-account';
-    scrollByRouter = true;
-    scrollToElementId(
-      currentId.value,
-      false,
-      !setting.pageValue.disableAnimation
-    );
+    setScrolling();
+    scrollToElementId(currentId.value, false, false);
   }
 );
 const installPromptShow = ref(isIOS);
@@ -217,10 +218,15 @@ if (isInStandaloneMode && !isIOS && 'BeforeInstallPromptEvent' in window)
 function installPWA() {
   if (isInStandaloneMode) return;
   if (isIOS) {
-    const shareButton = document.createElement('button');
-    shareButton.setAttribute('aria-label', 'Share');
-    shareButton.click();
-    shareButton.remove();
+    ElMessageBox({
+      title: '添加到主屏幕',
+      confirmButtonText: '完成',
+      showCancelButton: false,
+      message: h('div', {}, [
+        h('p', {}, '点击分享按钮'),
+        h('p', {}, '然后添加到主屏幕')
+      ])
+    });
   } else {
     installPrompt && installPrompt.prompt();
   }
@@ -251,29 +257,6 @@ function setItemsIdTitle() {
   }
   if (!document.getElementById(currentId.value))
     replace('#music-header-account');
-}
-
-const onSettingScroll = useDebounceFn(checkSettingScroll, 300);
-
-function checkSettingScroll() {
-  if (scrollByRouter) {
-    scrollByRouter = false;
-    return;
-  }
-  if (!tableEle.value) return;
-  const tableTop =
-    tableEle.value.parentElement?.parentElement?.getBoundingClientRect()?.top ||
-    0;
-  for (let i = 0; i < tableEle.value.children.length; i++) {
-    const item = tableEle.value.children[i] as HTMLTableRowElement;
-    const itemTitle = item?.children?.item(0);
-    if (!itemTitle) continue;
-    const { top, bottom } = itemTitle.getBoundingClientRect();
-    if (top <= tableTop && bottom > tableTop) {
-      currentId.value = itemTitle.id;
-      break;
-    }
-  }
 }
 
 function loginSuccess() {
@@ -381,11 +364,54 @@ function setAppTheme(theme: AppTheme) {
   if (theme.id === setting.appTheme.id) return;
   setting.setAppTheme(theme);
 }
+var observer = null;
+const viewElements: {
+  id: string;
+  visible: boolean;
+}[] = [];
+function onObserve(
+  entries: IntersectionObserverEntry[],
+  _observer: IntersectionObserver
+) {
+  entries.forEach(m => {
+    if (!m.target) return;
+    const ele = viewElements.find(v => v.id === m.target.children[0].id);
+    if (ele) {
+      ele.visible = m.intersectionRect.top > 0;
+    } else {
+      viewElements.push({
+        id: m.target.children[0].id,
+        visible: m.intersectionRect.top > 0
+      });
+    }
+  });
+  if (scrolling) {
+    scrolling = false;
+    return;
+  }
+  const visibleElement = viewElements.find(m => m.visible);
+  if (visibleElement) currentId.value = visibleElement.id;
+}
+function startObserve() {
+  if (!tableEle.value) return;
+  observer = new IntersectionObserver(onObserve, {
+    threshold: 0
+  });
+  for (let i = 0; i < tableEle.value.children.length; i++) {
+    try {
+      const child = tableEle.value.children[i];
+      observer.observe(child);
+    } catch (error) {}
+  }
+}
 
 onMounted(() => {
   setItemsIdTitle();
   checkLocalVersion();
   checkRemoveVersion();
+  startObserve();
+  setScrolling();
+  scrollToElementId(currentId.value, false, false);
 });
 onUnmounted(unWatch);
 </script>
@@ -406,7 +432,7 @@ onUnmounted(unWatch);
         >
       </div>
     </div>
-    <el-scrollbar class="music-setting-body" @scroll="onSettingScroll">
+    <el-scrollbar class="music-setting-body">
       <table ref="tableEle">
         <tr>
           <td></td>
@@ -1042,6 +1068,10 @@ onUnmounted(unWatch);
       & > .radio-group-vertical {
         width: 100%;
         overflow-x: auto;
+        &::-webkit-scrollbar {
+          width: 0;
+          height: 0;
+        }
       }
       & > span {
         font-weight: bold;
@@ -1055,7 +1085,7 @@ onUnmounted(unWatch);
   &-lyric {
     &-item {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       margin-top: 15px;
       &:first-child {
         margin-top: 0;
@@ -1082,7 +1112,7 @@ onUnmounted(unWatch);
       }
       .el-select.short {
         width: 80px;
-        height: 32px;
+        height: 28px;
       }
       .el-checkbox {
         height: 24px;
@@ -1223,6 +1253,9 @@ onUnmounted(unWatch);
     }
     &-lyric {
       &-item {
+        &:last-child {
+          align-items: baseline;
+        }
         &-fix-color {
           margin-left: 0;
           margin-top: 5px;

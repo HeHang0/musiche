@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import { RouterView } from 'vue-router';
 import SideMenu from './components/SideMenu.vue';
 import Header from './components/Header.vue';
@@ -11,6 +12,7 @@ import { MusicConnection } from './stores/connection';
 import { usePlayStore } from './stores/play';
 import { useSettingStore } from './stores/setting';
 import { LogoImage } from './utils/logo';
+import { fixPwaForIOS } from './utils/utils';
 
 const play = usePlayStore();
 const setting = useSettingStore();
@@ -26,6 +28,7 @@ document.addEventListener(
 );
 new MusicConnection(webView2Services.enabled);
 let rootClass = webView2Services.enabled ? 'webview-host' : '';
+onMounted(fixPwaForIOS);
 </script>
 
 <template>

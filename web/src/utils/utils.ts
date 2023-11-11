@@ -67,6 +67,29 @@ export function scrollToElementId(
   ele && ele.scrollIntoView(scrollParams);
 }
 
+function checkFixPwaForIOS() {
+  const computeStyle = getComputedStyle(document.documentElement);
+  const sat = computeStyle.getPropertyValue('--sat') || '0';
+  const sal = computeStyle.getPropertyValue('--sal') || '0';
+  const sar = computeStyle.getPropertyValue('--sar') || '0';
+  const sab = computeStyle.getPropertyValue('--sab') || '0';
+  if (
+    !sat.startsWith('0') ||
+    !sal.startsWith('0') ||
+    !sar.startsWith('0') ||
+    !sab.startsWith('0')
+  ) {
+    document.documentElement.style.height = '100vh';
+  }
+  window.removeEventListener('load', checkFixPwaForIOS);
+}
+
+export function fixPwaForIOS() {
+  if (!isIOS || !isInStandaloneMode) return;
+  window.addEventListener('load', checkFixPwaForIOS);
+  setTimeout(checkFixPwaForIOS, 3000);
+}
+
 export function durationTrim(duration: string) {
   if (!duration) return '';
   if (duration.startsWith('00:')) duration = duration.substring(3);

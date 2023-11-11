@@ -398,6 +398,14 @@ function toHome() {
         span:last-child {
           display: none;
         }
+        &-wide {
+          height: 40px;
+          & > img {
+            width: 35px;
+            height: 35px;
+            margin-right: 0;
+          }
+        }
       }
       .el-divider {
         margin: 10px;

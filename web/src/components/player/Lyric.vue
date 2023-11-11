@@ -109,6 +109,9 @@ onUnmounted(() => {
   padding: var(--music-page-padding-horizontal);
   &-pure {
     text-align: center;
+    .music-lyric-content {
+      align-items: center;
+    }
   }
   &-header {
     height: 100px;
@@ -140,7 +143,10 @@ onUnmounted(() => {
     flex: 1;
     min-width: 0;
     overflow-y: auto;
-    // text-align: center;
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
     &::-webkit-scrollbar-thumb {
       background-color: transparent;
     }

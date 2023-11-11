@@ -33,21 +33,17 @@ const play = usePlayStore();
   }
 }
 
-@media (max-width: 800px) {
+@media (max-height: 800px) and (orientation: landscape) {
   .music-play-detail-default {
     &-lyric {
       height: unset;
       padding-top: 0;
       margin-bottom: 10px;
     }
-    // &-jukebox {
-    //   height: 100%;
-    //   width: 40vw;
-    // }
   }
 }
 
-@media (max-width: 800px) {
+@media (max-width: 800px) and (orientation: portrait) {
   .music-play-detail-default {
     flex-direction: column;
     &-lyric {

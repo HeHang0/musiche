@@ -74,11 +74,11 @@ const discElement: Ref<HTMLImageElement | null> = ref(null);
     }
   }
 }
-@media (max-width: 800px) {
+@media (max-width: 800px), (max-height: 800px) {
   .music-jukebox {
     &-stylus {
       img {
-        transform: translateY(calc(-50% - 38px)) rotate(-20deg);
+        transform: translateY(calc(-50% - 38px)) rotate(-30deg);
       }
       img.music-jukebox-stylus-playing {
         transform: translateY(calc(-50% - 38px)) rotate(15deg);

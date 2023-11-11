@@ -14,6 +14,7 @@ const total = ref(0);
 const musicList: Ref<Music[]> = ref([] as Music[]);
 const playlistInfo: Ref<Playlist | null> = ref({} as Playlist);
 const loading = ref(false);
+const playAllButton = ref();
 const playlistInfoShow = ref(false);
 const affixShow = ref(false);
 const unWatch = watch(currentRoute, searchMusic.bind(null, true));
@@ -105,15 +106,21 @@ function addMyFavorite() {
     play.beforeAddMyPlaylistsMusic(musicList.value);
   }
 }
-function onPageScroll(event: { scrollTop: number }) {
-  const { scrollTop } = event;
-  if (scrollTop > 220 && !affixShow.value) {
-    affixShow.value = true;
-  } else if (scrollTop < 220 && affixShow.value) {
-    affixShow.value = false;
-  }
+function onObserve(
+  entries: IntersectionObserverEntry[],
+  _observer: IntersectionObserver
+) {
+  if (entries && entries[0]) affixShow.value = !entries[0].isIntersecting;
 }
-onMounted(searchMusic);
+onMounted(() => {
+  searchMusic();
+  if (playAllButton.value && playAllButton.value.ref) {
+    const observer = new IntersectionObserver(onObserve, {
+      threshold: 0
+    });
+    observer.observe(playAllButton.value.ref);
+  }
+});
 onUnmounted(unWatch);
 </script>
 
@@ -121,7 +128,7 @@ onUnmounted(unWatch);
   <div
     class="music-playlist"
     :class="playlistInfo ? 'music-playlist-info-show' : ''">
-    <el-scrollbar @scroll="onPageScroll">
+    <el-scrollbar>
       <div class="music-playlist-header">
         <img
           class="music-playlist-header-image"
@@ -153,6 +160,7 @@ onUnmounted(unWatch);
             <el-button-group>
               <el-button
                 type="primary"
+                ref="playAllButton"
                 :disabled="loading || musicList.length === 0"
                 @click="play.play(undefined, musicList)">
                 <span class="music-icon">播</span>
