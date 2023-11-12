@@ -130,6 +130,7 @@ const play = usePlayStore();
             :max="1000"
             :title="play.playStatus.progress"
             @mousedown="play.playStatus.disableUpdateProgress = true"
+            @touchstart="play.playStatus.disableUpdateProgress = true"
             @change="play.changeProgress" />
           <span v-if="!props.full" class="music-footer-second-text">{{
             play.playStatus.totalTime || play.music.duration
@@ -160,6 +161,7 @@ const play = usePlayStore();
           v-if="!isIOS"
           v-model="play.playStatus.volume"
           @mousedown="play.playStatus.disableUpdateVolume = true"
+          @touchstart="play.playStatus.disableUpdateVolume = true"
           @change="play.changeVolume"
           :show-tooltip="false"
           style="width: 70px" />
@@ -346,8 +348,6 @@ const play = usePlayStore();
         color: #ff5252;
         opacity: 1;
       }
-      // font-size: 24px;
-      // cursor: default;
     }
   }
   :deep(.el-scrollbar__view) {
@@ -355,6 +355,13 @@ const play = usePlayStore();
   }
   :deep(.el-scrollbar__bar.is-vertical) {
     display: none !important;
+  }
+}
+@media (max-width: 800px) or (max-height: 800px) {
+  .music-icon {
+    &:hover {
+      opacity: 0.6;
+    }
   }
 }
 @media (max-width: 800px) {
@@ -372,7 +379,7 @@ const play = usePlayStore();
         }
       }
       &-right {
-        width: unset;
+        width: 60px;
         min-width: unset;
         .el-slider {
           display: none;

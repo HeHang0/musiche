@@ -24,7 +24,18 @@ export class AudioPlayer {
   }
   initMediaMeta() {
     if (!('mediaSession' in navigator)) return;
-    navigator.mediaSession.setActionHandler('stop', this.pause);
+    navigator.mediaSession.setActionHandler(
+      'play',
+      this.sendMessage.bind(this, 'playOrPause')
+    );
+    navigator.mediaSession.setActionHandler(
+      'pause',
+      this.sendMessage.bind(this, 'playOrPause')
+    );
+    navigator.mediaSession.setActionHandler(
+      'stop',
+      this.sendMessage.bind(this, 'pause')
+    );
     navigator.mediaSession.setActionHandler(
       'previoustrack',
       this.sendMessage.bind(this, 'last', true)
@@ -151,11 +162,11 @@ export class AudioPlayer {
     );
     if (this.lastProgress !== progress) this.statusChange(progress);
   }
-  sendMessage(type: string, body: any) {
+  sendMessage(type: string, body?: any) {
     this.onMessage &&
       this.onMessage({
         type: type,
-        data: body
+        data: body ?? true
       });
   }
   audioEnded() {

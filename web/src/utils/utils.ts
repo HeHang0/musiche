@@ -52,6 +52,10 @@ export const isIOS = !!(
     navigator.maxTouchPoints &&
     navigator.maxTouchPoints > 2)
 );
+export const isMobile =
+  /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
 
 export function scrollToElementId(
   id: string,
@@ -87,7 +91,7 @@ function checkFixPwaForIOS() {
 export function fixPwaForIOS() {
   if (!isIOS || !isInStandaloneMode) return;
   window.addEventListener('load', checkFixPwaForIOS);
-  setTimeout(checkFixPwaForIOS, 3000);
+  setTimeout(checkFixPwaForIOS, 1200);
 }
 
 export function durationTrim(duration: string) {
@@ -143,19 +147,40 @@ export function parseLyric(text: string, length: number): LyricLine[] {
   let lines = text.split('\n');
   let lastProgress = 0;
   const lyricLines = [] as LyricLine[];
-  const lyricRegex = /(\[[\d:\.]+\])([\s\S]+)/;
-  lines.map(line => {
-    const match = lyricRegex.exec(line);
-    if (!match) return;
+  const timeRegex = /(\[[\d:\.]+\])/g;
+  const textList: { millisecond: number; duration: string; text: string }[] =
+    [];
+  lines.forEach(line => {
+    const text = line.replace(timeRegex, '').trim();
+    let match;
+    let matched = false;
+    while ((match = timeRegex.exec(line)) !== null) {
+      matched = true;
+      textList.push({
+        millisecond: duration2Millisecond(match[1]),
+        text: text,
+        duration: match[1]
+      });
+    }
+    if (!matched && text) {
+      textList.push({
+        millisecond: 0,
+        text: text,
+        duration: ''
+      });
+    }
+  });
+  textList.sort((a, b) => a.millisecond - b.millisecond);
+  textList.forEach(line => {
     let progress = Math.min(
-      Math.floor((1000 * duration2Millisecond(match[1])) / length),
+      Math.floor((1000 * line.millisecond) / length),
       1000
     );
     progress = progress || lastProgress;
     lyricLines.push({
       progress: progress,
-      text: (match[2] || '').trim(),
-      duration: match[1] || '',
+      text: line.text,
+      duration: line.duration,
       max: 0
     });
     lastProgress = progress;

@@ -22,6 +22,7 @@ import {
   imageToDataUrl,
   isIOS,
   isInStandaloneMode,
+  isMobile,
   scrollToElementId,
   webView2Services
 } from '../utils/utils';
@@ -164,7 +165,25 @@ const currentId = ref(
   currentRoute.value.hash.substring(1) || 'music-header-account'
 );
 const tableEle: Ref<HTMLTableElement | null> = ref(null);
-const defaultFonts = ['宋体', '等线', '仿宋', '黑体', '楷体', '微软雅黑'];
+const defaultFonts =
+  isIOS || isMobile
+    ? [
+        'Times New Roman',
+        'Georgia',
+        'Arial',
+        'Helvetica',
+        'Arial Black',
+        'Verdana',
+        'Trebuchet MS',
+        'Geneva',
+        'Courier New',
+        'Courier',
+        'Impact',
+        'Comic Sans MS',
+        'Brush Script MT',
+        'Lucida Handwriting'
+      ]
+    : ['宋体', '等线', '仿宋', '黑体', '楷体', '微软雅黑'];
 const setting = useSettingStore();
 const play = usePlayStore();
 const currentVersion = ref('');
@@ -206,7 +225,7 @@ const unWatch = watch(
     scrollToElementId(currentId.value, false, false);
   }
 );
-const installPromptShow = ref(isIOS);
+const installPromptShow = ref(isIOS || isMobile);
 let installPrompt: any = null;
 function onBeforeInstallPrompt(event: any) {
   installPrompt = event;
@@ -217,14 +236,14 @@ if (isInStandaloneMode && !isIOS && 'BeforeInstallPromptEvent' in window)
   window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt, true);
 function installPWA() {
   if (isInStandaloneMode) return;
-  if (isIOS) {
+  if (isIOS || isMobile) {
     ElMessageBox({
       title: '添加到主屏幕',
       confirmButtonText: '完成',
       showCancelButton: false,
       message: h('div', {}, [
-        h('p', {}, '点击分享按钮'),
-        h('p', {}, '然后添加到主屏幕')
+        h('p', {}, `点击浏览器 [${isIOS ? '分享' : '更多'}] 按钮`),
+        h('p', {}, '然后 [添加到主屏幕]')
       ])
     });
   } else {
@@ -839,7 +858,12 @@ onUnmounted(unWatch);
                 class="music-setting-about-card"
                 href="https://hehang0.github.io/musiche/Musiche.exe"
                 target="_blank">
-                <img src="https://support.microsoft.com/apple-touch-icon.png" />
+                <div class="logo-app logo-app-microsoft">
+                  <div></div>
+                  <div></div>
+                  <div></div>
+                  <div></div>
+                </div>
                 <p>PC版</p>
               </a>
               <a
@@ -1161,6 +1185,31 @@ onUnmounted(unWatch);
         font-weight: bold;
         font-family: 'Arial';
         background-color: var(--logo-app-color);
+        &-microsoft {
+          flex-wrap: wrap;
+          justify-content: space-around;
+          align-items: stretch;
+          & > div {
+            width: calc(50% - 2px);
+            height: calc(50% - 2.5px);
+          }
+          & > div:nth-child(1) {
+            border-radius: var(--music-border-radius) 0 0 0;
+            background-color: #f24f1c;
+          }
+          & > div:nth-child(2) {
+            border-radius: 0 var(--music-border-radius) 0 0;
+            background-color: #80bb00;
+          }
+          & > div:nth-child(3) {
+            border-radius: 0 0 0 var(--music-border-radius);
+            background-color: #00a5ef;
+          }
+          & > div:nth-child(4) {
+            border-radius: 0 0 var(--music-border-radius) 0;
+            background-color: #ffba00;
+          }
+        }
       }
       p {
         margin-top: 10px;

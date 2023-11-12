@@ -19,6 +19,16 @@ const imageThemeStyle: Ref<string> = ref('');
 const fullscreen: Ref<boolean> = ref(Boolean(document.fullscreenElement));
 const mouseStillness: Ref<boolean> = ref(false);
 const onMouseMove = useThrottleFn(checkMouseStillness, 200);
+let popperEle: HTMLStyleElement = document.getElementById(
+  'music-play-detail-header-mode-dropdown'
+) as HTMLStyleElement;
+if (!popperEle) {
+  popperEle = document.createElement('style');
+  popperEle.id = 'music-play-detail-header-mode-dropdown';
+  popperEle.innerText = `:root{--music-slider-color-start: var(--music-button-background-hover);--music-slider-color-end: var(--music-background);}`;
+  document.head.appendChild(popperEle);
+}
+
 function setThemeColor() {
   play.music.image &&
     new ThemeColor(play.music.image, color => {
@@ -26,6 +36,7 @@ function setThemeColor() {
         ',1)',
         ',0.2)'
       )};--music-slider-color-end: ${color}`;
+      popperEle.innerText = `:root{${imageThemeStyle.value}}`;
     });
 }
 const canFullScreen = Boolean(
@@ -61,7 +72,12 @@ var mouseStillnessTimeout: any = null;
 function setMouseStillness() {
   mouseStillness.value = true;
 }
+let isTouching = false;
 function checkMouseStillness() {
+  if (isTouching) {
+    isTouching = false;
+    return;
+  }
   if (mouseStillness.value) {
     mouseStillness.value = false;
   }
@@ -71,6 +87,10 @@ function checkMouseStillness() {
 function setMouseMotion() {
   mouseStillness.value = false;
   clearTimeout(mouseStillnessTimeout);
+}
+function onTouchStart() {
+  isTouching = true;
+  mouseStillness.value = !mouseStillness.value;
 }
 function close() {
   if (document.fullscreenElement) {
@@ -123,7 +143,7 @@ beforeResolve(() => {
           </el-button>
         </span>
         <div class="music-play-detail-header-right">
-          <el-dropdown>
+          <el-dropdown popper-class="music-play-detail-header-mode-dropdown">
             <el-button class="music-play-detail-header-mode music-button-pure">
               <span class="music-icon">下</span>
               歌词模式
@@ -142,7 +162,11 @@ beforeResolve(() => {
           <WindowControls v-if="webView2Services.enabled" />
         </div>
       </div>
-      <div class="music-play-detail-body" @mousemove="onMouseMove">
+      <div
+        class="music-play-detail-body"
+        :class="mouseStillness ? '' : 'music-play-detail-body-short'"
+        @mousemove="onMouseMove"
+        @touchstart.stop="onTouchStart">
         <LyricMode v-if="play.playerMode == 'lyric'" />
         <DefaultMode v-else />
       </div>
@@ -160,6 +184,7 @@ beforeResolve(() => {
   width: 100%;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   --music-slider-color-start: rgba(92, 213, 229, 0);
   --music-slider-color-end: rgba(92, 213, 229, 1);
 }
@@ -214,6 +239,39 @@ beforeResolve(() => {
     opacity: 1;
   }
 }
+
+@media (max-height: 800px) and (orientation: landscape) {
+  .music-play-detail {
+    &-body {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      height: 100%;
+      padding-top: max(env(safe-area-inset-top, 0), 30px);
+      padding-right: env(
+        safe-area-inset-right,
+        var(--music-page-padding-horizontal)
+      );
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+      padding-left: env(
+        safe-area-inset-left,
+        var(--music-page-padding-horizontal)
+      );
+      :deep(.music-lyric) {
+        transition: padding 0.5s;
+      }
+      :deep(.music-jukebox) {
+        height: calc(100% - 80px);
+        margin-top: calc(20% - 16px);
+      }
+      &-short {
+        :deep(.music-lyric) {
+          padding-bottom: 80px;
+        }
+      }
+    }
+  }
+}
 </style>
 <style lang="less">
 .music-play-detail {
@@ -223,6 +281,27 @@ beforeResolve(() => {
   box-shadow: none;
   .el-drawer__body {
     padding: 0;
+  }
+}
+.music-play-detail-header-mode-dropdown {
+  background-color: rgba(0, 0, 0, 0.15) !important;
+  border-color: var(--music-button-border-color) !important;
+  .el-popper__arrow {
+    &::before {
+      // background: var(--music-button-border-color) !important;
+      // border-color: var(--music-button-border-color) !important;
+      display: none;
+    }
+  }
+  .el-dropdown-menu {
+    background: var(--music-slider-color-start) !important;
+    .el-dropdown-menu__item {
+      color: white !important;
+      &:focus,
+      &:hover {
+        background-color: var(--music-button-border-color) !important;
+      }
+    }
   }
 }
 </style>

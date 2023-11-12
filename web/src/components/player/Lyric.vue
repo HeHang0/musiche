@@ -110,7 +110,7 @@ onUnmounted(() => {
   padding: var(--music-page-padding-horizontal);
   &-pure {
     text-align: center;
-    .music-lyric -desc {
+    .music-lyric-desc {
       justify-content: center;
     }
   }
@@ -155,6 +155,13 @@ onUnmounted(() => {
         background-color: transparent;
       }
     }
+    mask: linear-gradient(
+      0,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 1) 15%,
+      rgba(0, 0, 0, 1) 85%,
+      rgba(0, 0, 0, 0) 100%
+    );
     -webkit-mask: linear-gradient(
       0,
       rgba(0, 0, 0, 0) 0%,

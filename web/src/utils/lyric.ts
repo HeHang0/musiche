@@ -10,11 +10,12 @@ export type LyricLineChange = (
   duration?: number
 ) => void;
 
-const devicePixelRatio = window.devicePixelRatio || 1;
-
+const devicePixelRatio = Math.max(window.devicePixelRatio || 1, 1.25) * 2;
+let defaultFont = '';
 export class LyricManager {
   private static lyricOption = {} as Record<LyricOptionsKey, any>;
   private static lyricDesktopShow = false;
+  private static lyricText = '';
   private index: number = -1;
   private title: string = '';
   private progress: number = 0;
@@ -40,6 +41,8 @@ export class LyricManager {
         JSON.stringify({ ...options, show: LyricManager.lyricDesktopShow })
       );
       return;
+    } else {
+      this.lyricText && this.drawCanvas(0, this.lyricText);
     }
   }
 
@@ -199,25 +202,41 @@ export class LyricManager {
 
   private static drawCanvas = (_index: number, text: string) => {
     if (!this.canvas || !this.canvasContext) return;
-    this.canvasContext.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.lyricText = text;
     let fontStyle = [];
     if (this.lyricOption) {
-      if (this.lyricOption.fontSize) {
-        fontStyle.push(this.lyricOption.fontSize * devicePixelRatio + 'px');
-      }
-      if (this.lyricOption.fontFamily) {
-        fontStyle.push(this.lyricOption.fontFamily);
-      }
       if (this.lyricOption.fontBold) {
         fontStyle.push('bold');
       }
+      if (this.lyricOption.fontSize) {
+        fontStyle.push(
+          `${Math.floor(this.lyricOption.fontSize * devicePixelRatio)}px`
+        );
+      }
+      if (this.lyricOption.fontFamily) {
+        fontStyle.push(this.lyricOption.fontFamily);
+      } else {
+        if (!defaultFont) {
+          defaultFont = window
+            .getComputedStyle(document.body)
+            .font.replace(/([\d]+px|[\/])/g, '')
+            .trim();
+        }
+        fontStyle.push(defaultFont);
+      }
     }
     this.canvasContext.font = fontStyle.join(' ');
-    this.canvasContext.strokeStyle = this.lyricOption?.effectColor ?? '';
     this.canvasContext.fillStyle = this.lyricOption?.fontColor ?? 'white';
-    this.canvasContext.lineWidth = 3;
-    this.canvasContext.strokeText(text || '', 300, 60, 300 * devicePixelRatio);
-    this.canvasContext.fillText(text || '', 300, 60, 300 * devicePixelRatio);
+    const canvasWidth = this.canvas.width;
+    const canvasHeight = this.canvas.height;
+    this.canvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
+    const x = Math.floor(canvasWidth / 2);
+    const y = Math.floor(canvasHeight / 2);
+    if (this.lyricOption?.effect) {
+      this.canvasContext.strokeStyle = this.lyricOption?.effectColor || '';
+      this.canvasContext.strokeText(text || '', x, y, canvasWidth);
+    }
+    this.canvasContext.fillText(text || '', x, y, canvasWidth);
   };
 
   private setWebviewLine(_index: number, text: string, duration?: number) {
@@ -258,6 +277,9 @@ export class LyricManager {
     LyricManager.canvas = document.createElement('canvas');
     LyricManager.canvas.width = 300 * devicePixelRatio;
     LyricManager.canvas.height = 60 * devicePixelRatio;
+    (LyricManager.canvas as any).style['-webkit-font-smoothing'] =
+      'antialiased';
+    (LyricManager.canvas as any).style['-moz-osx-font-smoothing'] = 'grayscale';
     LyricManager.canvas.style.width = '300px';
     LyricManager.canvas.style.height = '60px';
     LyricManager.canvasContext = LyricManager.canvas.getContext('2d');
@@ -266,13 +288,15 @@ export class LyricManager {
       LyricManager.canvas = null;
       return;
     }
+    LyricManager.canvasContext.imageSmoothingEnabled = true;
+    LyricManager.canvasContext.lineWidth = Math.floor(1.5 * devicePixelRatio);
     LyricManager.canvasContext.textAlign = 'center';
     LyricManager.canvasContext.textBaseline = 'middle';
     LyricManager.drawCanvas(0, title);
     LyricManager.video = document.createElement('video');
     LyricManager.video.addEventListener('loadedmetadata', () => {
       console.log('loadedmetadata');
-      LyricManager.video?.requestPictureInPicture();
+      LyricManager.video?.requestPictureInPicture().catch(callback);
     });
     callback &&
       LyricManager.video.addEventListener('leavepictureinpicture', callback);

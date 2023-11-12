@@ -4,6 +4,13 @@ import { usePlayStore } from '../../stores/play';
 import { LogoImage } from '../../utils/logo';
 const play = usePlayStore();
 const discElement: Ref<HTMLImageElement | null> = ref(null);
+function playOrPause() {
+  if (play.playStatus.playing) {
+    play.pause();
+  } else {
+    play.play();
+  }
+}
 </script>
 <template>
   <div class="music-jukebox">
@@ -22,6 +29,7 @@ const discElement: Ref<HTMLImageElement | null> = ref(null);
     </div>
     <div class="music-jukebox-stylus">
       <img
+        @click.stop="playOrPause"
         :class="play.playStatus.playing ? 'music-jukebox-stylus-playing' : ''"
         src="../../assets/images/stylus.png" />
     </div>
