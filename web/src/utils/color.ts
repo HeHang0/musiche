@@ -101,8 +101,6 @@ export class ThemeColor {
     // let gValue = Math.round(gMax / count);
     // let bValue = Math.round(bMax / count);
     // const colorMin = Math.min(rValue, gValue, bValue);
-    // console.log(this.imgUrl);
-    // console.log('原色', rValue, gValue, bValue);
     // if (colorMin == rValue) {
     //   rValue -= 10;
     //   gValue -= 20;

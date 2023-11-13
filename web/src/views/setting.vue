@@ -23,6 +23,7 @@ import {
   isIOS,
   isInStandaloneMode,
   isMobile,
+  isWindows,
   scrollToElementId,
   webView2Services
 } from '../utils/utils';
@@ -165,25 +166,24 @@ const currentId = ref(
   currentRoute.value.hash.substring(1) || 'music-header-account'
 );
 const tableEle: Ref<HTMLTableElement | null> = ref(null);
-const defaultFonts =
-  isIOS || isMobile
-    ? [
-        'Times New Roman',
-        'Georgia',
-        'Arial',
-        'Helvetica',
-        'Arial Black',
-        'Verdana',
-        'Trebuchet MS',
-        'Geneva',
-        'Courier New',
-        'Courier',
-        'Impact',
-        'Comic Sans MS',
-        'Brush Script MT',
-        'Lucida Handwriting'
-      ]
-    : ['宋体', '等线', '仿宋', '黑体', '楷体', '微软雅黑'];
+const defaultFonts = isWindows
+  ? ['宋体', '等线', '仿宋', '黑体', '楷体', '微软雅黑']
+  : [
+      'Times New Roman',
+      'Georgia',
+      'Arial',
+      'Helvetica',
+      'Arial Black',
+      'Verdana',
+      'Trebuchet MS',
+      'Geneva',
+      'Courier New',
+      'Courier',
+      'Impact',
+      'Comic Sans MS',
+      'Brush Script MT',
+      'Lucida Handwriting'
+    ];
 const setting = useSettingStore();
 const play = usePlayStore();
 const currentVersion = ref('');
@@ -330,12 +330,6 @@ async function checkRemoveVersion() {
 }
 
 function delayExitChange() {
-  console.log(
-    '关闭',
-    delayMinute.value * 60 + delaySecond.value,
-    delayExit.value,
-    delayShutdown.value
-  );
   if (delayShutdown.value && !delayExit.value) {
     delayShutdown.value = false;
   }
@@ -743,7 +737,7 @@ onUnmounted(unWatch);
             <div class="music-setting-lyric-item">
               <el-checkbox
                 v-model="play.desktopLyricShow"
-                @change="play.showDesktopLyric"
+                @change="play.showDesktopLyric(play.desktopLyricShow)"
                 size="large">
                 启用桌面歌词
               </el-checkbox>

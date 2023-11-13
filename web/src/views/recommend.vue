@@ -88,10 +88,6 @@ async function needContinueLoading() {
   return false;
 }
 function checkScrollBottom(e: any) {
-  console.log(
-    e.scrollTop + scrollBar.value.wrapRef.offsetHeight,
-    scrollBar.value.wrapRef.children[0].children[0].offsetHeight
-  );
   if (
     total > playlist.value.length &&
     !loading.value &&

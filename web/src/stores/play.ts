@@ -8,6 +8,9 @@ import {
   duration2Millisecond,
   generateGuid,
   getRandomInt,
+  isIOS,
+  isInStandaloneMode,
+  isSafari,
   messageOption,
   millisecond2Duration
 } from '../utils/utils';
@@ -67,7 +70,12 @@ export const usePlayStore = defineStore('play', {
       lyricManager.showInDesktop('', false);
     },
     showDesktopLyric(show: boolean) {
-      this.desktopLyricShow = show;
+      if (isInStandaloneMode && isIOS && isSafari) {
+        this.desktopLyricShow = false;
+        ElMessage(messageOption('暂不支持'));
+        return;
+      }
+      if (this.desktopLyricShow != show) this.desktopLyricShow = show;
       let title = this.music.name;
       if (this.music.singer) {
         title += ' - ' + this.music.singer;

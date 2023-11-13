@@ -56,6 +56,8 @@ export const isMobile =
   /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent
   );
+export const isWindows = /Windows/i.test(navigator.userAgent);
+export const isSafari = /Safari/i.test(navigator.userAgent);
 
 export function scrollToElementId(
   id: string,
@@ -70,6 +72,37 @@ export function scrollToElementId(
   };
   ele && ele.scrollIntoView(scrollParams);
 }
+
+// export function scrollToElementId(
+//   id: string,
+//   center?: boolean,
+//   smooth?: boolean
+// ) {
+//   const ele = document.getElementById(id);
+//   if (!ele) return;
+//   const scroll = findScrollParent(ele.parentElement);
+//   if (!scroll) return;
+//   let offsetFix = 0;
+//   if (center) {
+//     offsetFix += scroll.offsetHeight / 2;
+//     offsetFix -= ele.offsetHeight;
+//   }
+//   scroll.scrollTo({
+//     top: ele.offsetTop - offsetFix,
+//     behavior: smooth ? 'smooth' : 'instant'
+//   });
+// }
+
+// function findScrollParent(ele: HTMLElement | null) {
+//   if (!ele) return null;
+//   if (ele.scrollHeight > ele.offsetHeight) {
+//     return ele;
+//   }
+//   if (ele.parentElement) {
+//     return findScrollParent(ele.parentElement);
+//   }
+//   return null;
+// }
 
 function checkFixPwaForIOS() {
   const computeStyle = getComputedStyle(document.documentElement);

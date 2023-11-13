@@ -93,9 +93,7 @@ async function addDirectoryWeb() {
       });
       setting.saveLocalDirectories();
     }
-  } catch (error) {
-    // console.log('错了', error);
-  }
+  } catch {}
   directorySelecting = false;
 }
 function scanDir() {

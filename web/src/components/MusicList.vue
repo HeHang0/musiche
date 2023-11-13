@@ -32,7 +32,6 @@ function toSinger(music: Music) {
 }
 function toAlbum(music: Music) {
   if (music.type && music.albumId) {
-    console.log(music);
     router.push(`/album/${music.type}/${music.albumId}`);
   }
 }
@@ -127,7 +126,6 @@ function openMenu(music: Music, e: any) {
     menuOpened.value = true;
     menuEvent.value = e;
   });
-  console.log('触发了', menuOpened.value, menuEvent.value);
 }
 </script>
 <template>

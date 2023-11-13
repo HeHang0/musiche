@@ -279,8 +279,12 @@ beforeResolve(() => {
   height: 100% !important;
   background-color: black;
   box-shadow: none;
+  overflow: hidden;
   .el-drawer__body {
     padding: 0;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden;
   }
 }
 .music-play-detail-header-mode-dropdown {

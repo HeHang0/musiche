@@ -1,7 +1,8 @@
 import { LyricLine, LyricOptionsKey, Music } from './type';
 import * as api from './api/api';
-import { clearArray, parseLyric, webView2Services } from './utils';
+import { clearArray, isIOS, parseLyric, webView2Services } from './utils';
 import { musicOperate } from './http';
+import { ElMessageBox } from 'element-plus';
 
 export type LyricChange = (lines: string[]) => void;
 export type LyricLineChange = (
@@ -275,11 +276,11 @@ export class LyricManager {
       return;
     }
     LyricManager.canvas = document.createElement('canvas');
-    LyricManager.canvas.width = 300 * devicePixelRatio;
-    LyricManager.canvas.height = 60 * devicePixelRatio;
     (LyricManager.canvas as any).style['-webkit-font-smoothing'] =
       'antialiased';
     (LyricManager.canvas as any).style['-moz-osx-font-smoothing'] = 'grayscale';
+    LyricManager.canvas.width = 300 * devicePixelRatio;
+    LyricManager.canvas.height = 60 * devicePixelRatio;
     LyricManager.canvas.style.width = '300px';
     LyricManager.canvas.style.height = '60px';
     LyricManager.canvasContext = LyricManager.canvas.getContext('2d');
@@ -295,8 +296,25 @@ export class LyricManager {
     LyricManager.drawCanvas(0, title);
     LyricManager.video = document.createElement('video');
     LyricManager.video.addEventListener('loadedmetadata', () => {
-      console.log('loadedmetadata');
-      LyricManager.video?.requestPictureInPicture().catch(callback);
+      LyricManager.video?.requestPictureInPicture().catch(_e => {
+        ElMessageBox.confirm('', '开启桌面歌词', {
+          closeOnClickModal: false,
+          showCancelButton: false,
+          showClose: false,
+          confirmButtonText: '确定'
+        })
+          .then(() => {
+            LyricManager.video
+              ?.requestPictureInPicture()
+              .then(() => {
+                try {
+                  LyricManager.video?.play();
+                } catch {}
+              })
+              .catch(callback);
+          })
+          .catch(callback);
+      });
     });
     callback &&
       LyricManager.video.addEventListener('leavepictureinpicture', callback);
@@ -307,6 +325,7 @@ export class LyricManager {
     LyricManager.video.style.zIndex = '-123';
     LyricManager.video.muted = true;
     LyricManager.video.autoplay = true;
+    LyricManager.video.controls = false;
     LyricManager.video.width = 300;
     LyricManager.video.height = 60;
     LyricManager.video.srcObject = LyricManager.canvas.captureStream();
