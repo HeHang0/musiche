@@ -4,6 +4,18 @@ import { usePlayStore } from '../../stores/play';
 import { LogoImage } from '../../utils/logo';
 const play = usePlayStore();
 const discElement: Ref<HTMLImageElement | null> = ref(null);
+let touching = false;
+function onTouchStart() {
+  touching = true;
+  playOrPause();
+}
+function onClick() {
+  if (touching) {
+    touching = false;
+    return;
+  }
+  playOrPause();
+}
 function playOrPause() {
   if (play.playStatus.playing) {
     play.pause();
@@ -29,7 +41,8 @@ function playOrPause() {
     </div>
     <div class="music-jukebox-stylus">
       <img
-        @click.stop="playOrPause"
+        @mousedown.stop="onClick"
+        @touchstart.stop="onTouchStart"
         :class="play.playStatus.playing ? 'music-jukebox-stylus-playing' : ''"
         src="../../assets/images/stylus.png" />
     </div>

@@ -192,6 +192,7 @@ beforeResolve(() => {
 .music-play-detail {
   &-header {
     z-index: 2;
+    min-height: 80px;
     display: flex;
     color: white;
     align-items: center;
