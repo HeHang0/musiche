@@ -192,7 +192,6 @@ beforeResolve(() => {
 .music-play-detail {
   &-header {
     z-index: 2;
-    height: 80px;
     display: flex;
     color: white;
     align-items: center;
@@ -203,14 +202,14 @@ beforeResolve(() => {
     padding: env(safe-area-inset-top, 0) var(--music-page-padding-horizontal) 0
       var(--music-page-padding-horizontal);
     .music-button-pure {
-      width: 40px;
-      height: 40px;
+      width: 35px;
+      height: 35px;
       color: white;
     }
     .music-play-detail-header-mode {
       width: 100px;
       height: 35px;
-      border-radius: 50px;
+      border-radius: var(--music-infinity);
       .music-icon {
         font-size: 12px;
         margin-right: 5px;
@@ -231,7 +230,6 @@ beforeResolve(() => {
   }
   &-footer {
     z-index: 2;
-    height: 80px;
   }
   &-header,
   &-footer .music-footer-full {

@@ -117,14 +117,18 @@ function checkFixPwaForIOS() {
     !sab.startsWith('0')
   ) {
     document.documentElement.style.height = '100vh';
+  } else {
+    if (fixPwaForIOSCount++ < 30) {
+      setTimeout(checkFixPwaForIOS, 100);
+    }
   }
   window.removeEventListener('load', checkFixPwaForIOS);
 }
-
+let fixPwaForIOSCount = 0;
 export function fixPwaForIOS() {
   if (!isIOS || !isInStandaloneMode) return;
   window.addEventListener('load', checkFixPwaForIOS);
-  setTimeout(checkFixPwaForIOS, 1200);
+  setTimeout(checkFixPwaForIOS, 100);
 }
 
 export function durationTrim(duration: string) {

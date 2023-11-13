@@ -13,20 +13,19 @@ const props = withDefaults(defineProps<Props>(), {
 </template>
 <style lang="less" scoped>
 .music-background-blur-image {
-  width: 100vw;
-  height: 100vh;
   object-fit: cover;
   position: fixed;
   left: 0;
   top: 0;
+  bottom: 0;
+  right: 0;
   opacity: 0.6;
-  background-color: white;
-  filter: blur(26px);
-  // transform: scale(1.1);
+  background-color: var(--music-slider-color-end, var(--music-background));
   & > img {
     width: 100%;
-    height: calc(100% - 10px);
+    height: 100%;
     object-fit: cover;
+    filter: blur(26px);
   }
 }
 </style>

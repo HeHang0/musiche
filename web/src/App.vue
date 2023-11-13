@@ -23,6 +23,10 @@ document.addEventListener(
   function (event: ErrorEvent) {
     const target = event.target as any;
     if (target.tagName !== 'IMG' && target.ignoreError) return;
+    if (target.src?.startsWith('http://')) {
+      target.src = target.src.replace('http://', 'https://');
+      return;
+    }
     target.ignoreError = true;
     target.src = LogoImage;
   },
