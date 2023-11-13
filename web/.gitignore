@@ -8,3 +8,4 @@ env.d.ts
 PingFang-SC-Regular.otf
 tsconfig.tsbuildinfo
 web.zip
+/public/version

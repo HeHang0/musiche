@@ -4,7 +4,7 @@ import JSZip from 'jszip';
 import { execSync } from 'child_process';
 
 function buildVersion(output: string = null) {
-  if (!output) output = path.resolve('dist');
+  if (!output) output = path.resolve('public');
   const csProj = path.resolve('../windows/Musiche.csproj');
   const text = fs.existsSync(csProj)
     ? fs.readFileSync(csProj, {
@@ -21,7 +21,9 @@ function buildVersion(output: string = null) {
   const now = new Date();
   fs.writeFileSync(
     outFile,
-    `${version}-${commitHash} (${now.getFullYear()}-${(now.getMonth() + 1)
+    `${version}-${commitHash.trim()} (${now.getFullYear()}-${(
+      now.getMonth() + 1
+    )
       .toString()
       .padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')})`
   );
@@ -78,8 +80,15 @@ export const ZipPlugin = function (
     name: 'vite-plugin-auto-zip',
     apply: 'build',
     closeBundle() {
-      buildVersion();
       makeZip();
     }
   };
 };
+
+export const VersionPlugin = () => ({
+  name: 'vite-plugin-auto-version',
+  apply: 'build',
+  buildStart: () => {
+    buildVersion();
+  }
+});

@@ -384,6 +384,9 @@ const play = usePlayStore();
         .el-slider {
           display: none;
         }
+        * + * {
+          margin-left: 6px;
+        }
       }
       &-center {
         &-operate {

@@ -9,7 +9,7 @@ import Login from '../components/Login.vue';
 import { useSettingStore } from '../stores/setting';
 import { usePlayStore } from '../stores/play';
 import { musicOperate } from '../utils/http';
-import { musicTypeInfoAll } from '../utils/platform';
+import { musicTypeInfo, musicTypeInfoAll } from '../utils/platform';
 import {
   AppTheme,
   CloseType,
@@ -283,26 +283,28 @@ function loginSuccess() {
   setting.saveUserInfo();
 }
 
-function login(type: MusicType) {
-  let title = '网易云';
-  let text = '';
-  switch (type) {
-    case 'qq':
-      title = 'QQ';
-      text = '从QQ音乐获取cookie并填写';
-      break;
-    case 'migu':
-      title = '咪咕';
-      text = '打开 咪咕音乐app<br />点击顶部菜单图标,然后找到扫一扫并点击';
-      break;
-
-    default:
-      title = '网易云';
-      text = '使用 网易云音乐APP 扫码登录';
-      break;
-  }
+function logout(type: MusicType) {
   ElMessageBox({
-    title: title + '音乐 - 登录',
+    title: '注销',
+    confirmButtonText: '确定',
+    message: `确实要注销 [${musicTypeInfo[type].name}] 吗？`
+  })
+    .then(() => {
+      setting.userInfo[type].cookie = '';
+      setting.userInfo[type].id = '';
+      setting.userInfo[type].name = '';
+      setting.userInfo[type].image = '';
+      setting.saveUserInfo(true);
+    })
+    .catch(() => {});
+}
+
+function login(type: MusicType) {
+  const info = musicTypeInfo[type];
+  let title = info.name;
+  let text = info.loginTips;
+  ElMessageBox({
+    title: title + ' - 登录',
     confirmButtonText: '确定',
     showCancelButton: false,
     showConfirmButton: false,
@@ -461,7 +463,9 @@ onUnmounted(unWatch);
               <img
                 v-if="setting.userInfo[info.type].image"
                 :src="setting.userInfo[info.type].image" />
-              <span v-if="setting.userInfo[info.type].name">
+              <span
+                v-if="setting.userInfo[info.type].name"
+                @click="logout(info.type)">
                 {{ setting.userInfo[info.type].name }}
               </span>
               <span

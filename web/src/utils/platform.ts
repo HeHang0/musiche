@@ -16,21 +16,36 @@ const names: Record<string, string> = {
   migu: '咪咕音乐'
 };
 
+const loginTips: Record<string, string> = {
+  cloud: '使用 网易云音乐APP 扫码登录',
+  qq: '从QQ音乐获取cookie并填写',
+  migu: '打开 咪咕音乐app<br />点击顶部菜单图标,然后找到扫一扫并点击'
+};
+
 export const musicTypeInfo: Record<
   string,
   {
     name: string;
     image: string;
     type: MusicType;
+    loginTips: string;
   }
 > = new Proxy(
   {},
   {
     get: function (_target, prop: MusicType) {
-      return {
+      return <
+        {
+          name: string;
+          image: string;
+          type: MusicType;
+          loginTips: string;
+        }
+      >{
         name: names[prop] || 'Musiche',
         image: images[prop] || LogoCircleImage,
-        type: prop
+        type: prop,
+        loginTips: loginTips[prop] || '请点击登录'
       };
     }
   }

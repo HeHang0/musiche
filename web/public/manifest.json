@@ -1,0 +1,14 @@
+{
+  "name": "Musiche",
+  "short_name": "Musiche",
+  "start_url": "/musiche/recommend",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "lang": "zh",
+  "scope": "/musiche/",
+  "id": "top.picapico.musiche",
+  "description": "音乐播放器[支持网易云、QQ音乐、咪咕音乐].",
+  "icons": [
+    { "src": "logo-circle.png", "type": "image/png", "sizes": "300x300" }
+  ]
+}

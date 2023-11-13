@@ -13,6 +13,8 @@ import { usePlayStore } from './stores/play';
 import { useSettingStore } from './stores/setting';
 import { LogoImage } from './utils/logo';
 import { fixPwaForIOS } from './utils/utils';
+import { registerServiceWorker } from './sw/register';
+registerServiceWorker();
 
 const play = usePlayStore();
 const setting = useSettingStore();

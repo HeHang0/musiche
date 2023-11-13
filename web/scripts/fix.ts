@@ -31,79 +31,56 @@ export const FixJSMediaTagsErrorPlugin = function () {
 };
 
 function transformIndexHtmlHandler(html: string) {
-  let prependedHtml = '';
-  const matchLink = /<link[\s]+rel="manifest"[^>]+>/;
-  if (matchLink.test(html)) {
-    html = html.replace(matchLink, '');
-  }
   let indexJS = '';
   const matchIndexJS =
-    /<script.+?src="\.([\S]+index[\S]+\.js)"[^>]*>[\s]*<\/script>/;
+    /[\s]*<script.+?src="\.*([\S]+index[\S]+\.js)"[^>]*>[\s]*<\/script>.*[\n]*/;
   if (matchIndexJS.test(html)) {
-    indexJS = matchIndexJS.exec(html)[1];
+    indexJS = `
+      const indexScript = document.createElement('script');
+      indexScript.type = 'module';
+      indexScript.crossorigin = "anonymous";
+      indexScript.src = routerPrefix + '${matchIndexJS.exec(html)[1]}';
+      document.head.appendChild(indexScript);`;
     html = html.replace(matchIndexJS, '');
   }
   let indexCSS = '';
   const matchIndexCSS =
-    /<link[\s]+rel="stylesheet"[\s]+href="\.([\S]+index[\S]+\.css)"[^>]*>/;
+    /[\s]*<link[\s]+rel="stylesheet"[\s]+href="\.*([\S]+index[\S]+\.css)"[^>]*>.*[\n]*/;
   if (matchIndexCSS.test(html)) {
-    indexCSS = matchIndexCSS.exec(html)[1];
+    indexCSS = `
+      const indexStyle = document.createElement('link');
+      indexStyle.rel = 'stylesheet';
+      indexStyle.href = routerPrefix + '${matchIndexCSS.exec(html)[1]}';
+      document.head.appendChild(indexStyle);`;
     html = html.replace(matchIndexCSS, '');
   }
-  const matchScript = /<script[\s]+id="vite\-plugin\-pwa[^>]+><\/script>/;
-  if (matchScript.test(html)) {
-    let scriptPwa = html.match(matchScript)[0];
-    scriptPwa = scriptPwa.replace(/src="[^"]+"/, '');
-    scriptPwa = scriptPwa.replace(
-      '</script>',
-      `
+  html = html.replace(
+    '</head>',
+    `
+    <script id="musiche-script-fix">
       let routerPrefix = localStorage.getItem('musiche-router-prefix') || '';
       if (routerPrefix) routerPrefix = '/' + routerPrefix;
-      const indexJS = '${indexJS}';
-      const indexCSS = '${indexCSS}';
-      if(indexJS){
-        const indexScript = document.createElement('script');
-        indexScript.type = 'module';
-        indexScript.crossorigin = "anonymous";
-        indexScript.src = routerPrefix + indexJS;
-        document.head.appendChild(indexScript);
+      const manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      manifestLink.href = routerPrefix + '/manifest.json';
+      document.head.appendChild(manifestLink);
+      if(routerPrefix){
+        const iconLink = document.querySelector('link[rel="icon"]');
+        if(iconLink)iconLink.href = routerPrefix + iconLink.href;
+        const manifestLink = document.querySelector('link[rel="manifest"]');
+        if(manifestLink)manifestLink.href = routerPrefix + manifestLink.href;
       }
-      if(indexCSS){
-        const indexStyle = document.createElement('link');
-        indexStyle.rel = 'stylesheet';
-        indexStyle.href = routerPrefix + indexCSS;
-        document.head.appendChild(indexStyle);
-      }
-      const iconLink = document.createElement('link');
-      iconLink.rel = 'icon';
-      iconLink.href = routerPrefix + '/logo-circle.png';
-      document.head.appendChild(iconLink);
-      function registerSW(){
-        navigator.serviceWorker.register(routerPrefix + '/sw.js', { scope: './' });
-        window.removeEventListener('load', registerSW);
-        document.getElementById('vite-plugin-pwa:register-sw').remove();
-      }
-      if ('serviceWorker' in navigator) {
-        const link = document.createElement('link');
-        link.rel = 'manifest';
-        link.href = routerPrefix + '/manifest.json';
-        document.head.appendChild(link);
-        window.addEventListener('load', registerSW);
-      }else {
-        document.getElementById('vite-plugin-pwa:register-sw').remove();
-      }
-    </script>`
-    );
-    prependedHtml += scriptPwa + '    \n';
-    html = html.replace(matchScript, '');
-    html = html.replace(/[\n]{2,}/g, '\n');
-  }
-  return html.replace('</head>', prependedHtml + '</head>');
+      ${indexJS}${indexCSS}
+      document.getElementById('musiche-script-fix').remove();
+    </script>
+  </head>`
+  );
+  return html;
 }
 
-export const FixPwaPlugin = function () {
+export const FixHeadPlugin = function () {
   return <Plugin>{
-    name: 'vite-plugin-fix-pwa',
+    name: 'vite-plugin-fix-head',
     apply: 'build',
     enforce: 'post',
     transformIndexHtml: {

@@ -305,8 +305,8 @@ export const useSettingStore = defineStore('setting', {
       ElMessage(messageOption('设置已更新'));
       storage.setValue(StorageKey.Setting, this.pageValue);
     },
-    saveUserInfo() {
-      ElMessage(messageOption('登录成功'));
+    saveUserInfo(logout?: boolean) {
+      ElMessage(messageOption(logout ? '注销成功' : '登录成功'));
       storage.setValue(StorageKey.UserInfo, this.userInfo);
     },
     async setUserInfo(type: MusicType) {

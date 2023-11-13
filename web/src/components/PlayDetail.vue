@@ -290,7 +290,14 @@ beforeResolve(() => {
     &::before {
       // background: var(--music-button-border-color) !important;
       // border-color: var(--music-button-border-color) !important;
-      display: none;
+      // display: none;
+      border: none !important;
+      background: none !important;
+      content: '播';
+      color: var(--music-button-border-color);
+      transform: rotate(-90deg) translateX(7px) !important;
+      transform-origin: bottom;
+      font-family: 'icon-font';
     }
   }
   .el-dropdown-menu {

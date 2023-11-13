@@ -162,7 +162,7 @@ export function parseLyric(text: string, length: number): LyricLine[] {
         duration: match[1]
       });
     }
-    if (!matched && text) {
+    if (!matched && text && !/\[(ti|ar)/.test(text)) {
       textList.push({
         millisecond: 0,
         text: text,
