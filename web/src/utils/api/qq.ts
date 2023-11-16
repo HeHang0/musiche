@@ -26,7 +26,7 @@ function parseAlbumImage(music: any) {
   const albumPMId =
     (music.album && music.album.pmid) || music.albumpmid || music.pmid;
   if (albumPMId) {
-    return `https://y.qq.com/music/photo_new/T002R300x300M000${albumPMId}.jpg`;
+    return `https://y.qq.com/music/photo_new/T002R300x300M000${albumPMId}.jpg?max_age=2592000`;
   }
   const albumMid = music.albummid || (music.album && music.album.mid);
   if (albumMid) {
@@ -36,17 +36,13 @@ function parseAlbumImage(music: any) {
       albumMid[albumMid.length - 1] +
       '/' +
       albumMid;
-    //003tMGHC2twSqj
-    //
-    //https://imgcache.qq.com/music/photo/mid_album_300/C/D/000aCoLU0WZjCD.jpg
-    return `https://imgcache.qq.com/music/photo/mid_album_300/${s}.jpg`;
+    return `https://imgcache.qq.com/music/photo/mid_album_300/${s}.jpg?max_age=2592000`;
   }
   const singerMid = music.singer && music.singer[0] && music.singer[0].mid;
   if (singerMid) {
-    return `https://y.gtimg.cn/music/photo_new/T001R300x300M000${singerMid}.jpg`;
+    return `https://y.gtimg.cn/music/photo_new/T001R300x300M000${singerMid}.jpg?max_age=2592000`;
   }
   return 'https://y.qq.com/mediastyle/global/img/album_300.png';
-  //'https://y.qq.com/music/photo_new/T002R300x300M000' + almubMid + '_1.jpg'
 }
 
 function parseMusic(m: any): Music {

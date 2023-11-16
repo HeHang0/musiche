@@ -425,17 +425,30 @@ export async function getImageFile(): Promise<File | null> {
   }
 }
 
-export function highlightKeys(text: string, keywords: string): string {
-  if (!text) return '';
-  if (!keywords) return text;
-  let highlight = text;
+export function highlightKeys(
+  data: string | { name: string; highlightName?: string }[],
+  keywords: string
+): string | undefined {
+  if (!data) return void 0;
+  if (!keywords) return void 0;
+  var list: { name: string; highlightName?: string }[] = [];
+  if (typeof data === 'string') {
+    list = [{ name: data, highlightName: '' }];
+  } else {
+    list = data as { name: string; highlightName?: string }[];
+  }
   const keys = keywords.split(/[\s]+/);
   keys.forEach(n => {
-    if (n)
-      highlight = highlight.replace(
+    if (!n) return;
+    list.forEach(m => {
+      m.highlightName = m.name.replace(
         n,
         `<span class="highlight-text">${n}</span>`
       );
+    });
   });
-  return highlight;
+  if (typeof data === 'string') {
+    return list[0].highlightName;
+  }
+  return void 0;
 }

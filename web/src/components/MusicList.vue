@@ -69,6 +69,8 @@ async function downloadMusic(music: Music) {
   if (url && !webView2Services.enabled) {
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
+    downloadLink.download = `${music.name} - ${music.singer}.mp3`;
+    downloadLink.target = '__blank';
     document.body.appendChild(downloadLink);
     downloadLink.click();
     downloadLink.remove();

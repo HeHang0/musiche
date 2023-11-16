@@ -36,6 +36,8 @@ export interface Music {
   rawName?: string;
   highlightName?: string;
   image: string;
+  mediumImage?: string;
+  largeImage?: string;
   singer: string;
   album: string;
   albumId: string;

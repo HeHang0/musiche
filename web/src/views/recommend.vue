@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Ref, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useDebounceFn } from '@vueuse/core';
 import * as api from '../utils/api/api';
 import { MusicType, Playlist } from '../utils/type';
 import PlaylistEle from '../components/Playlist.vue';
 import { useSettingStore } from '../stores/setting';
 import { musicTypeAll } from '../utils/platform';
-import { useDebounceFn } from '@vueuse/core';
 const { currentRoute, replace } = useRouter();
 const setting = useSettingStore();
 const playlist: Ref<Playlist[]> = ref([]);
@@ -17,26 +17,28 @@ const onScroll = useDebounceFn(checkScrollBottom, 200);
 let total = 0;
 async function prepareRouter(key: string, type: MusicType) {
   if (key == 'yours') {
-    for (let i = 0; i < 2; i++) {
-      for (let i = 0; i < musicTypeAll.length; i++) {
-        if (!musicTypeAll.includes(type) || !setting.userInfo[type].cookie) {
-          if (setting.userInfo[musicTypeAll[i]].cookie) {
-            replace('/yours/' + musicTypeAll[i]);
-            return true;
-          }
+    for (let i = 0; i < musicTypeAll.length; i++) {
+      if (!musicTypeAll.includes(type) || !setting.userInfo[type].cookie) {
+        if (setting.userInfo[musicTypeAll[i]].cookie) {
+          replace('/yours/' + musicTypeAll[i]);
+          return true;
+        }
+        if (i === musicTypeAll.length - 1) {
           replace('/');
           return true;
         }
-        if (await api.userInfo(type, setting.userInfo[type].cookie!)) {
-          break;
-        } else {
-          if (typeof setting.userInfo[type].cookie === 'string') {
-            setting.userInfo[type].cookie = '';
-          } else {
-            setting.userInfo[type].cookie = {};
-          }
-        }
       }
+    }
+    if (await api.userInfo(type, setting.userInfo[type].cookie!)) {
+      return false;
+    } else {
+      if (typeof setting.userInfo[type].cookie === 'string') {
+        setting.userInfo[type].cookie = '';
+      } else {
+        setting.userInfo[type].cookie = {};
+      }
+      replace('/');
+      return true;
     }
   } else if (key == 'recommend') {
     if (!musicTypeAll.includes(type)) {

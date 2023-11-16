@@ -100,6 +100,8 @@ export const usePlayStore = defineStore('play', {
       this.music.name = music?.name || '';
       this.music.rawName = music?.rawName || '';
       this.music.image = music?.image || '';
+      this.music.mediumImage = music?.mediumImage;
+      this.music.largeImage = music?.largeImage;
       this.music.singer = music?.singer || '';
       this.music.album = music?.album || '';
       this.music.albumId = music?.albumId || '';
@@ -273,6 +275,7 @@ export const usePlayStore = defineStore('play', {
         this.checkingStatus = true;
         const res = await musicOperate('/play');
         this.setStatus(res.data);
+        this.setTitle();
         this.preparePlay = false;
         return;
       }
@@ -504,7 +507,16 @@ export const usePlayStore = defineStore('play', {
         JSON.stringify({
           album: this.music.album || undefined,
           artist: this.music.singer || undefined,
-          artwork: this.music.image ? [{ src: this.music.image }] : [],
+          artwork: this.music.image
+            ? [
+                {
+                  src:
+                    this.music.largeImage ||
+                    this.music.mediumImage ||
+                    this.music.image
+                }
+              ]
+            : [],
           title: this.music.name || title.value
         } as MediaMetadataInit)
       );

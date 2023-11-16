@@ -41,6 +41,105 @@ function aesEncrypt(plain: string, key: string): string {
   return cipherText.toString();
 }
 
+enum CloudMusicAPI {
+  Search = 'https://interface.music.163.com/weapi/search/get',
+  Yours = 'https://music.163.com/weapi/user/playlist?csrf_token=',
+  Recommend = 'https://music.163.com/weapi/playlist/list',
+  Daily = 'https://music.163.com/weapi/v2/discovery/recommend/songs?csrf_token=',
+  PlaylistDetail = 'https://music.163.com/weapi/v3/playlist/detail',
+  AlbumDetail = 'https://interface.music.163.com/weapi/v1/album',
+  DownloadUrl = 'http://music.163.com/weapi/song/enhance/player/url?csrf_token=',
+  SongDetail = 'https://music.163.com/weapi/v3/song/detail',
+  QRCodeUniKey = 'https://music.163.com/weapi/login/qrcode/unikey?csrf_token=',
+  LoginStatus = 'https://music.163.com/weapi/login/qrcode/client/login?csrf_token=',
+  UserInfo = 'https://music.163.com/weapi/w/nuser/account/get?csrf_token='
+}
+
+interface RequestOption {
+  data?: Record<string, any>;
+  setCookieRename?: boolean;
+  musicU?: string;
+  csrfToken?: string;
+}
+
+async function httpRequest(
+  api: CloudMusicAPI | string,
+  options?: RequestOption
+) {
+  const csrfToken = options?.csrfToken || cloudCookie['__csrf'] || '';
+  const musicU = options?.musicU || cloudCookie['MUSIC_U'] || '';
+  if (!options) options = {};
+  if (!options.data) options.data = {};
+  options.data.csrf_token = csrfToken;
+  var param = aesEncrypt(JSON.stringify(options.data), '0CoJUm6Qyw8W8jud');
+  param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
+  param = encodeURIComponent(param);
+  var encSecKey =
+    '&encSecKey=409afd10f2fa06173df57525287c4a1cdf6fa08bd542c6400da953704eb92dc1ad3c582e82f51a707ebfa0f6a25bcd185139fc1509d40dd97b180ed21641df55e90af4884a0b587bd25256141a9270b1b6f18908c6a626b74167e5a55a796c0f808a2eb12c33e63d34a7c4d358bab1dc661637dd1e888a1268b81a89f6136053';
+  var paramData = 'params=' + param + encSecKey;
+  const res = await httpProxy({
+    url: api,
+    method: 'POST',
+    data: paramData,
+    setCookieRename: options.setCookieRename,
+    headers: {
+      Cookie: 'os=ios;MUSIC_U=' + musicU,
+      Referer: 'https://music.163.com',
+      ContentType: 'application/x-www-form-urlencoded',
+      UserAgent:
+        'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1'
+    }
+  });
+  if (options.setCookieRename) {
+    return res;
+  }
+  try {
+    return await res.json();
+  } catch (err) {
+    console.log('cloud api err: ', err);
+    return {};
+  }
+}
+
+function parseImage(imageUrl: string) {
+  if (!imageUrl)
+    return {
+      image: '',
+      mediumImage: void 0,
+      largeImage: void 0
+    };
+  if (imageUrl.startsWith('http://')) {
+    imageUrl = imageUrl.replace('http://', 'https://');
+  }
+  imageUrl = imageUrl.replace(/\?param=[\d]+y[\d]+/, '');
+  return {
+    image: imageUrl + '?param=100y100',
+    mediumImage: imageUrl + '?param=200y200',
+    largeImage: imageUrl + '?param=600y600'
+  };
+}
+
+function parseMusic(data: any): Music | null {
+  if (!data) return null;
+  const album = data.al || data.album || {};
+  const image = parseImage(album.picUrl);
+  return {
+    id: data.id,
+    name: data.name,
+    image: image.image,
+    mediumImage: image.mediumImage,
+    largeImage: image.largeImage,
+    singer: parseSinger(data.ar || data.artists),
+    album: album.name || '',
+    albumId: album.id || '',
+    duration: millisecond2Duration(data.dt || data.duration),
+    length: data.dt || data.duration || 0,
+    vip: data.privilege && data.privilege.fee == 1,
+    remark: '',
+    type: musicType
+  };
+}
+
 function parseSinger(data: any) {
   return data && Array.isArray(data)
     ? data.map((n: any) => n.name).join(' / ')
@@ -65,53 +164,23 @@ export async function search(
   limit: number = 30,
   type: number = 1
 ) {
-  var url = 'https://interface.music.163.com/weapi/search/get';
-  var data = {
-    s: keywords.replace(/[\s]+/g, '+'),
-    limit: limit,
-    offset: offset,
-    type: type,
-    strategy: 5,
-    queryCorrect: true
-  };
-  var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
-  param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
-  param = encodeURIComponent(param);
-  var encSecKey =
-    '&encSecKey=409afd10f2fa06173df57525287c4a1cdf6fa08bd542c6400da953704eb92dc1ad3c582e82f51a707ebfa0f6a25bcd185139fc1509d40dd97b180ed21641df55e90af4884a0b587bd25256141a9270b1b6f18908c6a626b74167e5a55a796c0f808a2eb12c33e63d34a7c4d358bab1dc661637dd1e888a1268b81a89f6136053';
-  var paramData = 'params=' + param + encSecKey;
-  var res = await httpProxy({
-    url: url,
-    method: 'POST',
-    data: paramData,
-    headers: {
-      Cookie: 'os=ios;MUSIC_U=',
-      Referer: 'https://music.163.com',
-      ContentType: 'application/x-www-form-urlencoded',
-      UserAgent:
-        'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1'
+  const ret = await httpRequest(CloudMusicAPI.Search, {
+    data: {
+      s: keywords.replace(/[\s]+/g, '+'),
+      limit: limit,
+      offset: offset,
+      type: type,
+      strategy: 5,
+      queryCorrect: true
     }
   });
-  const ret = await res.json();
   const list: Music[] = [];
   const total: number = ret.result.songCount;
   ret.result.songs.map((m: any) => {
-    const album = m.al || m.album || {};
-    list.push({
-      id: m.id,
-      name: m.name,
-      highlightName: highlightKeys(m.name, keywords),
-      image: (album.picUrl || '') + '?param=100y100',
-      singer: parseSinger(m.ar || m.artists),
-      album: album.name || '',
-      albumId: album.id || '',
-      duration: millisecond2Duration(m.dt || m.duration),
-      length: m.dt || m.duration,
-      vip: m.privilege && m.privilege.fee == 1,
-      remark: '',
-      type: musicType
-    });
+    const music = parseMusic(m);
+    music && list.push(music);
   });
+  highlightKeys(list, keywords);
   return {
     total,
     list
@@ -125,7 +194,8 @@ export async function daily(): Promise<Playlist | null> {
     name: `每日推荐<br />${now.getFullYear()}-${
       now.getMonth() + 1
     }-${now.getDate()}`,
-    image: '',
+    image:
+      'https://p1.music.126.net/jWE3OEZUlwdz0ARvyQ9wWw==/109951165474121408.jpg?param=200y200',
     type: musicType
   };
 }
@@ -137,46 +207,23 @@ export async function yours(offset: number): Promise<{
   const list: Playlist[] = [];
   const dailyPlaylist = await daily();
   if (dailyPlaylist) list.push(dailyPlaylist);
-
-  const csrfToken = cloudCookie['__csrf'] || '';
-  const musicU = cloudCookie['MUSIC_U'] || '';
-  var url = 'https://music.163.com/weapi/user/playlist?csrf_token=';
-  const data = {
-    uid: cloudCookie['uid'] || '',
-    wordwrap: 7,
-    limit: 50,
-    offset: offset,
-    lasttime: 0,
-    total: true,
-    csrf_token: csrfToken
-  };
-  var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
-  param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
-  param = encodeURIComponent(param);
-  var encSecKey =
-    '&encSecKey=409afd10f2fa06173df57525287c4a1cdf6fa08bd542c6400da953704eb92dc1ad3c582e82f51a707ebfa0f6a25bcd185139fc1509d40dd97b180ed21641df55e90af4884a0b587bd25256141a9270b1b6f18908c6a626b74167e5a55a796c0f808a2eb12c33e63d34a7c4d358bab1dc661637dd1e888a1268b81a89f6136053';
-  var paramData = 'params=' + param + encSecKey;
-  var res = await httpProxy({
-    url: url,
-    method: 'POST',
-    data: paramData,
-    headers: {
-      Cookie: 'os=ios;MUSIC_U=' + musicU,
-      Referer: 'https://music.163.com',
-      ContentType: 'application/x-www-form-urlencoded',
-      UserAgent:
-        'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1'
+  const ret = await httpRequest(CloudMusicAPI.Yours, {
+    data: {
+      uid: cloudCookie['uid'] || '',
+      wordwrap: 7,
+      limit: 50,
+      offset: offset,
+      lasttime: 0,
+      total: true
     }
   });
-  const ret = await res.json();
   ret.playlist.map((m: any) => {
+    const image = parseImage(m.coverImgUrl);
     list.push({
       id: m.id,
       name: m.name,
       description: m.description && m.description.replace(/\n+/g, '<br />'),
-      image:
-        m.coverImgUrl.toString().replace('http://', 'https://') +
-        '?param=200y200',
+      image: image.mediumImage || image.image,
       type: musicType
     });
   });
@@ -188,35 +235,17 @@ export async function yours(offset: number): Promise<{
 }
 
 export async function recommend(offset: number) {
-  var url = 'https://music.163.com/weapi/playlist/list';
   // var url = 'https://music.163.com/weapi/playlist/highquality/list';
-  const data = {
-    cat: '全部', // 全部,华语,欧美,日语,韩语,粤语,小语种,流行,摇滚,民谣,电子,舞曲,说唱,轻音乐,爵士,乡村,R&B/Soul,古典,民族,英伦,金属,朋克,蓝调,雷鬼,世界音乐,拉丁,另类/独立,New Age,古风,后摇,Bossa Nova,清晨,夜晚,学习,工作,午休,下午茶,地铁,驾车,运动,旅行,散步,酒吧,怀旧,清新,浪漫,性感,伤感,治愈,放松,孤独,感动,兴奋,快乐,安静,思念,影视原声,ACG,儿童,校园,游戏,70后,80后,90后,网络歌曲,KTV,经典,翻唱,吉他,钢琴,器乐,榜单,00后
-    // order: 'hot', // hot,new
-    limit: 30,
-    offset: offset,
-    lasttime: 0,
-    total: true
-  };
-  var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
-  param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
-  param = encodeURIComponent(param);
-  var encSecKey =
-    '&encSecKey=409afd10f2fa06173df57525287c4a1cdf6fa08bd542c6400da953704eb92dc1ad3c582e82f51a707ebfa0f6a25bcd185139fc1509d40dd97b180ed21641df55e90af4884a0b587bd25256141a9270b1b6f18908c6a626b74167e5a55a796c0f808a2eb12c33e63d34a7c4d358bab1dc661637dd1e888a1268b81a89f6136053';
-  var paramData = 'params=' + param + encSecKey;
-  var res = await httpProxy({
-    url: url,
-    method: 'POST',
-    data: paramData,
-    headers: {
-      Cookie: 'os=ios;MUSIC_U=',
-      Referer: 'https://music.163.com',
-      ContentType: 'application/x-www-form-urlencoded',
-      UserAgent:
-        'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1'
+  const ret = await httpRequest(CloudMusicAPI.Recommend, {
+    data: {
+      cat: '全部', // 全部,华语,欧美,日语,韩语,粤语,小语种,流行,摇滚,民谣,电子,舞曲,说唱,轻音乐,爵士,乡村,R&B/Soul,古典,民族,英伦,金属,朋克,蓝调,雷鬼,世界音乐,拉丁,另类/独立,New Age,古风,后摇,Bossa Nova,清晨,夜晚,学习,工作,午休,下午茶,地铁,驾车,运动,旅行,散步,酒吧,怀旧,清新,浪漫,性感,伤感,治愈,放松,孤独,感动,兴奋,快乐,安静,思念,影视原声,ACG,儿童,校园,游戏,70后,80后,90后,网络歌曲,KTV,经典,翻唱,吉他,钢琴,器乐,榜单,00后
+      // order: 'hot', // hot,new
+      limit: 30,
+      offset: offset,
+      lasttime: 0,
+      total: true
     }
   });
-  const ret = await res.json();
   const list: Playlist[] = [];
   const total: number = ret.total;
   ret.playlists.map((m: any) => {
@@ -237,50 +266,19 @@ export async function recommend(offset: number) {
 }
 
 export async function dailyPlayList(offset: number) {
-  const csrfToken = cloudCookie['__csrf'] || '';
-  const musicU = cloudCookie['MUSIC_U'] || '';
-  const data = {
-    offset: offset,
-    total: true,
-    csrf_token: csrfToken
-  };
-  var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
-  param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
-  param = encodeURIComponent(param);
-  var encSecKey =
-    '&encSecKey=409afd10f2fa06173df57525287c4a1cdf6fa08bd542c6400da953704eb92dc1ad3c582e82f51a707ebfa0f6a25bcd185139fc1509d40dd97b180ed21641df55e90af4884a0b587bd25256141a9270b1b6f18908c6a626b74167e5a55a796c0f808a2eb12c33e63d34a7c4d358bab1dc661637dd1e888a1268b81a89f6136053';
-  var paramData = 'params=' + param + encSecKey;
-  var res = await httpProxy({
-    url: 'https://music.163.com/weapi/v2/discovery/recommend/songs?csrf_token=',
-    method: 'POST',
-    data: paramData,
-    headers: {
-      Cookie: 'os=ios;MUSIC_U=' + musicU,
-      Referer: 'https://music.163.com',
-      ContentType: 'application/x-www-form-urlencoded',
-      UserAgent:
-        'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1'
+  const ret = await httpRequest(CloudMusicAPI.Daily, {
+    data: {
+      offset: offset,
+      total: true
     }
   });
-  const ret = await res.json();
   let total = 0;
   let list: Music[] = [];
   if (ret && ret.data && Array.isArray(ret.data.dailySongs)) {
     total = ret.data.dailySongs.length;
     ret.data.dailySongs.map((m: any) => {
-      list.push({
-        id: m.id,
-        name: m.name,
-        image: m.album.picUrl + '?param=100y100',
-        singer: parseSinger(m.artists),
-        album: m.album.name,
-        albumId: m.album.id,
-        duration: millisecond2Duration(m.duration),
-        length: m.duration,
-        vip: m.privilege && m.privilege.fee == 1,
-        remark: '',
-        type: musicType
-      });
+      const music = parseMusic(m);
+      music && list.push(music);
     });
   }
   let playlist = await daily();
@@ -318,61 +316,30 @@ export async function playlistDetail(id: string, offset: number) {
       playlist: rankingPlaylist(rankingType)
     };
   }
-  var url = 'https://music.163.com/weapi/v3/playlist/detail';
-  const csrfToken = cloudCookie['__csrf'] || '';
-  const musicU = cloudCookie['MUSIC_U'] || '';
-  const data = {
-    id: id,
-    offset: offset,
-    total: false,
-    limit: 30,
-    n: 1000,
-    csrf_token: csrfToken
-  };
-  var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
-  param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
-  param = encodeURIComponent(param);
-  var encSecKey =
-    '&encSecKey=409afd10f2fa06173df57525287c4a1cdf6fa08bd542c6400da953704eb92dc1ad3c582e82f51a707ebfa0f6a25bcd185139fc1509d40dd97b180ed21641df55e90af4884a0b587bd25256141a9270b1b6f18908c6a626b74167e5a55a796c0f808a2eb12c33e63d34a7c4d358bab1dc661637dd1e888a1268b81a89f6136053';
-  var paramData = 'params=' + param + encSecKey;
-  var res = await httpProxy({
-    url: url,
-    method: 'POST',
-    data: paramData,
-    headers: {
-      Cookie: 'os=ios;MUSIC_U=' + musicU,
-      Referer: 'https://music.163.com',
-      ContentType: 'application/x-www-form-urlencoded',
-      UserAgent:
-        'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1'
+  const ret = await httpRequest(CloudMusicAPI.PlaylistDetail, {
+    data: {
+      id: id,
+      offset: offset,
+      total: false,
+      limit: 30,
+      n: 1000
     }
   });
-  const ret = await res.json();
   const list: Music[] = [];
+  const image = parseImage(ret.playlist.coverImgUrl);
   const playlist: Playlist = {
     id: ret.playlist.id,
     name: ret.playlist.name,
     description:
       ret.playlist.description &&
       ret.playlist.description.replace(/\n+/g, '<br />'),
-    image: ret.playlist.coverImgUrl,
+    image: image.largeImage || image.mediumImage || image.image,
     type: musicType
   };
   const total: number = ret.playlist.trackCount;
   ret.playlist.tracks.map((m: any) => {
-    list.push({
-      id: m.id,
-      name: m.name,
-      image: m.al.picUrl + '?param=100y100',
-      singer: parseSinger(m.ar),
-      album: m.al.name,
-      albumId: m.al.id,
-      duration: millisecond2Duration(m.dt),
-      length: m.dt,
-      vip: m.privilege && m.privilege.fee == 1,
-      remark: '',
-      type: musicType
-    });
+    const music = parseMusic(m);
+    music && list.push(music);
   });
   return {
     total,
@@ -382,28 +349,10 @@ export async function playlistDetail(id: string, offset: number) {
 }
 
 export async function albumDetail(id: string) {
-  var url = 'https://interface.music.163.com/weapi/v1/album/' + id;
-  const data = {};
-  var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
-  param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
-  param = encodeURIComponent(param);
-  var encSecKey =
-    '&encSecKey=409afd10f2fa06173df57525287c4a1cdf6fa08bd542c6400da953704eb92dc1ad3c582e82f51a707ebfa0f6a25bcd185139fc1509d40dd97b180ed21641df55e90af4884a0b587bd25256141a9270b1b6f18908c6a626b74167e5a55a796c0f808a2eb12c33e63d34a7c4d358bab1dc661637dd1e888a1268b81a89f6136053';
-  var paramData = 'params=' + param + encSecKey;
-  var res = await httpProxy({
-    url: url,
-    method: 'POST',
-    data: paramData,
-    headers: {
-      Cookie: 'os=ios;MUSIC_U=',
-      Referer: 'https://music.163.com',
-      ContentType: 'application/x-www-form-urlencoded',
-      UserAgent:
-        'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1'
-    }
-  });
-  const ret = await res.json();
+  var url = CloudMusicAPI.AlbumDetail + '/' + id;
+  const ret = await httpRequest(url);
   const list: Music[] = [];
+  const image = parseImage(ret.album.picUrl);
   const playlist: Playlist = {
     id: ret.album.id,
     name: ret.album.name,
@@ -413,24 +362,16 @@ export async function albumDetail(id: string) {
         ret.album.description.replace(/\n+/g, '<br />')) ||
       ret.album.artist.name ||
       '',
-    image: ret.album.picUrl,
+    image: image.largeImage || image.mediumImage || image.image,
     type: musicType
   };
   const total: number = ret.songs.length;
   ret.songs.map((m: any) => {
-    list.push({
-      id: m.id,
-      name: m.name,
-      image: (m.al.picUrl || playlist.image) + '?param=100y100',
-      singer: parseSinger(m.ar),
-      album: m.al.name,
-      albumId: m.al.id,
-      duration: millisecond2Duration(m.dt),
-      length: m.dt,
-      vip: m.privilege && m.privilege.fee == 1,
-      remark: '',
-      type: musicType
-    });
+    const music = parseMusic(m);
+    if (music) {
+      music.image = image.image;
+      list.push(music);
+    }
   });
   return {
     total,
@@ -491,35 +432,29 @@ export function rankingPlaylist(ranking: RankingType): Playlist {
 
 export async function downloadUrl(
   music: Music,
-  _quality?: MusicQuality
+  quality?: MusicQuality
 ): Promise<string> {
-  var url = 'http://music.163.com/weapi/song/enhance/player/url?csrf_token=';
-  const csrfToken = cloudCookie['__csrf'] || '';
-  const musicU = cloudCookie['MUSIC_U'] || '';
-  const data = {
-    ids: [music.id],
-    br: 320000,
-    csrf_token: csrfToken
-  };
-  var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
-  param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
-  param = encodeURIComponent(param);
-  var encSecKey =
-    '&encSecKey=409afd10f2fa06173df57525287c4a1cdf6fa08bd542c6400da953704eb92dc1ad3c582e82f51a707ebfa0f6a25bcd185139fc1509d40dd97b180ed21641df55e90af4884a0b587bd25256141a9270b1b6f18908c6a626b74167e5a55a796c0f808a2eb12c33e63d34a7c4d358bab1dc661637dd1e888a1268b81a89f6136053';
-  var paramData = 'params=' + param + encSecKey;
-  var res = await httpProxy({
-    url: url,
-    method: 'POST',
-    data: paramData,
-    headers: {
-      Cookie: 'os=ios;MUSIC_U=' + musicU,
-      Referer: 'https://music.163.com',
-      ContentType: 'application/x-www-form-urlencoded',
-      UserAgent:
-        'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1'
+  var br = 320000;
+  switch (quality || downloadQuality) {
+    case 'PQ':
+      br = 128000;
+      break;
+    case 'HQ':
+      br = 320000;
+      break;
+    case 'SQ':
+      br = 480000;
+      break;
+    case 'ZQ':
+      br = 960000;
+      break;
+  }
+  const ret = await httpRequest(CloudMusicAPI.DownloadUrl, {
+    data: {
+      ids: [music.id],
+      br
     }
   });
-  const ret = await res.json();
   if (ret && ret.data && ret.data[0]) {
     return ret.data[0].url;
   }
@@ -532,44 +467,18 @@ export async function musicDetail(music: Music) {
 }
 
 export async function musicById(id: string): Promise<Music | null> {
-  var url = 'https://music.163.com/weapi/v3/song/detail';
-  const data = {
-    c: JSON.stringify([
-      {
-        id: id
-      }
-    ]),
-    csrf_token: ''
-  };
-  var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
-  param = aesEncrypt(param, 'Zw8xKXE1jdYdGNpj');
-  param = encodeURIComponent(param);
-  var encSecKey =
-    '&encSecKey=35f01c51527de6cc9aa39304cb4eeafb611f82cd0a15d86c3913d0e724711064b967b06204f2bc5623905d06bc9c3a9162369b5b68d8e9a408d8d11b8136030a1a8e68a0fc47979eb17509476ba482244402dbad953eeacfcfc5000c44cd875d4426e07ce5cb3e26930482c32ef7670f952e921e218683437115415670fb9282';
-  var paramData = 'params=' + param + encSecKey;
-  var res = await httpProxy({
-    url: url,
-    method: 'POST',
-    data: paramData,
-    headers: {
-      ContentType: 'application/x-www-form-urlencoded'
+  const ret = await httpRequest(CloudMusicAPI.SongDetail, {
+    data: {
+      c: JSON.stringify([
+        {
+          id: id
+        }
+      ]),
+      csrf_token: ''
     }
   });
-  const ret = await res.json();
   if (ret && ret.songs && ret.songs[0]) {
-    const m = ret.songs[0];
-    return {
-      id: m.id,
-      name: m.name,
-      image: m.al && m.al.picUrl,
-      singer: parseSinger(m.ar),
-      album: m.al && m.al.name,
-      albumId: m.al && m.al.id,
-      duration: millisecond2Duration(m.dt),
-      length: m.dt,
-      vip: m.privilege && m.privilege.fee == 1,
-      type: musicType
-    };
+    return parseMusic(ret.songs[0]);
   }
   return null;
 }
@@ -582,25 +491,6 @@ export async function lyric(music: Music): Promise<string> {
   });
   const data = await res.json();
   const lyric: string = (data && data.lrc && data.lrc.lyric) || '';
-  // const newlinesCount = lyric.match(/\n/g)?.length || 0;
-  // if (newlinesCount < 5) {
-  //   const resSearch = await search(music.name, 0, 30, 1006);
-  //   for (let i = 0; i < resSearch.list.length; i++) {
-  //     if (
-  //       resSearch.list[i].duration == music.duration &&
-  //       resSearch.list[i].name.includes(music.name.substring(0, 2))
-  //     ) {
-  //       const resL = await httpProxy({
-  //         url:
-  //           'https://music.163.com/api/song/lyric?lv=-1&id=' +
-  //           resSearch.list[i].id,
-  //         method: 'GET'
-  //       });
-  //       const dataL = await resL.json();
-  //       if (dataL && dataL.lrc && dataL.lrc.lyric) return dataL.lrc.lyric;
-  //     }
-  //   }
-  // }
   return lyric;
 }
 
@@ -662,30 +552,11 @@ export async function qrCodeKey(): Promise<{
   key: string;
   url: string;
 } | null> {
-  var url = 'https://music.163.com/weapi/login/qrcode/unikey?csrf_token=';
-  const data = {
-    type: 1,
-    csrf_token: ''
-  };
-  var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
-  param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
-  param = encodeURIComponent(param);
-  var encSecKey =
-    '&encSecKey=409afd10f2fa06173df57525287c4a1cdf6fa08bd542c6400da953704eb92dc1ad3c582e82f51a707ebfa0f6a25bcd185139fc1509d40dd97b180ed21641df55e90af4884a0b587bd25256141a9270b1b6f18908c6a626b74167e5a55a796c0f808a2eb12c33e63d34a7c4d358bab1dc661637dd1e888a1268b81a89f6136053';
-  var paramData = 'params=' + param + encSecKey;
-  var res = await httpProxy({
-    url: url,
-    method: 'POST',
-    data: paramData,
-    headers: {
-      Cookie: 'os=ios;MUSIC_U=',
-      Referer: 'https://music.163.com',
-      ContentType: 'application/x-www-form-urlencoded',
-      UserAgent:
-        'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1'
+  const ret = await httpRequest(CloudMusicAPI.QRCodeUniKey, {
+    data: {
+      type: 1
     }
   });
-  const ret = await res.json();
   if (ret && ret.unikey) {
     return {
       key: ret.unikey,
@@ -701,30 +572,12 @@ export async function loginStatus(key: string): Promise<{
   status: LoginStatus;
   user?: UserInfo;
 }> {
-  var url = 'https://music.163.com/weapi/login/qrcode/client/login?csrf_token=';
-  const data = {
-    key: key,
-    type: 1,
-    csrf_token: ''
-  };
-  var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
-  param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
-  param = encodeURIComponent(param);
-  var encSecKey =
-    '&encSecKey=409afd10f2fa06173df57525287c4a1cdf6fa08bd542c6400da953704eb92dc1ad3c582e82f51a707ebfa0f6a25bcd185139fc1509d40dd97b180ed21641df55e90af4884a0b587bd25256141a9270b1b6f18908c6a626b74167e5a55a796c0f808a2eb12c33e63d34a7c4d358bab1dc661637dd1e888a1268b81a89f6136053';
-  var paramData = 'params=' + param + encSecKey;
-  var res = await httpProxy({
-    url: url,
-    method: 'POST',
-    data: paramData,
-    setCookieRename: true,
-    headers: {
-      Cookie: 'os=ios;MUSIC_U=',
-      Referer: 'https://music.163.com',
-      ContentType: 'application/x-www-form-urlencoded',
-      UserAgent:
-        'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1'
-    }
+  const res = await httpRequest(CloudMusicAPI.LoginStatus, {
+    data: {
+      key: key,
+      type: 1
+    },
+    setCookieRename: true
   });
   const ret = await res.json();
   switch (ret && ret.code) {
@@ -756,30 +609,10 @@ export async function userInfo(
 ): Promise<UserInfo | null> {
   const csrfToken = cookie['__csrf'] || '';
   const musicU = cookie['MUSIC_U'] || '';
-  var url = 'https://music.163.com/weapi/w/nuser/account/get?csrf_token=';
-  const data = {
-    csrf_token: csrfToken
-  };
-  var param = aesEncrypt(JSON.stringify(data), '0CoJUm6Qyw8W8jud');
-  param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
-  param = encodeURIComponent(param);
-  var encSecKey =
-    '&encSecKey=409afd10f2fa06173df57525287c4a1cdf6fa08bd542c6400da953704eb92dc1ad3c582e82f51a707ebfa0f6a25bcd185139fc1509d40dd97b180ed21641df55e90af4884a0b587bd25256141a9270b1b6f18908c6a626b74167e5a55a796c0f808a2eb12c33e63d34a7c4d358bab1dc661637dd1e888a1268b81a89f6136053';
-  var paramData = 'params=' + param + encSecKey;
-  var res = await httpProxy({
-    url: url,
-    method: 'POST',
-    data: paramData,
-    setCookieRename: true,
-    headers: {
-      Cookie: 'os=ios;MUSIC_U=' + musicU,
-      Referer: 'https://music.163.com',
-      ContentType: 'application/x-www-form-urlencoded',
-      UserAgent:
-        'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1'
-    }
+  const ret = await httpRequest(CloudMusicAPI.UserInfo, {
+    musicU,
+    csrfToken
   });
-  const ret = await res.json();
   if (!ret || !ret.profile || !ret.profile.userId) return null;
   cloudCookie = {
     __csrf: csrfToken,

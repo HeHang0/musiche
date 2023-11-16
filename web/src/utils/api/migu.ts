@@ -13,6 +13,7 @@ import {
   durationTrim,
   formatCookies,
   highlightKeys,
+  millisecond2Duration,
   parseCookie,
   second2Duration
 } from '../utils';
@@ -27,7 +28,95 @@ var miguCookie: string = '';
 var miguUid: string = localStorage.getItem('musiche-migu-uid') || '';
 
 function padProtocol(url: string) {
-  return url && url.startsWith('//') ? 'https:' + url : url;
+  if (url.startsWith('//')) {
+    url = 'https:' + url;
+  }
+  if (url.startsWith('http://')) {
+    url = url.replace('http://', 'https://');
+  }
+  return url;
+}
+
+function parseImage(data: any) {
+  if (!data)
+    return {
+      image: '',
+      mediumImage: void 0,
+      largeImage: void 0
+    };
+  let smallImage = '';
+  let mediumImage = '';
+  let largeImage = '';
+  if (Array.isArray(data.albumImgs)) {
+    smallImage = data.albumImgs.find(
+      (m: { imgSizeType: string }) => m.imgSizeType === '01'
+    )?.img;
+    mediumImage = data.albumImgs.find(
+      (m: { imgSizeType: string }) => m.imgSizeType === '02'
+    )?.img;
+    largeImage = data.albumImgs.find(
+      (m: { imgSizeType: string }) => m.imgSizeType === '03'
+    )?.img;
+  } else if (typeof data === 'string') {
+    smallImage = data;
+    mediumImage = smallImage;
+    largeImage = smallImage;
+  } else if (data.playListPic || data.image || data.picUrl) {
+    smallImage = data.playListPic || data.image || data.picUrl;
+  } else if (data.imageUrl) {
+    smallImage = data.imageUrl;
+    mediumImage = smallImage;
+    largeImage = smallImage;
+  } else {
+    smallImage = data.smallPic || data.mediumPic || '';
+    mediumImage = data.mediumPic || '';
+    largeImage = data.largePic || '';
+  }
+  return {
+    image: smallImage || '',
+    mediumImage: mediumImage || '',
+    largeImage: largeImage || ''
+  };
+}
+
+function parseSinger(data: any) {
+  return data && Array.isArray(data)
+    ? data.map((n: any) => n.name).join(' / ')
+    : '';
+}
+
+function parseMusic(data: any): Music | null {
+  if (!data) return null;
+  const image = parseImage(data);
+  const album = data.album || (data.albums && data.albums[0]) || {};
+  let duration = '';
+  let length = 0;
+  if (data.duration && typeof data.duration === 'number') {
+    length = data.duration * 1000;
+  } else if (data.length && typeof data.length === 'string') {
+    duration = durationTrim(data.length);
+  }
+  if (duration && !length) {
+    length = duration2Millisecond(duration);
+  }
+  if (length && !duration) {
+    duration = millisecond2Duration(length);
+  }
+  return {
+    id: data.copyrightId,
+    name: data.name || data.songName,
+    image: image.image,
+    mediumImage: image.mediumImage,
+    largeImage: image.largeImage,
+    singer: parseSinger(data.singers),
+    album: album.name || album.albumName || '',
+    albumId: album.id || album.albumId || '',
+    duration: duration,
+    length: length,
+    vip: (data.vipFlag || (data.fullSong && data.fullSong.vipFlag)) == 1,
+    remark: (data.fullSong && data.fullSong.productId) || data.songId,
+    type: musicType
+  };
 }
 
 var downloadQuality: MusicQuality = 'PQ';
@@ -60,22 +149,10 @@ export async function search(keywords: string, offset: number) {
   const list: Music[] = [];
   const total: number = ret.data.songsData.total;
   ret.data.songsData.items.map((m: any) => {
-    list.push({
-      id: m.copyrightId,
-      name: m.name,
-      highlightName: highlightKeys(m.name, keywords),
-      image: padProtocol(m.mediumPic),
-      singer: Array.isArray(m.singers)
-        ? m.singers.map((n: any) => n.name).join(' / ')
-        : '',
-      album: (m.album && m.album.name) || '',
-      albumId: (m.album && m.album.id) || '',
-      duration: '',
-      vip: (m.vipFlag || (m.fullSong && m.fullSong.vipFlag)) == 1,
-      remark: m.fullSong.productId,
-      type: musicType
-    });
+    const music = parseMusic(m);
+    music && list.push(music);
   });
+  highlightKeys(list, keywords);
   return {
     total,
     list
@@ -112,23 +189,20 @@ export async function yours(_offset: number): Promise<{
       }
     });
     const ret = await res.json();
-    var retList = ret.playLists || (ret.data && ret.data.items);
+    var retList = ret.playLists || (ret.data && ret.data.items) || ret.data;
     if (retList) {
       retList.map((m: any) => {
-        let image = m.playListPic || m.image || m.picUrl;
-        if (image.startsWith('//')) image = 'https://' + image;
         list.push({
           id: m.id || m.playListId,
           name: m.playListName || m.name,
-          image: image,
+          image: parseImage(m).image,
           type: musicType
         });
       });
-
-      const dailyPlaylist = await daily();
-      if (dailyPlaylist) list.unshift(dailyPlaylist);
     }
   }
+  const dailyPlaylist = await daily();
+  if (dailyPlaylist) list.unshift(dailyPlaylist);
 
   return {
     total: list.length,
@@ -154,7 +228,7 @@ export async function recommend(offset: number) {
     list.push({
       id: m.logEvent.contentId,
       name: m.title,
-      image: m.imageUrl.replace('http://', 'https://'),
+      image: parseImage(m).image,
       type: musicType
     });
   });
@@ -192,7 +266,7 @@ export async function playlistInfo(id: string) {
     id: ret.data.playListId,
     name: ret.data.playListName,
     description: ret.data.summary && ret.data.summary.replace(/\n+/g, '<br />'),
-    image: padProtocol(ret.data.image),
+    image: parseImage(ret.data.image).image,
     total: total,
     type: musicType
   };
@@ -283,21 +357,9 @@ export async function digitalDetail(id: string) {
     type: musicType
   };
   ret.data.songs.items.map((m: any) => {
-    list.push({
-      id: m.copyrightId,
-      name: m.name,
-      image: padProtocol(m.smallPic || m.mediumPic),
-      singer: Array.isArray(m.singers)
-        ? m.singers.map((n: any) => n.name).join(' / ')
-        : '',
-      album: playlist.name,
-      albumId: playlist.id,
-      duration: durationTrim(m.length),
-      length: duration2Millisecond(m.length),
-      vip: (m.vipFlag || (m.fullSong && m.fullSong.vipFlag)) == 1,
-      remark: (m.fullSong && m.fullSong.productId) || '',
-      type: musicType
-    });
+    m.album = playlist;
+    const music = parseMusic(m);
+    music && list.push(music);
   });
   return {
     total: list.length,
@@ -349,21 +411,8 @@ export async function playlistDetail(id: string, offset: number) {
   const playlist = await playlistInfo(id);
   const total: number = playlist.total || ret.data.total;
   ret.data.items.map((m: any) => {
-    list.push({
-      id: m.copyrightId,
-      name: m.name,
-      image: padProtocol(m.mediumPic),
-      singer: Array.isArray(m.singers)
-        ? m.singers.map((n: any) => n.name).join(' / ')
-        : '',
-      album: (m.album && m.album.albumName) || '',
-      albumId: (m.album && m.album.albumId) || '',
-      duration: durationTrim(m.duration),
-      length: duration2Millisecond(m.duration),
-      vip: (m.vipFlag || (m.fullSong && m.fullSong.vipFlag)) == 1,
-      remark: (m.fullSong && m.fullSong.productId) || '',
-      type: musicType
-    });
+    const music = parseMusic(m);
+    music && list.push(music);
   });
   return {
     total,
@@ -397,21 +446,8 @@ export async function albumDetail(id: string) {
   playlist.description = playlist.description?.replace(/\n+/g, '<br />');
   const total: number = ret.data.songs.items.length;
   ret.data.songs.items.map((m: any) => {
-    list.push({
-      id: m.copyrightId,
-      name: m.name,
-      image: padProtocol(m.mediumPic),
-      singer: Array.isArray(m.singers)
-        ? m.singers.map((n: any) => n.name).join(' / ')
-        : '',
-      album: (m.album && m.album.albumName) || '',
-      albumId: (m.album && m.album.albumId) || '',
-      duration: durationTrim(m.duration),
-      length: duration2Millisecond(m.duration),
-      vip: (m.vipFlag || (m.fullSong && m.fullSong.vipFlag)) == 1,
-      remark: (m.fullSong && m.fullSong.productId) || '',
-      type: musicType
-    });
+    const music = parseMusic(m);
+    music && list.push(music);
   });
   return {
     total,
@@ -487,21 +523,8 @@ export async function ranking1(ranking: RankingType, offset: number) {
   const list: Music[] = [];
   const total: number = ret.data.songs.itemTotal;
   ret.data.songs.items.map((m: any) => {
-    list.push({
-      id: m.copyrightId,
-      name: m.name,
-      image: m.mediumPic,
-      singer: Array.isArray(m.singers)
-        ? m.singers.map((n: any) => n.name).join(' / ')
-        : '',
-      album: m.albumName,
-      albumId: m.albumId,
-      duration: durationTrim(m.duration),
-      length: duration2Millisecond(m.duration),
-      vip: (m.vipFlag || (m.fullSong && m.fullSong.vipFlag)) == 1,
-      remark: (m.fullSong && m.fullSong.productId) || '',
-      type: musicType
-    });
+    const music = parseMusic(m);
+    music && list.push(music);
   });
   return {
     total,
@@ -534,21 +557,8 @@ export async function ranking(ranking: RankingType, _offset: number) {
   const total: number = ret.data.columnInfo.contents.length;
   ret.data.columnInfo.contents.map((item: any) => {
     const m = item.objectInfo;
-    list.push({
-      id: m.copyrightId,
-      name: m.songName,
-      image: m.albumImgs[m.albumImgs.length - 1]['img'],
-      singer: Array.isArray(m.artists)
-        ? m.artists.map((n: any) => n.name).join(' / ')
-        : '',
-      album: m.album,
-      albumId: m.albumId,
-      duration: durationTrim(m.length),
-      length: duration2Millisecond(m.length),
-      vip: (m.vipFlag || (m.fullSong && m.fullSong.vipFlag)) == 1,
-      remark: m.contentId,
-      type: musicType
-    });
+    const music = parseMusic(m);
+    music && list.push(music);
   });
   return {
     total,
@@ -654,21 +664,7 @@ export async function musicById(id: string): Promise<Music | null> {
   let ret = await res.json();
   if (ret && ret.data && ret.data[0]) {
     const m = ret.data[0];
-    return {
-      id: m.copyrightId,
-      name: m.songName,
-      image: m.img1 || m.img2 || m.img3,
-      singer: Array.isArray(m.singerList)
-        ? m.singerList.map((n: any) => n.name).join(' / ')
-        : '',
-      album: m.album,
-      albumId: m.albumId,
-      duration: second2Duration(m.duration),
-      length: m.duration * 1000,
-      vip: m.downloadTags && m.downloadTags.includes('vip'),
-      remark: m.contentId,
-      type: musicType
-    };
+    return parseMusic(m);
   }
   return null;
 }

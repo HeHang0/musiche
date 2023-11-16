@@ -169,6 +169,7 @@ const tableEle: Ref<HTMLTableElement | null> = ref(null);
 const defaultFonts = isWindows
   ? ['宋体', '等线', '仿宋', '黑体', '楷体', '微软雅黑']
   : [
+      'Noto-Sans-TC',
       'Times New Roman',
       'Georgia',
       'Arial',

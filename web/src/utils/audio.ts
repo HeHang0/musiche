@@ -24,6 +24,9 @@ export class AudioPlayer {
   }
   initMediaMeta() {
     if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: document.title
+    });
     navigator.mediaSession.setActionHandler(
       'play',
       this.sendMessage.bind(this, 'playOrPause')
@@ -52,10 +55,17 @@ export class AudioPlayer {
 
   mediaMeta(meta: MediaMetadataInit) {
     if (!('mediaSession' in navigator)) return;
-    navigator.mediaSession.metadata = new MediaMetadata({
-      ...meta,
-      title: meta.title || document.title
-    });
+    if (!navigator.mediaSession.metadata) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        ...meta,
+        title: meta.title || document.title
+      });
+    } else {
+      navigator.mediaSession.metadata.album = meta.album || '';
+      navigator.mediaSession.metadata.artist = meta.artist || '';
+      navigator.mediaSession.metadata.artwork = meta.artwork || [];
+      navigator.mediaSession.metadata.title = meta.title || document.title;
+    }
   }
 
   async process(type: string, data?: string) {
