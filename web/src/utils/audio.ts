@@ -20,13 +20,11 @@ export class AudioPlayer {
       this.statusChange.bind(this, undefined)
     );
     this.audio.addEventListener('timeupdate', this.timeUpdate.bind(this));
-    this.initMediaMeta();
   }
-  initMediaMeta() {
+  initMediaAction() {
     if (!('mediaSession' in navigator)) return;
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: document.title
-    });
+    navigator.mediaSession.setActionHandler('seekbackward', null);
+    navigator.mediaSession.setActionHandler('seekforward', null);
     navigator.mediaSession.setActionHandler(
       'play',
       this.sendMessage.bind(this, 'playOrPause')
@@ -43,7 +41,6 @@ export class AudioPlayer {
       'previoustrack',
       this.sendMessage.bind(this, 'last', true)
     );
-
     navigator.mediaSession.setActionHandler(
       'nexttrack',
       this.sendMessage.bind(this, 'next', true)
@@ -55,17 +52,11 @@ export class AudioPlayer {
 
   mediaMeta(meta: MediaMetadataInit) {
     if (!('mediaSession' in navigator)) return;
-    if (!navigator.mediaSession.metadata) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        ...meta,
-        title: meta.title || document.title
-      });
-    } else {
-      navigator.mediaSession.metadata.album = meta.album || '';
-      navigator.mediaSession.metadata.artist = meta.artist || '';
-      navigator.mediaSession.metadata.artwork = meta.artwork || [];
-      navigator.mediaSession.metadata.title = meta.title || document.title;
-    }
+    console.log('哈哈哈', meta);
+    navigator.mediaSession.metadata = new MediaMetadata({
+      ...meta,
+      title: meta.title || document.title
+    });
   }
 
   async process(type: string, data?: string) {
@@ -188,6 +179,7 @@ export class AudioPlayer {
   }
   audioPlay() {
     console.log('audio play');
+    this.initMediaAction();
     this.statusChange();
   }
 }

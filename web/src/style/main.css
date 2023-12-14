@@ -3,14 +3,6 @@
 
 @font-face {
   /*自定义字体名*/
-  font-family: 'PingFang SC';
-  /*路径*/
-  src: url('../assets/PingFang-SC-Regular.otf');
-  font-weight: normal;
-  font-style: normal;
-}
-@font-face {
-  /*自定义字体名*/
   font-family: 'Noto-Sans-TC';
   /*路径*/
   src: url('https://fonts.gstatic.com/ea/notosanstc/v1/NotoSansTC-Regular.woff2')

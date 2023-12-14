@@ -12,9 +12,10 @@ import { MusicConnection } from './stores/connection';
 import { usePlayStore } from './stores/play';
 import { useSettingStore } from './stores/setting';
 import { LogoImage } from './utils/logo';
-import { fixPwaForIOS } from './utils/utils';
+import { fixPwaForIOS, isWindows } from './utils/utils';
 import { registerServiceWorker } from './sw/register';
 registerServiceWorker();
+isWindows && (() => import('./style/pf.css'))();
 
 const play = usePlayStore();
 const setting = useSettingStore();

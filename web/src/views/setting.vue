@@ -407,6 +407,7 @@ function onObserve(
   }
   const visibleElement = viewElements.find(m => m.visible);
   if (visibleElement) currentId.value = visibleElement.id;
+  scrollToElementId('title-' + currentId.value, false, false);
 }
 function startObserve() {
   if (!tableEle.value) return;
@@ -428,6 +429,7 @@ onMounted(() => {
   startObserve();
   setScrolling();
   scrollToElementId(currentId.value, false, false);
+  scrollToElementId('title-' + currentId.value, false, false);
 });
 onUnmounted(unWatch);
 </script>
@@ -437,6 +439,7 @@ onUnmounted(unWatch);
       <div class="music-setting-header-title">设置</div>
       <div class="music-setting-header-sub">
         <span
+          :id="'title-music-header-' + subItem.id"
           :class="
             currentId === 'music-header-' + subItem.id
               ? 'music-setting-header-active'
@@ -902,18 +905,30 @@ onUnmounted(unWatch);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    border-bottom: 1px solid var(--music-border-color);
+    // border-bottom: 1px solid var(--music-border-color);
     margin: 0 var(--music-page-padding-horizontal);
     &-title {
       font-size: 24px;
     }
     &-sub {
-      display: flex;
-      flex-wrap: wrap;
-      column-gap: 30px;
-      row-gap: 5px;
+      // display: flex;
+      // flex-wrap: wrap;
+      // column-gap: 30px;
+      // row-gap: 5px;
+      max-width: 100%;
+      overflow-x: auto;
       padding-bottom: 5px;
       margin-bottom: 5px;
+      border-bottom: 1px solid var(--music-border-color);
+      width: fit-content;
+      white-space: nowrap;
+      &::-webkit-scrollbar {
+        height: 0;
+        width: 0;
+      }
+      & > span + span {
+        margin-left: 30px;
+      }
       span {
         opacity: 0.6;
         cursor: pointer;
@@ -1045,9 +1060,14 @@ onUnmounted(unWatch);
           right: 5px;
           bottom: 5px;
           height: unset;
+          border: 2px solid white;
+          border-radius: 50%;
           :deep(.el-checkbox__inner) {
             border-radius: var(--music-border-radius);
-            outline: 2px solid white;
+            &::after {
+              left: 3px;
+            }
+            // outline: 2px solid white;
           }
         }
         .el-icon {

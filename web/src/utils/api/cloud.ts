@@ -456,7 +456,11 @@ export async function downloadUrl(
     }
   });
   if (ret && ret.data && ret.data[0]) {
-    return ret.data[0].url;
+    let musicUrl = ret.data[0].url;
+    if (musicUrl && musicUrl.startsWith('http://')) {
+      musicUrl = musicUrl.replace('http://', 'https://');
+    }
+    return musicUrl;
   }
   return '';
 }

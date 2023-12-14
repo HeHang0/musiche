@@ -60,16 +60,10 @@ function transformIndexHtmlHandler(html: string) {
     <script id="musiche-script-fix">
       let routerPrefix = localStorage.getItem('musiche-router-prefix') || '';
       if (routerPrefix) routerPrefix = '/' + routerPrefix;
-      const manifestLink = document.createElement('link');
-      manifestLink.rel = 'manifest';
-      manifestLink.href = routerPrefix + '/manifest.json';
-      document.head.appendChild(manifestLink);
-      if(routerPrefix){
-        const iconLink = document.querySelector('link[rel="icon"]');
-        if(iconLink)iconLink.href = routerPrefix + iconLink.href;
-        const manifestLink = document.querySelector('link[rel="manifest"]');
-        if(manifestLink)manifestLink.href = routerPrefix + manifestLink.href;
-      }
+      const iconLink = document.querySelector('link[rel="icon"]');
+      if(iconLink) iconLink.href = routerPrefix + '/logo-circle.png';
+      const manifestLink = document.querySelector('link[rel="manifest"]');
+      if(manifestLink) manifestLink.href = location.origin + routerPrefix + '/manifest.json';
       ${indexJS}${indexCSS}
       document.getElementById('musiche-script-fix').remove();
     </script>

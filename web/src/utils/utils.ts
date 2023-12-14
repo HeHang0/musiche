@@ -35,10 +35,10 @@ export const webView2Services = {
 try {
   webView2Services.specialService = (
     window as any
-  )?.chrome.webview?.hostObjects?.sync.specialService;
+  )?.chrome?.webview?.hostObjects?.sync.specialService;
   webView2Services.fileAccessor = (
     window as any
-  )?.chrome.webview?.hostObjects?.fileAccessor;
+  )?.chrome?.webview?.hostObjects?.fileAccessor;
   webView2Services.enabled = !!webView2Services.specialService;
 } catch (error) {}
 
@@ -57,7 +57,7 @@ export const isMobile =
     navigator.userAgent
   );
 export const isWindows = /Windows/i.test(navigator.userAgent);
-export const isSafari = /Safari/i.test(navigator.userAgent);
+export const isSafari = /Safari|AppleWebKit/i.test(navigator.userAgent);
 
 export function scrollToElementId(
   id: string,

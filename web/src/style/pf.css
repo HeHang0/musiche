@@ -1,0 +1,8 @@
+@font-face {
+  /*自定义字体名*/
+  font-family: 'PingFang SC';
+  /*路径*/
+  src: url('../assets/PingFang-SC-Regular.otf');
+  font-weight: normal;
+  font-style: normal;
+}

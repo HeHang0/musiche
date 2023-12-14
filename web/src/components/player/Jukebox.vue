@@ -2,6 +2,7 @@
 import { Ref, ref } from 'vue';
 import { usePlayStore } from '../../stores/play';
 import { LogoImage } from '../../utils/logo';
+import { isSafari } from '../../utils/utils';
 const play = usePlayStore();
 const discElement: Ref<HTMLImageElement | null> = ref(null);
 let touching = false;
@@ -26,7 +27,9 @@ function playOrPause() {
 </script>
 <template>
   <div class="music-jukebox">
-    <div class="music-jukebox-disc">
+    <div
+      class="music-jukebox-disc"
+      :class="isSafari ? 'music-jukebox-disc-safari' : ''">
       <img
         ref="discElement"
         class="rotation-animation"
@@ -70,10 +73,30 @@ function playOrPause() {
       border: 6px solid transparent;
       border-radius: 50%;
       background: rgb(255 255 255 / 10%);
+      aspect-ratio: 1 / 1;
       outline: 2px solid rgb(255 255 255 / 15%);
 
       transform: rotate(0deg);
       transition: transform 1s;
+    }
+    &-safari {
+      img {
+        outline: none;
+      }
+      &::before {
+        content: ' ';
+        position: absolute;
+        border-radius: 50%;
+        width: 100%;
+        height: auto;
+        max-width: 512px;
+        max-height: 512px;
+        top: 50%;
+        left: 50%;
+        border: 2px solid rgb(255 255 255 / 15%);
+        transform: translate(-50%, -50%);
+        aspect-ratio: 1 / 1;
+      }
     }
   }
   &-album {
