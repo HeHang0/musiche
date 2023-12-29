@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { usePlayStore } from '../../stores/play';
 import { Ref, nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { clearArray, scrollToElementId } from '../../utils/utils';
+import { clearArray } from '../../utils/utils';
 import { useRouter } from 'vue-router';
 interface Props {
   pure?: boolean;
@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<Props>(), {
 const play = usePlayStore();
 const musicLyric: Ref<string[]> = ref([]);
 const currentLine: Ref<number> = ref(0);
+const lyricContainer: Ref<HTMLDivElement | null> = ref(null);
 const lyricLineIdPrefix = 'lyric-line-';
 const router = useRouter();
 function loadLyric(lines: string[]) {
@@ -22,7 +23,16 @@ function activeLyricLine(index: number, _text: string) {
   if (currentLine.value != index) {
     currentLine.value = index;
     nextTick(() => {
-      scrollToElementId(lyricLineIdPrefix + index, true, true);
+      const ele = document.getElementById(lyricLineIdPrefix + index);
+      if (ele && lyricContainer.value) {
+        lyricContainer.value.scrollTo({
+          top:
+            ele.offsetTop -
+            lyricContainer.value.offsetHeight / 2 +
+            ele.offsetHeight / 2,
+          behavior: 'smooth'
+        });
+      }
     });
   }
 }
@@ -85,7 +95,7 @@ onUnmounted(() => {
       </div>
     </div>
     <div class="music-lyric-content" v-show="musicLyric.length > 0">
-      <div>
+      <div ref="lyricContainer">
         <div class="music-lyric-line">&nbsp;</div>
         <div
           v-for="(line, index) in musicLyric"

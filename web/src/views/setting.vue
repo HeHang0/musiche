@@ -312,7 +312,7 @@ function login(type: MusicType) {
     closeOnClickModal: false,
     message: h(Login, {
       type,
-      qrcode: type != 'qq',
+      qrcode: true, //type != 'qq',
       text,
       onLogon: loginSuccess
     })

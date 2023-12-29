@@ -1,8 +1,13 @@
 import { LyricLine, LyricOptionsKey, Music } from './type';
 import * as api from './api/api';
-import { clearArray, isIOS, parseLyric, webView2Services } from './utils';
+import {
+  clearArray,
+  messageOption,
+  parseLyric,
+  webView2Services
+} from './utils';
 import { musicOperate } from './http';
-import { ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 export type LyricChange = (lines: string[]) => void;
 export type LyricLineChange = (
@@ -11,7 +16,7 @@ export type LyricLineChange = (
   duration?: number
 ) => void;
 
-const devicePixelRatio = Math.max(window.devicePixelRatio || 1, 1.25) * 2;
+const devicePixelRatio = Math.max(window.devicePixelRatio || 1, 1.5) * 2;
 let defaultFont = '';
 export class LyricManager {
   private static lyricOption = {} as Record<LyricOptionsKey, any>;
@@ -311,7 +316,10 @@ export class LyricManager {
                   LyricManager.video?.play();
                 } catch {}
               })
-              .catch(callback);
+              .catch(() => {
+                ElMessage(messageOption('开启桌面歌词失败'));
+                callback && callback();
+              });
           })
           .catch(callback);
       });
@@ -326,6 +334,7 @@ export class LyricManager {
     LyricManager.video.muted = true;
     LyricManager.video.autoplay = true;
     LyricManager.video.controls = false;
+    LyricManager.video.playsInline = true;
     LyricManager.video.width = 300;
     LyricManager.video.height = 60;
     LyricManager.video.srcObject = LyricManager.canvas.captureStream();

@@ -57,7 +57,8 @@ export const isMobile =
     navigator.userAgent
   );
 export const isWindows = /Windows/i.test(navigator.userAgent);
-export const isSafari = /Safari|AppleWebKit/i.test(navigator.userAgent);
+export const isSafari =
+  !isWindows && /Safari|AppleWebKit/i.test(navigator.userAgent);
 
 export function scrollToElementId(
   id: string,
@@ -241,7 +242,26 @@ export function generateGuid() {
   );
 }
 
-const cookieSkipKeys = ['max-age', 'path', 'httponly', 'expires'];
+export function getUuid() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'
+    .replace(/[xy]/g, function (c) {
+      var r = (Math.random() * 16) | 0,
+        v = c == 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    })
+    .toUpperCase();
+}
+
+const cookieSkipKeys = new Set([
+  'max-age',
+  'path',
+  'httponly',
+  'expires',
+  'domain',
+  'path',
+  'secure',
+  'samesite'
+]);
 export function parseCookie(cookie: string): Record<string, string> {
   if (!cookie) cookie = '';
   let cookies = cookie.split(/[;,]/);
@@ -252,8 +272,9 @@ export function parseCookie(cookie: string): Record<string, string> {
     if (kv.length < 2) return;
     let key = kv[0]?.trim() || '';
     let value = kv[1]?.trim() || '';
-    if (key && !cookieSkipKeys.includes(key.toLowerCase()))
-      cookieObj[key] = value;
+    if (key && !cookieSkipKeys.has(key.toLowerCase())) {
+      if (value || !cookieObj[key]) cookieObj[key] = value;
+    }
   });
   return cookieObj;
 }

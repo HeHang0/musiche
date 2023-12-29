@@ -52,7 +52,6 @@ export class AudioPlayer {
 
   mediaMeta(meta: MediaMetadataInit) {
     if (!('mediaSession' in navigator)) return;
-    console.log('哈哈哈', meta);
     navigator.mediaSession.metadata = new MediaMetadata({
       ...meta,
       title: meta.title || document.title

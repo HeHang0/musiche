@@ -1,5 +1,7 @@
 export type MusicType = 'cloud' | 'qq' | 'migu' | 'local';
 
+export type PlayDetailMode = 'default' | 'lyric' | 'polar-bear';
+
 export enum RankingType {
   Hot = 'hot',
   New = 'new',
@@ -55,6 +57,7 @@ export interface Playlist {
   id: string;
   name: string;
   image: string;
+  backgroundImage?: string;
   type: MusicType;
   description?: string;
   musicList?: Music[];

@@ -636,7 +636,6 @@ export async function singerSongs(id: string) {
     }
   });
   let ret = await res.json();
-  console.log('singer songs', ret);
   return null;
 }
 

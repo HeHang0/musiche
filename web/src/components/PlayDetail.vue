@@ -11,6 +11,7 @@ import Footer from './Footer.vue';
 import WindowControls from './WindowControls.vue';
 import DefaultMode from './player/DefaultMode.vue';
 import LyricMode from './player/LyricMode.vue';
+import PolarBearMode from './player/PolarBearMode.vue';
 
 const { beforeResolve } = useRouter();
 const play = usePlayStore();
@@ -30,8 +31,14 @@ if (!popperEle) {
 }
 
 function setThemeColor() {
+  if (play.playerMode == 'polar-bear') {
+    imageThemeStyle.value = `--music-slider-color-start: #ffffff10;--music-slider-color-end: #ffffff80;--el-slider-background-color: #ffffff2e`;
+    popperEle.innerText = `:root{${imageThemeStyle.value}}`;
+    return;
+  }
   play.music.image &&
     new ThemeColor(play.music.image, color => {
+      if (play.playerMode == 'polar-bear') return;
       imageThemeStyle.value = `--music-slider-color-start: ${color.replace(
         ',1)',
         ',0.2)'
@@ -99,6 +106,7 @@ function close() {
   play.playDetailShow = false;
 }
 const unWatch = watch(() => play.music.image, setThemeColor);
+const unWatchPlayerMode = watch(() => play.playerMode, setThemeColor);
 onMounted(() => {
   setThemeColor();
   document.addEventListener('fullscreenchange', checkFullscreen);
@@ -106,6 +114,7 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('fullscreenchange', checkFullscreen);
   unWatch();
+  unWatchPlayerMode();
 });
 beforeResolve(() => {
   if (document.fullscreenElement) {
@@ -156,6 +165,9 @@ beforeResolve(() => {
                 <el-dropdown-item @click="play.changePlayerMode('lyric')"
                   >纯净模式</el-dropdown-item
                 >
+                <el-dropdown-item @click="play.changePlayerMode('polar-bear')"
+                  >北极熊</el-dropdown-item
+                >
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -168,6 +180,7 @@ beforeResolve(() => {
         @mousemove="onMouseMove"
         @touchstart.stop="onTouchStart">
         <LyricMode v-if="play.playerMode == 'lyric'" />
+        <PolarBearMode v-else-if="play.playerMode == 'polar-bear'" />
         <DefaultMode v-else />
       </div>
       <div class="music-play-detail-footer" @mouseenter="setMouseMotion">

@@ -151,7 +151,6 @@ var playQuality: MusicQuality = 'PQ';
 
 export function setDownloadQuality(quality: MusicQuality) {
   downloadQuality = quality;
-  console.log(downloadQuality);
 }
 
 export function setPlayQuality(quality: MusicQuality) {
@@ -195,7 +194,9 @@ export async function daily(): Promise<Playlist | null> {
       now.getMonth() + 1
     }-${now.getDate()}`,
     image:
-      'https://p1.music.126.net/jWE3OEZUlwdz0ARvyQ9wWw==/109951165474121408.jpg?param=200y200',
+      'https://d2.music.126.net/dmusic/obj/w5zCg8OAw6HDjzjDgMK_/4130788701/352d/82fd/3ca7/215e645c39cee3bc72ba9f0520972f39.png',
+    backgroundImage:
+      'https://d1.music.126.net/dmusic/obj/w5zCg8OAw6HDjzjDgMK_/4157354271/5697/762a/99fb/dc1515a2dc6708fe40a5f3b36d987614.png',
     type: musicType
   };
 }

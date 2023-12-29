@@ -17,6 +17,11 @@ const props = withDefaults(defineProps<Props>(), {
       v-for="item in props.list">
       <div class="music-play-list-item">
         <img
+          v-if="item.backgroundImage"
+          class="music-play-list-item-image"
+          style="position: absolute"
+          :src="item.backgroundImage" />
+        <img
           class="music-play-list-item-image"
           :src="item.image || LogoImage" />
         <div

@@ -1,7 +1,13 @@
 import { defineStore } from 'pinia';
 import { ElMessage } from 'element-plus';
 import * as api from '../utils/api/api';
-import { Music, PlayStatus, Playlist, SortType } from '../utils/type';
+import {
+  Music,
+  PlayDetailMode,
+  PlayStatus,
+  Playlist,
+  SortType
+} from '../utils/type';
 import { musicOperate } from '../utils/http';
 import { StorageKey, storage } from '../utils/storage';
 import {
@@ -38,7 +44,7 @@ export const usePlayStore = defineStore('play', {
       playDetailShow: false,
       selectPlaylistShow: false,
       desktopLyricShow: false,
-      playerMode: '',
+      playerMode: 'default' as PlayDetailMode,
       playStatus: {
         currentTime: '00:00',
         loading: false,
@@ -521,7 +527,7 @@ export const usePlayStore = defineStore('play', {
         } as MediaMetadataInit)
       );
     },
-    changePlayerMode(mode: string) {
+    changePlayerMode(mode: PlayDetailMode) {
       this.playerMode = mode;
       storage.setValue(StorageKey.PlayerMode, mode);
     },
@@ -541,7 +547,8 @@ export const usePlayStore = defineStore('play', {
       );
       this.sortType =
         (await storage.getValue(StorageKey.SortType)) || SortType.Loop;
-      this.playerMode = (await storage.getValue(StorageKey.PlayerMode)) || '';
+      this.playerMode =
+        (await storage.getValue(StorageKey.PlayerMode)) || 'default';
       this.playStatus.volumeCache = await storage.getValue(
         StorageKey.VolumeCache
       );
