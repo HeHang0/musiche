@@ -29,6 +29,9 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+
       - name: Build
         run: |
           powershell
@@ -41,9 +44,12 @@ jobs:
           mv ..\web\web.zip Resources\web.zip
           msbuild Musiche.sln -t:"Restore;Build" /p:Configuration=Release /p:Platform="Any CPU"
           msbuild Musiche.sln -t:"Restore;Build;Publish" /p:Configuration=Release /p:Platform="Any CPU" /p:PublishProfile="Properties\PublishProfiles\net6.0.pubxml" /p:TargetFramework=net6.0-windows
+          cd ..\mobile
+          flutter build apk --release
           cd ..
-          copy windows\bin\Release\net472\Musiche.exe web\dist\Musiche.exe
-          copy windows\bin\Publish\net6.0-windows\Musiche.exe web\dist\Musiche.net6.exe
+          copy windows\bin\Release\net472\Musiche.exe web\dist\Musiche.exe -ErrorAction SilentlyContinue
+          copy windows\bin\Publish\net6.0-windows\Musiche.exe web\dist\Musiche.net6.exe -ErrorAction SilentlyContinue
+          copy mobile\build\app\outputs\flutter-apk\app-release.apk web\dist\Musiche.apk -ErrorAction SilentlyContinue
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
@@ -58,6 +64,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
+            windows\Resources\web.zip
             web\dist\Musiche.exe
             web\dist\Musiche.net6.exe
-            windows\Resources\web.zip
+            web\dist\Musiche.apk
