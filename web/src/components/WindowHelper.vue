@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import { webView2Services } from '../utils/utils';
+import { isWindows, webView2Services } from '../utils/utils';
 function startResize(direction: number, e?: MouseEvent) {
   if (e && e.button == 0 && e.buttons == 1)
     webView2Services.specialService?.ResizeWindow(direction);
 }
 </script>
 <template>
-  <div v-if="webView2Services.enabled" class="music-window-helper">
+  <div v-if="isWindows && webView2Services.enabled" class="music-window-helper">
     <div
       class="music-window-helper-drag"
       style="-webkit-app-region: drag"></div>

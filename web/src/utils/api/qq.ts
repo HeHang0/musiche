@@ -586,6 +586,7 @@ export async function downloadUrl(
   _quality?: MusicQuality,
   audition?: boolean
 ): Promise<string> {
+  if (!_quality) _quality = downloadQuality;
   var res = await httpProxy({
     url: 'https://u.y.qq.com/cgi-bin/musicu.fcg',
     method: 'POST',

@@ -132,9 +132,17 @@ async function syncLocalMusicBackend() {
       true
     );
     if (musicFilesText) {
-      pathToMusic(JSON.parse(musicFilesText)).forEach(m =>
-        musicListAll.push(m)
-      );
+      pathToMusic(JSON.parse(musicFilesText)).forEach(m => {
+        const filePath = m.url || m.id;
+        if (
+          filePath &&
+          !musicListAll.find(
+            item => item.url == filePath || item.id == filePath
+          )
+        ) {
+          musicListAll.push(m);
+        }
+      });
     }
   }
 }
@@ -172,7 +180,23 @@ async function loadMusicList(key: string) {
     });
   }
 }
-onMounted(syncLocalMusic);
+
+async function initMusic() {
+  if (setting.localDirectories.length === 0 && webView2Services.enabled) {
+    const myMusic = await webView2Services.fileAccessor!.GetMyMusicDirectory();
+    if (myMusic) {
+      setting.localDirectories.push({
+        name: '我的音乐',
+        path: myMusic,
+        selected: true
+      });
+    }
+  }
+}
+
+onMounted(async () => {
+  initMusic().then(syncLocalMusic);
+});
 </script>
 
 <template>
@@ -191,7 +215,7 @@ onMounted(syncLocalMusic);
           选择目录<span class="music-icon">右</span>
         </span>
       </div>
-      <div>
+      <div class="music-local-header-operate">
         <span>
           <el-button-group>
             <el-button
@@ -199,7 +223,7 @@ onMounted(syncLocalMusic);
               :disabled="loading || musicList.length === 0"
               @click="play.play(undefined, musicList)">
               <span class="music-icon">播</span>
-              播放
+              <span class="music-local-header-button-text">播放</span>
             </el-button>
             <el-button
               type="primary"
@@ -212,20 +236,22 @@ onMounted(syncLocalMusic);
               <span class="music-icon">添</span>
             </el-button>
           </el-button-group>
-          <el-button
-            type="info"
-            :disabled="loading || musicList.length === 0"
-            @click="play.beforeAddMyPlaylistsMusic(musicList)">
-            <span class="music-icon">收</span>
-            收藏
-          </el-button>
-          <el-button
-            type="info"
-            :disabled="loading"
-            :icon="Refresh"
-            title="同步本地音乐"
-            @click="syncLocalMusic">
-          </el-button>
+          <span>
+            <el-button
+              type="info"
+              :disabled="loading || musicList.length === 0"
+              @click="play.beforeAddMyPlaylistsMusic(musicList)">
+              <span class="music-icon">收</span>
+              <span class="music-local-header-button-text">收藏</span>
+            </el-button>
+            <el-button
+              type="info"
+              :disabled="loading"
+              :icon="Refresh"
+              title="同步本地音乐"
+              @click="syncLocalMusic">
+            </el-button>
+          </span>
         </span>
         <el-input
           class="music-local-header-search"
@@ -308,6 +334,21 @@ onMounted(syncLocalMusic);
       opacity: 0.8;
       .music-icon {
         font-size: 14px;
+      }
+    }
+    .el-button-group {
+      margin-right: var(--music-button-margin);
+    }
+    @media (max-width: 520px) {
+      --music-button-margin: 8px;
+      .music-local-header-button-text {
+        display: none;
+      }
+      .music-icon {
+        margin-right: 0;
+      }
+      .el-button {
+        padding: 8px 10px;
       }
     }
     &-search {

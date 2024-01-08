@@ -4,6 +4,7 @@ import {
   type RouteRecordRaw
 } from 'vue-router';
 import Recommend from '../views/recommend.vue';
+import { webView2Services } from '../utils/utils';
 
 const routers: RouteRecordRaw[] = [
   {
@@ -77,7 +78,8 @@ const routers: RouteRecordRaw[] = [
     meta: {
       key: 'local',
       icon: '乐',
-      show: Boolean((window as any).showDirectoryPicker)
+      show:
+        webView2Services.enabled || Boolean((window as any).showDirectoryPicker)
     },
     component: () => import(`../views/local.vue`)
   },

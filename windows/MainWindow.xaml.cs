@@ -10,8 +10,11 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Timers;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Threading;
+using Timer = System.Timers.Timer;
 
 namespace Musiche
 {
@@ -22,31 +25,51 @@ namespace Musiche
     {
         //readonly Webview2Control webview2;
         readonly AudioPlay audioPlay;
+        readonly MediaMetaManager mediaMetaManager;
         readonly TaskbarInfo taskbarInfo;
         WebServer webServer;
         readonly WebSocketHandler webSocketHandler;
         readonly HttpHandler httpHandler;
         readonly NotifyIconInfo notifyIcon;
+        readonly Timer positionTimer;
         Stream logStream = null;
         Hotkey.Hotkey hotkey = null;
         LyricWindow lyricWindow;
         private bool dark = false;
+
         public MainWindow()
         {
             InitializeComponent();
             audioPlay = new AudioPlay();
+            mediaMetaManager = new MediaMetaManager();
             InitWebview2();
             WindowState = WindowState.Minimized;
             webSocketHandler = new WebSocketHandler(this, audioPlay);
-            httpHandler = new HttpHandler(this, audioPlay);
+            httpHandler = new HttpHandler(this, audioPlay, mediaMetaManager);
             StateChanged += MainWindow_StateChanged;
             Closing += MainWindow_Closing;
             SourceInitialized += MainWindow_SourceInitialized;
             audioPlay.PlatStateChanged += AudioPlay_PlatStateChanged;
+            audioPlay.AudioInitialized += AudioPlay_AudioInitialized;
             taskbarInfo = new TaskbarInfo(webSocketHandler);
             notifyIcon = new NotifyIconInfo(webSocketHandler, ShowApp, ExitApp);
             TaskbarItemInfo = taskbarInfo.TaskbarItemInfo;
             AppDomain.CurrentDomain.UnhandledException += UnhandledException;
+            if(MediaMetaManager.Supported)
+            {
+                positionTimer = new Timer();
+                positionTimer.Interval = 1000;
+                positionTimer.AutoReset = true;
+                positionTimer.Enabled = true;
+                positionTimer.Elapsed += UpdateAudioPosition;
+                positionTimer.Stop();
+                mediaMetaManager.AudioStatusChanged += OnAudioStatusChanged;
+            }
+        }
+
+        private void UpdateAudioPosition(object sender, ElapsedEventArgs e)
+        {
+            mediaMetaManager.UpdateMediaControlPosition(audioPlay.CurrentTimeSpan);
         }
 
         private void UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -56,10 +79,25 @@ namespace Musiche
 
         private void AudioPlay_PlatStateChanged(object sender, NAudio.Wave.PlaybackState state)
         {
+            mediaMetaManager.SetMediaControlPlayState(state);
             bool playing = state == NAudio.Wave.PlaybackState.Playing;
             notifyIcon?.AudioPlayStateChanged(playing);
             taskbarInfo?.AudioPlayStateChanged(playing);
             lyricWindow?.AudioPlayStateChanged(playing);
+            if(MediaMetaManager.Supported)
+            {
+                if (playing) positionTimer?.Start();
+                else positionTimer?.Stop();
+            }
+            if(state == NAudio.Wave.PlaybackState.Stopped)
+            {
+                webSocketHandler.SendMessage("{\"type\": \"next\",\"data\": \"true\"}");
+            }
+        }
+
+        private void AudioPlay_AudioInitialized(object sender, TimeSpan totalTime)
+        {
+            mediaMetaManager.UpdateMediaControlTimeline(audioPlay.CurrentTimeSpan, totalTime);
         }
 
         private void MainWindow_SourceInitialized(object sender, EventArgs e)
@@ -87,6 +125,11 @@ namespace Musiche
         public bool RemoveHotkey(string shortcutType)
         {
             return hotkey?.Remove(shortcutType) ?? false;
+        }
+
+        private void OnAudioStatusChanged(object sender, string message)
+        {
+            webSocketHandler.SendMessage("{\"type\": \"" + message + "\"}");
         }
 
         private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -224,6 +267,7 @@ namespace Musiche
                 preferredColorScheme = (CoreWebView2PreferredColorScheme)Enum.ToObject(typeof(CoreWebView2PreferredColorScheme), preferredColorSchemeNumber);
                 dark = preferredColorScheme == CoreWebView2PreferredColorScheme.Dark;
             }
+            notifyIcon.SetTheme(dark);
             webview2.SetTheme(preferredColorScheme);
             lyricWindow?.SetTheme(dark);
             var windowHandle = new WindowInteropHelper(this).EnsureHandle();

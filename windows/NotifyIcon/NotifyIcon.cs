@@ -10,7 +10,7 @@ namespace Musiche.NotifyIcon
     {
         private readonly System.Windows.Forms.NotifyIcon notifyIcon;
         private readonly ToolStripRenderer _toolStripRenderer;
-
+        public event EventHandler LeftClick;
         public NotifyIcon(ToolStripRenderer toolStripRenderer = null)
         {
             _toolStripRenderer = toolStripRenderer ?? new ModernToolStripRenderer();
@@ -19,14 +19,16 @@ namespace Musiche.NotifyIcon
             {
                 Visible = true
             };
-            UpdateStyle();
+            notifyIcon.MouseClick += OnMouseClick;
             ProcessContextMenuStrip();
-            ThemeListener.ThemeChanged += OnThemeChanged;
         }
 
-        private void OnThemeChanged(bool isDark)
+        private void OnMouseClick(object sender, MouseEventArgs e)
         {
-            UpdateStyle();
+            if(e.Button == MouseButtons.Left)
+            {
+                LeftClick?.Invoke(this, e);
+            }
         }
 
         public void AddMenu(IEnumerable<ToolStripItem> menuItems)
@@ -40,7 +42,6 @@ namespace Musiche.NotifyIcon
             {
                 notifyIcon.ContextMenuStrip.Items.Add(menuItem);
             }
-            UpdateStyle();
         }
 
         private void ProcessContextMenuStrip()
@@ -90,11 +91,10 @@ namespace Musiche.NotifyIcon
             }
         }
 
-        public void UpdateStyle()
+        public void UpdateStyle(bool dark)
         {
             if (notifyIcon.ContextMenuStrip == null) return;
             Bitmap _defaultBitmap = new Bitmap(1, 1);
-            var dark = ThemeListener.IsDarkMode;
             var backColor = dark ? Color.FromArgb(0x2B, 0x2B, 0x2B) : Color.White;
             var foreColor = dark ? Color.FromArgb(0xFF, 0xFF, 0xFF) : Color.FromArgb(0, 0, 0);
             foreach (ToolStripItem item in notifyIcon.ContextMenuStrip.Items)

@@ -41,6 +41,56 @@ try {
   )?.chrome?.webview?.hostObjects?.fileAccessor;
   webView2Services.enabled = !!webView2Services.specialService;
 } catch (error) {}
+let callHandler: ((handlerName: string, ...args: any[]) => any) | undefined =
+  void 0;
+window.addEventListener('flutterInAppWebViewPlatformReady', () => {
+  callHandler = (window as any).flutter_inappwebview.callHandler;
+});
+try {
+  if ('flutter_inappwebview' in window) {
+    webView2Services.enabled = true;
+    webView2Services.specialService = {
+      MouseDownDrag: () => {},
+      ResizeWindow: (_direction: number) => {},
+      ReleaseMouse: () => {}
+    };
+    if ((window as any).flutter_inappwebview.callHandler) {
+      callHandler = (window as any).flutter_inappwebview.callHandler;
+    }
+    webView2Services.fileAccessor = {
+      ReadFile: (path: string) =>
+        callHandler ? callHandler('readFile', path) : Promise.resolve(''),
+      WriteFile: (path: string, text: string) =>
+        callHandler ? callHandler('writeFile', path, text) : Promise.resolve(),
+      DeleteFile: (path: string) =>
+        callHandler ? callHandler('deleteFile', path) : Promise.resolve(),
+      FileExists: (path: string) =>
+        callHandler ? callHandler('fileExists', path) : Promise.resolve(false),
+      ShowSelectedDirectory: () =>
+        callHandler
+          ? callHandler('showSelectedDirectory')
+          : Promise.resolve([]),
+      GetMyMusicDirectory: () =>
+        callHandler ? callHandler('getMyMusicDirectory') : Promise.resolve(''),
+      ListAllFiles: (path: string, recursive: boolean, onlyAudio: boolean) =>
+        callHandler
+          ? callHandler('listAllFiles', path, recursive, onlyAudio)
+          : Promise.resolve([]),
+      ListAllAudios: (path: string, recursive: boolean) =>
+        callHandler
+          ? callHandler('listAllAudios', path, recursive)
+          : Promise.resolve('')
+    };
+  } else {
+    webView2Services.specialService = (
+      window as any
+    )?.chrome?.webview?.hostObjects?.sync.specialService;
+    webView2Services.fileAccessor = (
+      window as any
+    )?.chrome?.webview?.hostObjects?.fileAccessor;
+    webView2Services.enabled = !!webView2Services.specialService;
+  }
+} catch (error) {}
 
 export const isInStandaloneMode = Boolean(
   ('standalone' in window.navigator && window.navigator.standalone) ||
@@ -52,13 +102,16 @@ export const isIOS = !!(
     navigator.maxTouchPoints &&
     navigator.maxTouchPoints > 2)
 );
+export const isAndroid = /Android/i.test(navigator.userAgent);
+export const isWindows = /Windows/i.test(navigator.userAgent);
 export const isMobile =
+  !isWindows &&
   /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent
   );
-export const isWindows = /Windows/i.test(navigator.userAgent);
+console.log('是', isWindows, isMobile);
 export const isSafari =
-  !isWindows && /Safari|AppleWebKit/i.test(navigator.userAgent);
+  !isWindows && !isAndroid && /Safari|AppleWebKit/i.test(navigator.userAgent);
 
 export function scrollToElementId(
   id: string,
@@ -391,6 +444,21 @@ export async function imageToDataUrl(
   return dataUrl;
 }
 
+export function dataURLtoBlob(dataUrl: string) {
+  var arr = dataUrl.split(',');
+  if (arr == null) return null;
+  const match = arr[0]?.match(/:(.*?);/);
+  if (match == null) return null;
+  const mime = match[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new Blob([u8arr], { type: mime });
+}
+
 export function messageOption(message: string, html?: boolean): MessageParams {
   return {
     message: message,
@@ -442,7 +510,7 @@ export async function getImageFile(): Promise<File | null> {
     });
     clearTimeout(timeout);
     input.remove();
-    return (event.target.files && event.target.files[0]) || '';
+    return (event && event.target.files && event.target.files[0]) || '';
   }
 }
 

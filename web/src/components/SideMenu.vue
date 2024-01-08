@@ -194,7 +194,7 @@ function toHome() {
 </template>
 <style lang="less" scoped>
 .music-aside {
-  --safe-area-left: calc(env(safe-area-inset-left, 0) / 1.5);
+  --safe-area-left: calc(var(--sal) / 1.5);
   width: 205px;
   background-color: var(--music-side-background);
   padding-left: var(--safe-area-left);
@@ -378,7 +378,7 @@ function toHome() {
   .music-aside {
     width: 50px;
     &-title {
-      padding: env(safe-area-inset-top, 20px) 0 0 5px;
+      padding: max(var(--sat), 20px) 0 0 5px;
       &-logo {
         width: 40px;
         height: 40px;

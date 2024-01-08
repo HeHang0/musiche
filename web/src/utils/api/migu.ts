@@ -636,7 +636,7 @@ export async function singerSongs(id: string) {
     }
   });
   let ret = await res.json();
-  return null;
+  return ret;
 }
 
 export async function lyric(music: Music): Promise<string> {

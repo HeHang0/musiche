@@ -1,6 +1,6 @@
 export type MusicType = 'cloud' | 'qq' | 'migu' | 'local';
 
-export type PlayDetailMode = 'default' | 'lyric' | 'polar-bear';
+export type PlayDetailMode = 'default' | 'lyric' | 'polar-bear' | 'colorful';
 
 export enum RankingType {
   Hot = 'hot',
@@ -94,6 +94,7 @@ export interface AppTheme {
   name?: string;
   image?: string;
   color?: string;
+  objectURL?: string;
 }
 
 export interface ProxyRequestData {
@@ -118,7 +119,14 @@ export interface WindowInfo {
   maximized: boolean;
 }
 
-export type ShortcutType = 'play' | 'last' | 'next' | 'plus' | 'minus' | 'love';
+export type ShortcutType =
+  | 'play'
+  | 'last'
+  | 'next'
+  | 'plus'
+  | 'minus'
+  | 'love'
+  | 'lover';
 
 export interface ShortcutKey {
   ctrlKey?: boolean;

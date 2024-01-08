@@ -5,7 +5,7 @@ import { Search } from '@element-plus/icons-vue';
 
 import { useSettingStore } from '../stores/setting';
 import { MusicType } from '../utils/type';
-import { webView2Services } from '../utils/utils';
+import { isWindows, webView2Services } from '../utils/utils';
 
 import MusicTypeEle from './MusicType.vue';
 import WindowControls from './WindowControls.vue';
@@ -73,13 +73,13 @@ onUnmounted(unWatch);
       <span class="music-icon" @click="push('/setting')" title="设置">
         设
       </span>
-      <WindowControls v-if="webView2Services.enabled" />
+      <WindowControls v-if="isWindows && webView2Services.enabled" />
     </div>
   </el-header>
 </template>
 <style lang="less" scoped>
 .music-header {
-  height: calc(80px + env(safe-area-inset-top, 0));
+  height: calc(80px + var(--sat));
   transition: padding 0.5s;
   --el-header-height: 80px;
   --el-header-padding: 0;
@@ -87,7 +87,7 @@ onUnmounted(unWatch);
   align-content: center;
   justify-content: space-between;
   align-items: center;
-  padding-top: env(safe-area-inset-top, 10px);
+  padding-top: var(--sat, 10px);
   padding-left: var(--music-page-padding-horizontal);
   padding-right: var(--music-page-padding-horizontal);
 

@@ -4,14 +4,17 @@ import { useRouter } from 'vue-router';
 import { useThrottleFn } from '@vueuse/core';
 
 import { usePlayStore } from '../stores/play';
-import { ThemeColor } from '../utils/color';
-import { webView2Services } from '../utils/utils';
+import { ThemeColorManager } from '../utils/color';
+import { isMobile, isWindows, webView2Services } from '../utils/utils';
 
 import Footer from './Footer.vue';
 import WindowControls from './WindowControls.vue';
 import DefaultMode from './player/DefaultMode.vue';
 import LyricMode from './player/LyricMode.vue';
 import PolarBearMode from './player/PolarBearMode.vue';
+import ColorfulMode from './player/ColorfulMode.vue';
+import { updateTheme } from '../utils/http';
+import { PlayDetailMode } from '../utils/type';
 
 const { beforeResolve } = useRouter();
 const play = usePlayStore();
@@ -20,6 +23,7 @@ const imageThemeStyle: Ref<string> = ref('');
 const fullscreen: Ref<boolean> = ref(Boolean(document.fullscreenElement));
 const mouseStillness: Ref<boolean> = ref(false);
 const onMouseMove = useThrottleFn(checkMouseStillness, 200);
+let colorDark = document.documentElement.className.includes('dark');
 let popperEle: HTMLStyleElement = document.getElementById(
   'music-play-detail-header-mode-dropdown'
 ) as HTMLStyleElement;
@@ -29,22 +33,24 @@ if (!popperEle) {
   popperEle.innerText = `:root{--music-slider-color-start: var(--music-button-background-hover);--music-slider-color-end: var(--music-background);}`;
   document.head.appendChild(popperEle);
 }
-
+const whiteThemeMode: Set<PlayDetailMode> = new Set(['polar-bear', 'colorful']);
 function setThemeColor() {
-  if (play.playerMode == 'polar-bear') {
-    imageThemeStyle.value = `--music-slider-color-start: #ffffff10;--music-slider-color-end: #ffffff80;--el-slider-background-color: #ffffff2e`;
+  if (whiteThemeMode.has(play.playerMode)) {
+    imageThemeStyle.value = `--music-slider-color-start: #ffffff10;--music-slider-color-end: #ffffff80;--el-slider-full-background-color: #ffffff2e;--music-full-slider-color: #ffffff80`;
     popperEle.innerText = `:root{${imageThemeStyle.value}}`;
+    setTheme();
     return;
   }
-  play.music.image &&
-    new ThemeColor(play.music.image, color => {
-      if (play.playerMode == 'polar-bear') return;
-      imageThemeStyle.value = `--music-slider-color-start: ${color.replace(
-        ',1)',
-        ',0.2)'
-      )};--music-slider-color-end: ${color}`;
-      popperEle.innerText = `:root{${imageThemeStyle.value}}`;
-    });
+  ThemeColorManager.getThemeColor(play.music.image).then(c => {
+    if (c == null) return;
+    colorDark = c.dark;
+    if (whiteThemeMode.has(play.playerMode)) return;
+    const colorStart = `rgba(${c.red},${c.green},${c.blue},0.2)`;
+    const colorEnd = `rgba(${c.red},${c.green},${c.blue},1)`;
+    imageThemeStyle.value = `--music-slider-color-start: ${colorStart};--music-slider-color-end: ${colorEnd}`;
+    popperEle.innerText = `:root{${imageThemeStyle.value}}`;
+    updateTheme(colorDark ? 2 : 1);
+  });
 }
 const canFullScreen = Boolean(
   document.body.requestFullscreen ||
@@ -105,6 +111,17 @@ function close() {
   }
   play.playDetailShow = false;
 }
+function setTheme() {
+  if (play.playDetailShow && whiteThemeMode.has(play.playerMode)) {
+    setTimeout(() => {
+      updateTheme(2);
+    }, 200);
+  } else if (!play.playDetailShow) {
+    updateTheme(document.documentElement.className.includes('dark') ? 2 : 1);
+  } else {
+    updateTheme(colorDark ? 2 : 1);
+  }
+}
 const unWatch = watch(() => play.music.image, setThemeColor);
 const unWatchPlayerMode = watch(() => play.playerMode, setThemeColor);
 onMounted(() => {
@@ -122,6 +139,8 @@ beforeResolve(() => {
   }
   if (play.playDetailShow) play.playDetailShow = false;
 });
+
+watch(() => play.playDetailShow, setTheme);
 </script>
 
 <template>
@@ -133,11 +152,11 @@ beforeResolve(() => {
     <div
       class="music-play-detail-layout"
       ref="pageElement"
-      @mouseleave="checkMouseStillness"
+      @mouseleave="!isMobile ? checkMouseStillness : void 0"
       :style="imageThemeStyle">
       <div
         class="music-play-detail-header"
-        @mouseenter="setMouseMotion"
+        @mouseenter="!isMobile ? setMouseMotion : void 0"
         :style="mouseStillness ? 'opacity:0' : ''">
         <span>
           <el-button class="music-button-pure music-icon" @click="close"
@@ -159,28 +178,36 @@ beforeResolve(() => {
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="play.changePlayerMode('default')"
-                  >默认模式</el-dropdown-item
-                >
-                <el-dropdown-item @click="play.changePlayerMode('lyric')"
-                  >纯净模式</el-dropdown-item
-                >
-                <el-dropdown-item @click="play.changePlayerMode('polar-bear')"
-                  >北极熊</el-dropdown-item
-                >
+                <el-dropdown-item @click="play.changePlayerMode('default')">
+                  默认模式
+                </el-dropdown-item>
+                <el-dropdown-item @click="play.changePlayerMode('lyric')">
+                  纯净模式
+                </el-dropdown-item>
+                <el-dropdown-item @click="play.changePlayerMode('polar-bear')">
+                  极地小熊
+                </el-dropdown-item>
+                <el-dropdown-item @click="play.changePlayerMode('colorful')">
+                  多彩心情
+                </el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-          <WindowControls v-if="webView2Services.enabled" />
+          <WindowControls v-if="isWindows && webView2Services.enabled" />
         </div>
       </div>
       <div
         class="music-play-detail-body"
         :class="mouseStillness ? '' : 'music-play-detail-body-short'"
-        @mousemove="onMouseMove"
+        @mousemove="!isMobile ? onMouseMove : void 0"
         @touchstart.stop="onTouchStart">
         <LyricMode v-if="play.playerMode == 'lyric'" />
-        <PolarBearMode v-else-if="play.playerMode == 'polar-bear'" />
+        <PolarBearMode
+          :tools="!mouseStillness"
+          v-else-if="play.playerMode == 'polar-bear'" />
+        <ColorfulMode
+          :tools="!mouseStillness"
+          v-else-if="play.playerMode == 'colorful'" />
         <DefaultMode v-else />
       </div>
       <div class="music-play-detail-footer" @mouseenter="setMouseMotion">
@@ -213,7 +240,7 @@ beforeResolve(() => {
     --el-dropdown-menu-box-shadow: transparent;
     --el-dropdown-menuItem-hover-fill: transparent;
     --el-dropdown-menuItem-hover-color: transparent;
-    padding: env(safe-area-inset-top, 0) var(--music-page-padding-horizontal) 0
+    padding: var(--sat) var(--music-page-padding-horizontal) 0
       var(--music-page-padding-horizontal);
     .music-button-pure {
       width: 35px;
@@ -232,9 +259,6 @@ beforeResolve(() => {
     &-right {
       display: flex;
     }
-    .music-window-controls {
-      margin-left: 10px;
-    }
   }
   &-body {
     z-index: 1;
@@ -252,23 +276,17 @@ beforeResolve(() => {
   }
 }
 
-@media (max-height: 800px) and (orientation: landscape) {
+@media (max-height: 650px) and (orientation: landscape) {
   .music-play-detail {
     &-body {
       position: absolute;
       top: 0;
       bottom: 0;
       height: 100%;
-      padding-top: max(env(safe-area-inset-top, 0), 30px);
-      padding-right: env(
-        safe-area-inset-right,
-        var(--music-page-padding-horizontal)
-      );
-      padding-bottom: env(safe-area-inset-bottom, 20px);
-      padding-left: env(
-        safe-area-inset-left,
-        var(--music-page-padding-horizontal)
-      );
+      padding-top: var(--sat, 30px);
+      padding-right: var(--sar, var(--music-page-padding-horizontal));
+      padding-bottom: var(--sat, 20px);
+      padding-left: var(--sal, var(--music-page-padding-horizontal));
       :deep(.music-lyric) {
         transition: padding 0.5s;
       }

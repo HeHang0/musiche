@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ElMessage } from 'element-plus';
-import { musicOperate } from '../utils/http';
+import { musicOperate, updateTheme } from '../utils/http';
 import {
   CloseType,
   ShortcutType,
@@ -15,8 +15,11 @@ import {
 import { StorageKey, storage } from '../utils/storage';
 import * as api from '../utils/api/api';
 import {
+  dataURLtoBlob,
+  isAndroid,
   isInStandaloneMode,
   isIOS,
+  isWindows,
   messageOption,
   webView2Services
 } from '../utils/utils';
@@ -230,10 +233,14 @@ export const useSettingStore = defineStore('setting', {
     minimize() {
       musicOperate('/minimize');
     },
-    autoAppThemeChanged(noSave?: boolean) {
+    autoAppThemeChanged(noSave?: boolean, appTheme?: AppTheme) {
       if (this.autoAppTheme) {
         darkModeMediaQuery.addEventListener('change', this.handleThemeChange);
-        this.handleThemeChange();
+        if (isAndroid && webView2Services.enabled) {
+          this.setAppTheme(appTheme);
+        } else {
+          this.handleThemeChange();
+        }
       } else {
         darkModeMediaQuery.removeEventListener(
           'change',
@@ -248,14 +255,24 @@ export const useSettingStore = defineStore('setting', {
     handleThemeChange() {
       this.setAppTheme({ id: darkModeMediaQuery.matches ? 'dark' : '' });
     },
+    updateDarkMode(dark: boolean) {
+      if (!this.autoAppTheme) return;
+      const id = dark ? 'dark' : '';
+      if (this.appTheme.id == id) return;
+      this.setAppTheme({ id: id });
+    },
     setAppTheme(appTheme?: AppTheme) {
       let preferredColorScheme = 0;
       const dark = appTheme?.id.includes('dark');
-      if (!this.autoAppTheme) {
+      if (!this.autoAppTheme || !isWindows || !webView2Services.enabled) {
         preferredColorScheme = dark ? 2 : 1;
       }
       this.appTheme.id = appTheme?.id || '';
       this.appTheme.color = appTheme?.color || '';
+      this.appTheme.objectURL =
+        this.appTheme.id == this.customTheme.id
+          ? this.customTheme.objectURL
+          : '';
       this.appTheme.image =
         this.appTheme.id == this.customTheme.id ? this.customTheme.image : '';
       document.documentElement.className = this.appTheme.id;
@@ -266,12 +283,19 @@ export const useSettingStore = defineStore('setting', {
       if (themeColor) {
         themeColor.content = dark ? '#13131a' : '#f7f7f7';
       }
-      musicOperate('/theme?theme=' + preferredColorScheme);
+      updateTheme(preferredColorScheme);
     },
     setCustomTheme(appTheme?: AppTheme) {
       this.customTheme.id = appTheme?.id || 'custom ';
       this.customTheme.image = appTheme?.image || '';
       this.customTheme.name = '自定义';
+      if (this.customTheme.objectURL) {
+        URL.revokeObjectURL(this.customTheme.image);
+      }
+      if (this.customTheme.image) {
+        var blob = dataURLtoBlob(this.customTheme.image);
+        if (blob) this.customTheme.objectURL = URL.createObjectURL(blob);
+      }
       storage.setValue(StorageKey.CustomTheme, this.customTheme);
     },
     setLyricOptions() {
@@ -505,7 +529,10 @@ export const useSettingStore = defineStore('setting', {
         await storage.getValue(StorageKey.AutoAppTheme)
       );
       if (this.autoAppTheme) {
-        this.autoAppThemeChanged(true);
+        this.autoAppThemeChanged(
+          true,
+          await storage.getValue(StorageKey.AppTheme)
+        );
       } else {
         this.setAppTheme(await storage.getValue(StorageKey.AppTheme));
       }
@@ -583,17 +610,6 @@ export const useSettingStore = defineStore('setting', {
       );
       if (Array.isArray(localDirectories)) {
         this.localDirectories.splice(0, 0, ...localDirectories);
-      }
-      if (this.localDirectories.length === 0 && webView2Services.enabled) {
-        const myMusic =
-          await webView2Services.fileAccessor!.GetMyMusicDirectory();
-        if (myMusic) {
-          this.localDirectories.push({
-            name: '我的音乐',
-            path: myMusic,
-            selected: true
-          });
-        }
       }
       this.setFadeIn(this.pageValue.fadeIn, true);
       this.setGpuAcceleration(this.pageValue.gpuAcceleration, true);

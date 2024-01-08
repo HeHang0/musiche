@@ -10,7 +10,7 @@ import CloudMusicImage from '../assets/images/cloud-music.webp';
 import QQMusicImage from '../assets/images/qq-music.png';
 import MiguMusicImage from '../assets/images/migu-music.webp';
 import { useSettingStore } from '../stores/setting';
-import { messageOption, webView2Services } from '../utils/utils';
+import { isMobile, messageOption, webView2Services } from '../utils/utils';
 import { ElMessage } from 'element-plus';
 interface Props {
   list: Music[];
@@ -26,6 +26,9 @@ const props = withDefaults(defineProps<Props>(), {
 });
 const router = useRouter();
 function toSinger(music: Music) {
+  if (window.matchMedia('(orientation: portrait)').matches) {
+    return;
+  }
   if (music.type && music.singer) {
     router.push(`/search/${music.type}/${encodeURIComponent(music.singer)}`);
   }
@@ -66,7 +69,7 @@ function deleteFromList() {
 async function downloadMusic(music: Music) {
   if (!music && !selectedMusic) return;
   const url = await api.downloadUrl(music);
-  if (url && !webView2Services.enabled) {
+  if (url && (!webView2Services.enabled || isMobile)) {
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
     downloadLink.download = `${music.name} - ${music.singer}.mp3`;
@@ -153,9 +156,9 @@ function openMenu(music: Music, e: any) {
           ? 'music-list-item-is-play'
           : ''
       "
-      @contextmenu.stop="openMenu(item, $event)"
+      @contextmenu.stop="!isMobile && openMenu(item, $event)"
       @dblclick="
-        !props.single
+        !props.single && !isMobile
           ? play.play(
               item,
               setting.pageValue.onlyAddMusicListAtDbClick

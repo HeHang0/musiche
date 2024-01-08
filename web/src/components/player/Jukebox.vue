@@ -2,7 +2,6 @@
 import { Ref, ref } from 'vue';
 import { usePlayStore } from '../../stores/play';
 import { LogoImage } from '../../utils/logo';
-import { isSafari } from '../../utils/utils';
 const play = usePlayStore();
 const discElement: Ref<HTMLImageElement | null> = ref(null);
 let touching = false;
@@ -27,9 +26,7 @@ function playOrPause() {
 </script>
 <template>
   <div class="music-jukebox">
-    <div
-      class="music-jukebox-disc"
-      :class="isSafari ? 'music-jukebox-disc-safari' : ''">
+    <div class="music-jukebox-disc">
       <img
         ref="discElement"
         class="rotation-animation"
@@ -40,7 +37,12 @@ function playOrPause() {
       <img
         class="rotation-animation"
         :class="play.playStatus.playing ? 'rotation-animation-running' : ''"
-        :src="play.music.image || LogoImage" />
+        :src="
+          play.music.largeImage ||
+          play.music.mediumImage ||
+          play.music.image ||
+          LogoImage
+        " />
     </div>
     <div class="music-jukebox-stylus">
       <img
@@ -70,33 +72,13 @@ function playOrPause() {
     img {
       max-width: 100%;
       max-height: 100%;
-      border: 6px solid transparent;
+      border: 2px solid rgba(255, 255, 255, 0.15);
       border-radius: 50%;
-      background: rgb(255 255 255 / 10%);
+      background: #ffffff1a;
       aspect-ratio: 1 / 1;
-      outline: 2px solid rgb(255 255 255 / 15%);
-
-      transform: rotate(0deg);
+      transform: rotate(0);
       transition: transform 1s;
-    }
-    &-safari {
-      img {
-        outline: none;
-      }
-      &::before {
-        content: ' ';
-        position: absolute;
-        border-radius: 50%;
-        width: 100%;
-        height: auto;
-        max-width: 512px;
-        max-height: 512px;
-        top: 50%;
-        left: 50%;
-        border: 2px solid rgb(255 255 255 / 15%);
-        transform: translate(-50%, -50%);
-        aspect-ratio: 1 / 1;
-      }
+      padding: 6px;
     }
   }
   &-album {
@@ -118,7 +100,7 @@ function playOrPause() {
     }
   }
 }
-@media (max-width: 800px), (max-height: 800px) {
+@media (max-width: 800px), (max-height: 650px) {
   .music-jukebox {
     &-stylus {
       img {

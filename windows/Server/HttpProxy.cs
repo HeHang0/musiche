@@ -22,13 +22,13 @@ namespace Musiche.Server
                 HttpWebRequest request = (HttpWebRequest)WebRequest.Create(data.Url);
 #pragma warning restore SYSLIB0014
                 request.Method = data.Method;
+                request.ContentLength = data.DataBytes.Length;
                 request.SetHeaders(data.Headers);
                 request.AllowAutoRedirect = data.AllowAutoRedirect;
                 if (data.HasBody)
                 {
                     using (var stream = request.GetRequestStream())
                     {
-                        request.ContentLength = data.DataBytes.Length;
                         stream.Write(data.DataBytes, 0, data.DataBytes.Length);
                     }
                 }

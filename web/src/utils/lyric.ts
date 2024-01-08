@@ -4,7 +4,9 @@ import {
   clearArray,
   messageOption,
   parseLyric,
-  webView2Services
+  webView2Services,
+  isAndroid,
+  isWindows
 } from './utils';
 import { musicOperate } from './http';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -41,7 +43,7 @@ export class LyricManager {
 
   public static setLyricOptions(options: Record<LyricOptionsKey, any>) {
     this.lyricOption = options;
-    if (webView2Services.enabled) {
+    if (webView2Services.enabled && (isWindows || isAndroid)) {
       musicOperate(
         '/lyric',
         JSON.stringify({ ...options, show: LyricManager.lyricDesktopShow })
@@ -220,7 +222,9 @@ export class LyricManager {
         );
       }
       if (this.lyricOption.fontFamily) {
-        fontStyle.push(this.lyricOption.fontFamily);
+        let fontFamily = this.lyricOption.fontFamily;
+        if (fontFamily.includes(' ')) fontFamily = `'${fontFamily}'`;
+        fontStyle.push(fontFamily);
       } else {
         if (!defaultFont) {
           defaultFont = window
@@ -301,6 +305,11 @@ export class LyricManager {
     LyricManager.drawCanvas(0, title);
     LyricManager.video = document.createElement('video');
     LyricManager.video.addEventListener('loadedmetadata', () => {
+      if (!LyricManager.video?.requestPictureInPicture) {
+        ElMessage(messageOption('暂不支持桌面歌词'));
+        callback && callback();
+        return;
+      }
       LyricManager.video?.requestPictureInPicture().catch(_e => {
         ElMessageBox.confirm('', '开启桌面歌词', {
           closeOnClickModal: false,
@@ -334,7 +343,7 @@ export class LyricManager {
     LyricManager.video.muted = true;
     LyricManager.video.autoplay = true;
     LyricManager.video.controls = false;
-    LyricManager.video.playsInline = true;
+    LyricManager.video.playsInline = false;
     LyricManager.video.width = 300;
     LyricManager.video.height = 60;
     LyricManager.video.srcObject = LyricManager.canvas.captureStream();

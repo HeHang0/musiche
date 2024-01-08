@@ -27,6 +27,14 @@ const plugins = [
     workbox: {
       runtimeCaching: [
         {
+          urlPattern: /(.*?)\.(exe|apk|ipa)/,
+          handler: 'NetworkOnly'
+        },
+        {
+          urlPattern: /([^\/$]|index\.html)/,
+          handler: 'NetworkFirst'
+        },
+        {
           urlPattern: /\/version$/i,
           handler: 'CacheFirst',
           options: {

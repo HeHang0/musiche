@@ -108,6 +108,7 @@ function prepareClose() {
   align-items: center;
   padding-left: 10px;
   margin-left: 10px;
+  margin-right: 10px;
   &::before {
     content: '';
     position: absolute;

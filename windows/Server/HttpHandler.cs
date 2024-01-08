@@ -7,6 +7,7 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Markup;
 
 namespace Musiche.Server
 {
@@ -15,7 +16,7 @@ namespace Musiche.Server
         private readonly Dictionary<string, Func<HttpListenerContext, Task>> routers;
         private static readonly string installChineseFontsJson = string.Empty;
         private readonly FileHandler fileHandler = new FileHandler();
-        public HttpHandler(MainWindow window, AudioPlay audioPlay) : base(window, audioPlay)
+        public HttpHandler(MainWindow window, AudioPlay audioPlay, MediaMetaManager mediaMetaManager) : base(window, audioPlay, mediaMetaManager)
         {
             routers = Router.ReadHttpRouter(this);
         }
@@ -68,10 +69,24 @@ namespace Musiche.Server
         public async Task SetTitle(HttpListenerContext ctx)
         {
             string title = ctx.Request.DataAsString();
-            window.Dispatcher.Invoke(() =>
+            _window.Dispatcher.Invoke(() =>
             {
-                window.SetTitle(title);
+                _window.SetTitle(title);
             });
+            await SendString(ctx, "");
+        }
+
+        [Router("/media")]
+        public async Task SetMedia(HttpListenerContext ctx)
+        {
+            try
+            {
+                MediaMetadata data = JsonConvert.DeserializeObject<MediaMetadata>(ctx.Request.DataAsString());
+                _mediaMetaManager.Dispatcher.Invoke(() =>
+                {
+                    _mediaMetaManager.SetMediaMeta(data);
+                });
+            }catch  (Exception) { }
             await SendString(ctx, "");
         }
 
@@ -79,9 +94,9 @@ namespace Musiche.Server
         public async Task SetFadeIn(HttpListenerContext ctx)
         {
             string fadeIn = ctx.Request.DataAsString();
-            audioPlay.Dispatcher.Invoke(() =>
+            _audioPlay.Dispatcher.Invoke(() =>
             {
-                audioPlay.SetFadeIn(!string.IsNullOrWhiteSpace(fadeIn));
+                _audioPlay.SetFadeIn(!string.IsNullOrWhiteSpace(fadeIn));
             });
             await SendString(ctx, "");
         }
@@ -92,9 +107,9 @@ namespace Musiche.Server
             string queryShutdown = ctx.Request.QueryString.Get("shutdown");
             bool shutdown = queryShutdown == "true" || queryShutdown == "1";
             int.TryParse(ctx.Request.DataAsString(), out int delayMinute);
-            window.Dispatcher.Invoke(() =>
+            _window.Dispatcher.Invoke(() =>
             {
-                window.DelayExit(delayMinute, shutdown);
+                _window.DelayExit(delayMinute, shutdown);
             });
             await SendString(ctx, "");
         }
@@ -103,7 +118,7 @@ namespace Musiche.Server
         public async Task SetGPU(HttpListenerContext ctx)
         {
             string disableGPU = ctx.Request.DataAsString();
-            window.Dispatcher.Invoke(() =>
+            _window.Dispatcher.Invoke(() =>
             {
                 string disableGPUPath = Path.Combine(Musiche.Utils.File.Webview2Path, Musiche.Utils.File.DisableGPUName);
                 if (!string.IsNullOrWhiteSpace(disableGPU))
@@ -122,9 +137,9 @@ namespace Musiche.Server
         public async Task Play(HttpListenerContext ctx)
         {
             var url = ctx.Request.DataAsString();
-            await audioPlay.Dispatcher.InvokeAsync(() =>
+            await _audioPlay.Dispatcher.InvokeAsync(() =>
             {
-                audioPlay.Play(url);
+                _audioPlay.Play(url);
             });
             await SendStatus(ctx);
         }
@@ -132,9 +147,9 @@ namespace Musiche.Server
         [Router("/pause")]
         public async Task Pause(HttpListenerContext ctx)
         {
-            await audioPlay.Dispatcher.InvokeAsync(() =>
+            await _audioPlay.Dispatcher.InvokeAsync(() =>
             {
-                audioPlay.Pause();
+                _audioPlay.Pause();
             });
             await SendStatus(ctx);
         }
@@ -144,9 +159,9 @@ namespace Musiche.Server
         {
             if (int.TryParse(ctx.Request.DataAsString(), out int progress))
             {
-                await audioPlay.Dispatcher.InvokeAsync(() =>
+                await _audioPlay.Dispatcher.InvokeAsync(() =>
                 {
-                    audioPlay.Progress = progress;
+                    _audioPlay.Progress = progress;
                 });
             }
             await SendStatus(ctx);
@@ -157,9 +172,9 @@ namespace Musiche.Server
         {
             if (int.TryParse(ctx.Request.DataAsString(), out int volume))
             {
-                await audioPlay.Dispatcher.InvokeAsync(() =>
+                await _audioPlay.Dispatcher.InvokeAsync(() =>
                 {
-                    audioPlay.Volume = volume;
+                    _audioPlay.Volume = volume;
                 });
             }
             await SendStatus(ctx);
@@ -182,9 +197,9 @@ namespace Musiche.Server
         public async Task SetMaximize(HttpListenerContext ctx)
         {
             bool maximized = ctx.Request.DataAsString() == "1";
-            window.Dispatcher.Invoke(() =>
+            _window.Dispatcher.Invoke(() =>
             {
-                window.WindowState = maximized ? WindowState.Maximized : WindowState.Normal;
+                _window.WindowState = maximized ? WindowState.Maximized : WindowState.Normal;
             });
             string text = GetWindowInfoText();
             await SendString(ctx, text, "text/json");
@@ -193,9 +208,9 @@ namespace Musiche.Server
         [Router("/minimize")]
         public async Task SetMinimize(HttpListenerContext ctx)
         {
-            window.Dispatcher.Invoke(() =>
+            _window.Dispatcher.Invoke(() =>
             {
-                window.WindowState = WindowState.Minimized;
+                _window.WindowState = WindowState.Minimized;
             });
             string text = GetWindowInfoText();
             await SendString(ctx, text, "text/json");
@@ -205,9 +220,9 @@ namespace Musiche.Server
         public async Task SetLoopType(HttpListenerContext ctx)
         {
             string loopType = ctx.Request.DataAsString();
-            window.Dispatcher.Invoke(() =>
+            _window.Dispatcher.Invoke(() =>
             {
-                window.SetMusicLoopType(loopType);
+                _window.SetMusicLoopType(loopType);
             });
             await SendString(ctx, "");
         }
@@ -215,9 +230,9 @@ namespace Musiche.Server
         [Router("/exit")]
         public async Task SetClose(HttpListenerContext ctx)
         {
-            window.Dispatcher.Invoke(() =>
+            _window.Dispatcher.Invoke(() =>
             {
-                window.ExitApp(null, null);
+                _window.ExitApp(null, null);
             });
             string text = GetWindowInfoText();
             await SendString(ctx, text, "text/json");
@@ -226,10 +241,10 @@ namespace Musiche.Server
         [Router("/hide")]
         public async Task SetHide(HttpListenerContext ctx)
         {
-            window.Dispatcher.Invoke(() =>
+            _window.Dispatcher.Invoke(() =>
             {
-                window.WindowState = WindowState.Minimized;
-                window.Hide();
+                _window.WindowState = WindowState.Minimized;
+                _window.Hide();
             });
             string text = GetWindowInfoText();
             await SendString(ctx, text, "text/json");
@@ -273,9 +288,9 @@ namespace Musiche.Server
         {
             string themeString = ctx.Request.QueryString["theme"];
             int.TryParse(themeString, out int preferredColorScheme);
-            window.Dispatcher.Invoke(() =>
+            _window.Dispatcher.Invoke(() =>
             {
-                window.SetTheme(preferredColorScheme);
+                _window.SetTheme(preferredColorScheme);
             });
             await SendString(ctx, string.Empty);
         }
@@ -284,9 +299,9 @@ namespace Musiche.Server
         public async Task SetLyric(HttpListenerContext ctx)
         {
             LyricOptions options = JsonConvert.DeserializeObject<LyricOptions>(ctx.Request.DataAsString());
-            window.Dispatcher.Invoke(() =>
+            _window.Dispatcher.Invoke(() =>
             {
-                window.SetLyric(options);
+                _window.SetLyric(options);
             });
             await SendString(ctx, string.Empty);
         }
@@ -299,9 +314,9 @@ namespace Musiche.Server
             {
                 string durationString = ctx.Request.QueryString["duration"] ?? string.Empty;
                 double.TryParse(durationString, out double duration);
-                window.Dispatcher.Invoke(() =>
+                _window.Dispatcher.Invoke(() =>
                 {
-                    window.SetLyricLine(line, duration);
+                    _window.SetLyricLine(line, duration);
                 });
             }
             await SendString(ctx, string.Empty);
@@ -314,17 +329,17 @@ namespace Musiche.Server
             bool cancel = cancelString == "1" || cancelString.ToLower() == "true";
             Hotkey.ShortcutKey[] shortcutKeys = JsonConvert.DeserializeObject<Hotkey.ShortcutKey[]>(ctx.Request.DataAsString());
             Dictionary<string, string> registerResult = new Dictionary<string, string>();
-            window.Dispatcher.Invoke(() =>
+            _window.Dispatcher.Invoke(() =>
             {
                 foreach (var shortcutKey in shortcutKeys)
                 {
                     if (cancel)
                     {
-                        registerResult.Add(shortcutKey.Type, window.RemoveHotkey(shortcutKey.Type) ? string.Empty : "取消热键注册失败");
+                        registerResult.Add(shortcutKey.Type, _window.RemoveHotkey(shortcutKey.Type) ? string.Empty : "取消热键注册失败");
                     }
                     else
                     {
-                        registerResult.Add(shortcutKey.Type, window.RegisterHotkey(shortcutKey));
+                        registerResult.Add(shortcutKey.Type, _window.RegisterHotkey(shortcutKey));
                     }
                 }
             });
@@ -340,14 +355,14 @@ namespace Musiche.Server
         private string GetWindowInfoText()
         {
             Dictionary<string, object> data = new Dictionary<string, object>();
-            window.Dispatcher.Invoke(() =>
+            _window.Dispatcher.Invoke(() =>
             {
-                data.Add("width", window.ActualWidth);
-                data.Add("height", window.ActualHeight);
-                data.Add("x", window.Left);
-                data.Add("y", window.Top);
-                data.Add("maximized", window.WindowState == WindowState.Maximized);
-                data.Add("minimize", window.WindowState == WindowState.Minimized);
+                data.Add("width", _window.ActualWidth);
+                data.Add("height", _window.ActualHeight);
+                data.Add("x", _window.Left);
+                data.Add("y", _window.Top);
+                data.Add("maximized", _window.WindowState == WindowState.Maximized);
+                data.Add("minimize", _window.WindowState == WindowState.Minimized);
             });
             Dictionary<string, object> result = new Dictionary<string, object>()
             {

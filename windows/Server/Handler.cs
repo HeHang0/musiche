@@ -6,25 +6,30 @@ namespace Musiche.Server
 {
     public class Handler
     {
-        protected readonly AudioPlay audioPlay;
-        protected readonly MainWindow window;
+        protected readonly AudioPlay _audioPlay;
+        protected readonly MediaMetaManager _mediaMetaManager;
+        protected readonly MainWindow _window;
+        public Handler(MainWindow window, AudioPlay audioPlay, MediaMetaManager mediaMetaManager):this(window, audioPlay)
+        {
+            _mediaMetaManager = mediaMetaManager;
+        }
         public Handler(MainWindow window, AudioPlay audioPlay)
         {
-            this.window = window;
-            this.audioPlay = audioPlay;
+            _window = window;
+            _audioPlay = audioPlay;
         }
 
         protected async Task<Dictionary<string, object>> GetStatus()
         {
             Dictionary<string, object> data = new Dictionary<string, object>();
-            await audioPlay.Dispatcher.InvokeAsync(() =>
+            await _audioPlay.Dispatcher.InvokeAsync(() =>
             {
-                data.Add("volume", audioPlay.Volume);
-                data.Add("currentTime", audioPlay.CurrentTime);
-                data.Add("totalTime", audioPlay.TotalTime);
-                data.Add("playing", audioPlay.Playing);
-                data.Add("stopped", audioPlay.Stopped);
-                data.Add("progress", audioPlay.Progress);
+                data.Add("volume", _audioPlay.Volume);
+                data.Add("currentTime", _audioPlay.CurrentTime);
+                data.Add("totalTime", _audioPlay.TotalTime);
+                data.Add("playing", _audioPlay.Playing);
+                data.Add("stopped", _audioPlay.Stopped);
+                data.Add("progress", _audioPlay.Progress);
             });
             return new Dictionary<string, object>()
             {

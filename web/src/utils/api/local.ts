@@ -57,19 +57,19 @@ export function pathToMusic(filePaths: string[] | Music[]): Music[] {
       filePath = filePaths[i] as string;
     } else {
       music = filePaths[i] as any;
-      filePath = music.id;
+      filePath = music.url || music.id;
     }
     musics.push({
-      id: filePath || music.id || '',
-      name: getFileName(filePath),
-      image: parseMusicFileImageAddress(filePath || music.id || ''),
+      id: music.id || filePath || '',
+      name: music.name || getFileName(filePath),
+      image: parseMusicFileImageAddress(music.id || filePath || ''),
       singer: music.singer || '',
       album: music.album || '',
       albumId: '',
       duration: music.duration || '',
       length: music.length || 0,
       vip: false,
-      url: filePath || music.url || '',
+      url: music.url || filePath || '',
       type: 'local'
     });
   }
@@ -78,6 +78,10 @@ export function pathToMusic(filePaths: string[] | Music[]): Music[] {
 
 export async function musicDetail(music: Music): Promise<Music> {
   if (webView2Services.enabled) {
+    if (music.url) {
+      const exists = await webView2Services.fileAccessor?.FileExists(music.url);
+      if (exists) return music;
+    }
     const exists = await webView2Services.fileAccessor?.FileExists(music.id);
     music.url = exists ? music.id : undefined;
     return music;

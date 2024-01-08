@@ -21,6 +21,7 @@ namespace Musiche.NotifyIcon
             {
                 Icon = Properties.Resources.logo
             };
+            notifyIcon.LeftClick += showApp;
             notifyIcon.AddMenu(BuildMenu());
         }
 
@@ -59,6 +60,11 @@ namespace Musiche.NotifyIcon
                 }
             });
             return new ToolStripItem[] { titleMenu, playPauseMenu, lastMenu, nextMenu, new ToolStripSeparator(), loopTypeMenu, new ToolStripSeparator(), exitMenu };
+        }
+
+        public void SetTheme(bool dark)
+        {
+            notifyIcon.UpdateStyle(dark);
         }
 
         public void AudioPlayStateChanged(bool playing)

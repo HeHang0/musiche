@@ -4,6 +4,7 @@
     --el-border-color: var(--music-button-info-border-color);
     --el-mask-color: transparent !important;
     --el-slider-background-color: #7c7c7c33;
+    --el-slider-full-background-color: var(--el-slider-background-color);
 }
 
 input {
@@ -81,6 +82,7 @@ input {
 
 .el-dialog {
     border-radius: var(--music-border-radius);
+    max-width: 80%;
 }
 
 .el-dialog__header {
@@ -287,6 +289,10 @@ input {
             background-color: var(--el-slider-background-color);
         }
 
+        .music-footer-full &::before {
+            background-color: var(--el-slider-full-background-color);
+        }
+
         .el-slider__button-wrapper {
             cursor: default;
             top: -2px;
@@ -302,6 +308,10 @@ input {
         transition: width 0.5s;
         background-color: var(--music-slider-color);
         border-radius: var(--el-slider-border-radius);
+
+        .music-footer-full & {
+            background-color: var(--music-full-slider-color);
+        }
     }
 
     .el-slider__button {
@@ -313,9 +323,16 @@ input {
         transform: none;
     }
 
+
+
+
     &:hover {
         .el-slider__bar {
             background: var(--music-slider-hover-color);
+
+            .music-footer-full & {
+                background: var(--music-full-slider-color);
+            }
         }
 
         .el-slider__button-wrapper {
@@ -328,7 +345,7 @@ input {
     }
 
     &.music-slider-primary:hover .el-slider__bar {
-        background-color: var(--music-slider-primary-hover-color);
+        background: var(--music-slider-primary-hover-color);
     }
 }
 

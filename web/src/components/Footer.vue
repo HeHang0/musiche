@@ -2,7 +2,7 @@
 import { usePlayStore } from '../stores/play';
 import { SortType } from '../utils/type';
 import { LogoImage } from '../utils/logo';
-import { isIOS } from '../utils/utils';
+import { isMobile } from '../utils/utils';
 interface Props {
   full?: boolean;
 }
@@ -154,11 +154,15 @@ const play = usePlayStore();
             </span>
           </template>
         </el-popover>
-        <span v-if="!isIOS" class="music-icon" title="静音" @click="play.mute">
+        <span
+          v-if="!isMobile"
+          class="music-icon"
+          title="静音"
+          @click="play.mute">
           {{ play.playStatus.volume > 0 ? '音' : '静' }}
         </span>
         <el-slider
-          v-if="!isIOS"
+          v-if="!isMobile"
           v-model="play.playStatus.volume"
           @mousedown="play.playStatus.disableUpdateVolume = true"
           @touchstart="play.playStatus.disableUpdateVolume = true"
@@ -182,11 +186,11 @@ const play = usePlayStore();
 }
 .music-footer {
   background-color: var(--music-footer-background);
-  height: calc(80px + calc(env(safe-area-inset-bottom, 0) / 2));
+  height: calc(80px + calc(var(--sab) / 1.5));
   width: 100vw;
   border-top: 1px solid var(--music-side-divider-color);
   padding: 0;
-  padding-bottom: calc(env(safe-area-inset-bottom, 0) / 2);
+  padding-bottom: calc(var(--sab) / 1.5);
   &-play {
     display: inline-block;
     width: 38px;
@@ -203,12 +207,14 @@ const play = usePlayStore();
       width: 100%;
       height: 100%;
       border-radius: 50%;
-      border-top: 2px solid var(--music-text-color);
+      border: 2px solid transparent;
+      border-top-color: var(--music-text-color);
       animation: spin 2s linear infinite;
+      opacity: 0.2;
     }
   }
   &-full {
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-bottom: var(--sab);
     background-color: rgba(255, 255, 255, 0.1);
     color: white;
     border-top: none;
@@ -357,7 +363,7 @@ const play = usePlayStore();
     display: none !important;
   }
 }
-@media (max-width: 800px) or (max-height: 800px) {
+@media (max-width: 800px) or (max-height: 650px) {
   .music-icon {
     &:hover {
       opacity: 0.6;

@@ -33,7 +33,7 @@ export const usePlayStore = defineStore('play', {
       music: {} as Music,
       musicList: [] as Music[],
       myLoves: [] as Music[],
-      myLover: {} as any,
+      myLover: {} as Record<string, boolean>,
       myFavorites: [] as Playlist[],
       myFavorite: {} as any,
       myPlaylists: [] as Playlist[],
@@ -170,6 +170,13 @@ export const usePlayStore = defineStore('play', {
       });
       this.myLoves.map(m => (this.myLover[m.type + m.id] = true));
       storage.setValue(StorageKey.MyLoves, this.myLoves);
+      if (
+        musics.length > 0 &&
+        musics[0].type == this.music.type &&
+        musics[0].id == this.music.id
+      ) {
+        this.setTitle();
+      }
     },
     async addMyFavorite(playlists: Playlist[], remove?: boolean) {
       if (!Array.isArray(playlists)) return;
@@ -523,7 +530,8 @@ export const usePlayStore = defineStore('play', {
                 }
               ]
             : [],
-          title: this.music.name || title.value
+          title: this.music.name || title.value,
+          lover: this.myLover[this.music.type + this.music.id] || false
         } as MediaMetadataInit)
       );
     },
@@ -555,6 +563,13 @@ export const usePlayStore = defineStore('play', {
       this.changeVolume(await storage.getValue(StorageKey.Volume));
       musicOperate('/loop', this.sortType.toString());
       this.setTitle();
+      (window as any).isPlayDetailShow = () => this.playDetailShow;
+      (window as any).hidePlayDetail = () => {
+        if (this.playDetailShow) {
+          this.playDetailShow = false;
+          return true;
+        }
+      };
     }
   }
 });

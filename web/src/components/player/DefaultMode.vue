@@ -33,7 +33,7 @@ const play = usePlayStore();
   }
 }
 
-@media (max-height: 800px) and (orientation: landscape) {
+@media (max-height: 650px) and (orientation: landscape) {
   .music-play-detail-default {
     &-lyric {
       height: unset;

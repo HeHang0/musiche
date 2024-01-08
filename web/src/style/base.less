@@ -35,6 +35,7 @@
   --music-slider-primary-color: #f26e77;
   --music-slider-primary-hover-color: #f26e77;
   --music-slider-color: rgba(97, 104, 121, 0.4);
+  --music-full-slider-color: var(--music-slider-color);
   /*#616879*/
   --music-slider-hover-color: #616879;
   --music-dialog-heading-padding: 20px 20px 0 20px;
@@ -51,14 +52,18 @@
 }
 
 :root {
-  --sat: env(safe-area-inset-top);
-  --sar: env(safe-area-inset-right);
-  --sab: env(safe-area-inset-bottom);
-  --sal: env(safe-area-inset-left);
+  --sat: var(--safe-area-inset-top, env(safe-area-inset-top, 0));
+  --sar: var(--safe-area-inset-right, env(safe-area-inset-right, 0));
+  --sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0));
+  --sal: var(--safe-area-inset-left, env(safe-area-inset-left, 0));
+}
+
+:root {
+  -webkit-tap-highlight-color: transparent;
 }
 
 .dark {
-  --music-background: rgb(19, 19, 26);
+  --music-background: #13131a;
   --music-background-hover: rgb(33, 33, 39);
   --music-sub-background: transparent;
   --music-side-background: rgba(100, 100, 100, 0.12);
@@ -142,7 +147,7 @@ body {
   transition: color 0.5s;
   background: var(--music-background);
   line-height: 1.6;
-  font-family: 'PingFang SC', 'Noto-Sans-TC', Arial, Inter, -apple-system,
+  font-family: 'PingFang SC', 'Noto Sans SC', Arial, Inter, -apple-system,
     BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
     'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   font-size: 15px;

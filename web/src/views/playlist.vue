@@ -131,6 +131,11 @@ onUnmounted(unWatch);
     <el-scrollbar>
       <div class="music-playlist-header">
         <img
+          v-if="playlistInfo?.backgroundImage"
+          class="music-playlist-header-image"
+          style="position: absolute"
+          :src="playlistInfo.backgroundImage" />
+        <img
           class="music-playlist-header-image"
           v-if="playlistInfoShow && !loading"
           :src="

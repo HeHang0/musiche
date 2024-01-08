@@ -33,6 +33,32 @@ export function parseMusicFileImageAddress(path: string): string {
   return `//${httpAddress}/image?path=${encodeURIComponent(path)}`;
 }
 
+let theme = -1;
+let updateThemeDelay: any = null;
+export async function updateTheme(themeValue?: number) {
+  if (themeValue != null && themeValue >= 0) {
+    theme = themeValue;
+  }
+  if (theme < 0) return;
+  clearTimeout(updateThemeDelay);
+  if (themeValue == null) {
+    musicOperate('/theme?theme=' + theme);
+  } else {
+    updateThemeDelay = setTimeout(
+      () => musicOperate('/theme?theme=' + theme),
+      100
+    );
+  }
+}
+function onVisibilityChange() {
+  if (document.visibilityState == 'visible') {
+    updateTheme();
+  }
+}
+if (webView2Services.enabled) {
+  document.addEventListener('visibilitychange', onVisibilityChange);
+}
+
 export async function musicOperate(
   url: string,
   data?: string,
@@ -75,8 +101,10 @@ export interface CommunicationClient {
 
 export function wsClient(
   onMessage: (message: string) => void,
-  onClose: () => void
+  onClose: () => void,
+  onOpen?: () => void
 ): CommunicationClient {
+  console.log('connected websocket ' + useLocalAudio);
   if (useLocalAudio) {
     localAudio?.setOnMessage(onMessage);
     return {
@@ -93,7 +121,8 @@ export function wsClient(
 
   // 当连接成功时触发
   socket.addEventListener('open', function () {
-    console.log('WebSocket 已连接');
+    console.log('WebSocket connected');
+    onOpen && onOpen();
   });
 
   // 当收到消息时触发
@@ -108,12 +137,15 @@ export function wsClient(
 
   // 当连接关闭时触发
   socket.addEventListener('close', function () {
+    console.log('WebSocket closed');
     onClose && onClose();
   });
 
   // 当发生错误时触发
   socket.addEventListener('error', function () {
+    console.log('WebSocket error');
     socket.close();
+    onClose && onClose();
   });
   return {
     get readyState() {

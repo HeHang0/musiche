@@ -1,3 +1,4 @@
+import { watch } from 'vue';
 import { CommunicationClient, wsClient } from '../utils/http';
 import { StorageKey } from '../utils/storage';
 import { ShortcutKey, ShortcutType } from '../utils/type';
@@ -13,6 +14,13 @@ export class MusicConnection {
   constructor(interval: boolean) {
     this.init(interval);
     this.registerShortcut();
+    watch(() => this.setting.autoAppTheme, this.autoAppThemeChange.bind(this));
+  }
+
+  autoAppThemeChange() {
+    if (this.setting.autoAppTheme) {
+      this.sendWsMessage('/dark');
+    }
   }
 
   async init(interval: boolean) {
@@ -20,7 +28,8 @@ export class MusicConnection {
     await this.setting.initValue();
     this.webSocketClient = wsClient(
       this.wsMessage.bind(this),
-      this.wsClose.bind(this)
+      this.wsClose.bind(this),
+      this.autoAppThemeChange.bind(this)
     );
     if (interval) {
       setInterval(this.sendWsStatus.bind(this), 500);
@@ -100,14 +109,26 @@ export class MusicConnection {
         case 'love':
           this.play.addMyLove([this.play.music]);
           break;
+        case 'lover':
+          if (this.play.music.type && this.play.music.type) {
+            let exist =
+              this.play.myLover[this.play.music.type + this.play.music.id];
+            this.play.addMyLove([this.play.music], exist);
+          }
+          break;
       }
     }
   }
 
-  sendWsStatus() {
-    if (this.play.checkingStatus || !this.webSocketClient) return;
+  sendWsMessage(message: string) {
+    if (!this.webSocketClient) return;
     this.webSocketClient.readyState == WebSocket.OPEN &&
-      this.webSocketClient.send('/status\n');
+      this.webSocketClient.send(message);
+  }
+
+  sendWsStatus() {
+    if (this.play.checkingStatus) return;
+    this.sendWsMessage('/status\n');
   }
 
   wsMessage(result: any) {
@@ -141,6 +162,19 @@ export class MusicConnection {
           break;
         case 'lyric':
           this.play.showDesktopLyric(Boolean(result.data));
+          break;
+        case 'show':
+          this.play.playDetailShow = true;
+          break;
+        case 'lover':
+          if (this.play.music.type && this.play.music.type) {
+            let exist =
+              this.play.myLover[this.play.music.type + this.play.music.id];
+            this.play.addMyLove([this.play.music], exist);
+          }
+          break;
+        case 'dark':
+          this.setting.updateDarkMode(Boolean(result.data));
           break;
       }
     } catch {}

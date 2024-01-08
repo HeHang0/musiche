@@ -5,18 +5,21 @@ using System.Windows.Threading;
 namespace Musiche.Audio
 {
     public delegate void PlatStateChangedEventHandler(object sender, PlaybackState state);
+    public delegate void AudioInitializedEventHandler(object sender, TimeSpan totalTime);
     public class AudioPlay
     {
         AudioFileReader mediaFoundationReader = null;
         WaveOut wasapiOut = null;
         public event PlatStateChangedEventHandler PlatStateChanged;
-        public Dispatcher Dispatcher;
+        public event AudioInitializedEventHandler AudioInitialized;
+        private readonly Dispatcher _dispatcher;
+        public Dispatcher Dispatcher => _dispatcher;
         readonly DispatcherTimer fadeInTimer;
         float fadeInVolume = 0;
         bool fadeIn = false;
         public AudioPlay()
         {
-            Dispatcher = Dispatcher.CurrentDispatcher;
+            _dispatcher = Dispatcher.CurrentDispatcher;
             fadeInTimer = new DispatcherTimer();
             fadeInTimer.Interval = TimeSpan.FromMilliseconds(100);
             fadeInTimer.Tick += OnFadeInTimerTick;
@@ -29,13 +32,11 @@ namespace Musiche.Audio
             if (fadeInVolume > 0 && fadeInVolume > wasapiOutVolume && fadeInVolume <= 1)
             {
                 wasapiOut.Volume = (float)Math.Min(fadeInVolume, wasapiOutVolume + 0.1);
-                Logger.Logger.Debug("设置淡入声音", wasapiOut.Volume);
             }
             else
             {
                 fadeInVolume = 0;
                 (sender as DispatcherTimer).Stop();
-                Logger.Logger.Debug("结束淡入声音", fadeInVolume);
             }
         }
 
@@ -70,6 +71,7 @@ namespace Musiche.Audio
                 {
                     Progress = _progress;
                 }
+                AudioInitialized?.Invoke(this, mediaFoundationReader.TotalTime);
             }
             catch (Exception)
             {
@@ -84,7 +86,6 @@ namespace Musiche.Audio
                 fadeInVolume = (float)Math.Round(_volume * 1.0f / 100, 2);
                 wasapiOut.Volume = 0;
                 fadeInTimer.Start();
-                Logger.Logger.Debug("开始淡入声音", fadeInVolume);
             }
             else
             {
@@ -112,6 +113,14 @@ namespace Musiche.Audio
             if (mediaFoundationReader == null) return;
             wasapiOut?.Pause();
             PlatStateChanged?.Invoke(this, wasapiOut?.PlaybackState ?? PlaybackState.Stopped);
+        }
+
+        public TimeSpan CurrentTimeSpan
+        {
+            get
+            {
+                return mediaFoundationReader?.CurrentTime ?? TimeSpan.Zero;
+            }
         }
 
         public string CurrentTime

@@ -14,8 +14,7 @@ import { useSettingStore } from './stores/setting';
 import { LogoImage } from './utils/logo';
 import { fixPwaForIOS, isWindows } from './utils/utils';
 import { registerServiceWorker } from './sw/register';
-registerServiceWorker();
-isWindows && (() => import('./style/pf.css'))();
+if (!webView2Services.enabled) registerServiceWorker();
 
 const play = usePlayStore();
 const setting = useSettingStore();
@@ -33,9 +32,13 @@ document.addEventListener(
   },
   true
 );
-new MusicConnection(webView2Services.enabled);
+new MusicConnection(webView2Services.enabled && isWindows);
 let rootClass = webView2Services.enabled ? 'webview-host' : '';
-onMounted(fixPwaForIOS);
+onMounted(() => {
+  fixPwaForIOS();
+  console.log('musiche loaded');
+  document.addEventListener('load', () => {});
+});
 </script>
 
 <template>
@@ -44,8 +47,8 @@ onMounted(fixPwaForIOS);
     direction="vertical"
     :class="rootClass"
     :style="
-      setting.appTheme.image
-        ? `background: url(${setting.appTheme.image}) 50% 50% / cover`
+      setting.appTheme.objectURL
+        ? `background: url(${setting.appTheme.objectURL}) 50% 50% / cover`
         : ''
     ">
     <el-container
@@ -75,7 +78,7 @@ onMounted(fixPwaForIOS);
   .el-main {
     padding: 0;
     margin-top: 5px;
-    padding-right: calc(env(safe-area-inset-right, 0) / 1.5);
+    padding-right: calc(var(--sar) / 1.5);
   }
   &-right {
     background: var(--music-sub-background);

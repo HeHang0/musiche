@@ -1,15 +1,6 @@
 @import './base.less';
 @import './element.less';
-
-@font-face {
-  /*自定义字体名*/
-  font-family: 'Noto-Sans-TC';
-  /*路径*/
-  src: url('https://fonts.gstatic.com/ea/notosanstc/v1/NotoSansTC-Regular.woff2')
-    format('woff2');
-  font-weight: normal;
-  font-style: normal;
-}
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC&display=swap');
 
 @font-face {
   /*自定义字体名*/
@@ -25,6 +16,9 @@
   font-size: 20px;
   font-weight: normal;
   cursor: pointer;
+}
+button {
+  font-family: unset;
 }
 .is-disabled .music-icon {
   cursor: not-allowed;

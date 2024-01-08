@@ -29,7 +29,7 @@ import {
 } from '../utils/utils';
 
 import { LogoCircleImage } from '../utils/logo';
-import { ThemeColor } from '../utils/color';
+import { ThemeColorManager } from '../utils/color';
 
 const { currentRoute, replace, options } = useRouter();
 const subItems = [
@@ -50,10 +50,6 @@ const subItems = [
     id: 'play'
   },
   {
-    name: '快捷键',
-    id: 'shortcut'
-  },
-  {
     name: '音质与下载',
     id: 'quality'
   },
@@ -66,6 +62,12 @@ const subItems = [
     id: 'about'
   }
 ];
+if (!isMobile) {
+  subItems.splice(4, 0, {
+    name: '快捷键',
+    id: 'shortcut'
+  });
+}
 if (webView2Services.enabled) {
   subItems.splice(3, 0, {
     name: '系统',
@@ -169,7 +171,7 @@ const tableEle: Ref<HTMLTableElement | null> = ref(null);
 const defaultFonts = isWindows
   ? ['宋体', '等线', '仿宋', '黑体', '楷体', '微软雅黑']
   : [
-      'Noto-Sans-TC',
+      'Noto Sans SC',
       'Times New Roman',
       'Georgia',
       'Arial',
@@ -344,8 +346,8 @@ function delayExitChange() {
 }
 
 function getCardBackground(appTheme: AppTheme) {
-  if (appTheme.image) {
-    return `background: url(${appTheme.image}) 50% 50% / cover`;
+  if (appTheme.objectURL) {
+    return `background: url(${appTheme.objectURL}) 50% 50% / cover`;
   } else if (appTheme.color) {
     return 'background: ' + appTheme.color;
   }
@@ -358,15 +360,14 @@ async function setCustomTheme() {
   const fileUrl = URL.createObjectURL(imageFile);
   const dataUrl = await imageToDataUrl(fileUrl, 1920);
   URL.revokeObjectURL(fileUrl);
-  new ThemeColor(dataUrl, (_: string, dark?: boolean) => {
-    setting.setCustomTheme({
-      id: 'custom ' + (dark ? 'dark' : ''),
-      image: dataUrl
-    });
-    if (setting.customTheme.image) {
-      setting.setAppTheme(setting.customTheme);
-    }
+  const c = await ThemeColorManager.getThemeColor(dataUrl);
+  setting.setCustomTheme({
+    id: 'custom ' + (c?.dark ? 'dark' : ''),
+    image: dataUrl
   });
+  if (setting.customTheme.image) {
+    setting.setAppTheme(setting.customTheme);
+  }
 }
 
 function setAppTheme(theme: AppTheme) {
@@ -488,6 +489,7 @@ onUnmounted(unWatch);
                 )
               ">
               <el-option key="" label="默认" value="" />
+              <el-option key="auto" label="系统" value="auto" />
               <el-option
                 v-for="item in setting.fonts || defaultFonts"
                 :key="item"
@@ -514,13 +516,13 @@ onUnmounted(unWatch);
               label="字体加粗"
               size="large" />
             <el-checkbox
-              v-if="webView2Services.enabled"
+              v-if="!isMobile && webView2Services.enabled"
               v-model="setting.pageValue.startup"
               @change="setting.setStartup"
               label="开机自动运行"
               size="large" />
             <el-checkbox
-              v-if="webView2Services.enabled"
+              v-if="!isMobile && webView2Services.enabled"
               v-model="setting.pageValue.gpuAcceleration"
               @change="setting.setGpuAcceleration()"
               size="large">
@@ -581,33 +583,38 @@ onUnmounted(unWatch);
               label="开启定时关闭软件"
               size="large" />
             <span>
-              剩余关闭时间
-              <el-select v-model="delayMinute" @change="delayExitChange">
-                <el-option
-                  v-for="(_, index) in new Array(24)"
-                  :key="index"
-                  :label="index"
-                  :value="index">
-                </el-option>
-              </el-select>
-              小时
-              <el-select v-model="delaySecond" @change="delayExitChange">
-                <el-option
-                  v-for="(_, index) in new Array(60)"
-                  :key="index"
-                  :label="index"
-                  :value="index">
-                </el-option>
-              </el-select>
-              分钟
+              <span>剩余关闭时间</span>
+              <span>
+                <el-select v-model="delayMinute" @change="delayExitChange">
+                  <el-option
+                    v-for="(_, index) in new Array(24)"
+                    :key="index"
+                    :label="index"
+                    :value="index">
+                  </el-option>
+                </el-select>
+                小时
+              </span>
+              <span>
+                <el-select v-model="delaySecond" @change="delayExitChange">
+                  <el-option
+                    v-for="(_, index) in new Array(60)"
+                    :key="index"
+                    :label="index"
+                    :value="index">
+                  </el-option>
+                </el-select>
+                分钟
+              </span>
             </span>
             <el-checkbox
+              v-if="!isMobile"
               v-model="delayShutdown"
               @change="delayExitChange"
               :disabled="!delayExit"
               label="关闭软件同时关机"
               size="large" />
-            <div>
+            <div class="music-setting-system-center" v-if="!isMobile">
               <span>关闭主面板</span>
               <el-radio-group v-model="setting.pageValue.closeType">
                 <el-radio :label="CloseType.Hide">最小化到系统托盘</el-radio>
@@ -656,7 +663,7 @@ onUnmounted(unWatch);
             </div>
           </td>
         </tr>
-        <tr>
+        <tr v-if="!isMobile">
           <td></td>
           <td class="music-setting-shortcut">
             <div>
@@ -672,7 +679,7 @@ onUnmounted(unWatch);
                     @keyup="setting.registerShortCut(item.operate, $event)" />
                 </div>
               </div>
-              <div v-if="webView2Services.enabled">
+              <div v-if="isWindows && webView2Services.enabled">
                 <div>全局快捷键</div>
                 <div v-for="item in shortcutItems">
                   <el-input
@@ -689,7 +696,7 @@ onUnmounted(unWatch);
               </div>
             </div>
             <el-checkbox
-              v-if="webView2Services.enabled"
+              v-if="isWindows && webView2Services.enabled"
               v-model="setting.pageValue.globalShortcutUsed"
               @change="setting.setGlobalShortcutUsed"
               size="large">
@@ -697,7 +704,7 @@ onUnmounted(unWatch);
               <span class="music-setting-subtext"> (在后台时也能响应) </span>
             </el-checkbox>
             <el-checkbox
-              v-if="webView2Services.enabled"
+              v-if="isWindows && webView2Services.enabled"
               v-model="setting.pageValue.systemMediaShortcutUsed"
               @change="setting.setSystemMediaShortcutUsed"
               size="large">
@@ -746,7 +753,7 @@ onUnmounted(unWatch);
                 启用桌面歌词
               </el-checkbox>
               <el-checkbox
-                v-if="webView2Services.enabled"
+                v-if="isWindows && webView2Services.enabled"
                 v-model="setting.pageValue.lyric.topmost"
                 @change="setting.setLyricOptions"
                 size="large">
@@ -853,9 +860,7 @@ onUnmounted(unWatch);
               @click="forceRefreshPage">
               点击更新
             </span>
-            <div
-              class="music-setting-about-download"
-              v-if="!webView2Services.enabled">
+            <div class="music-setting-about-download">
               <a
                 class="music-setting-about-card"
                 href="https://hehang0.github.io/musiche/Musiche.exe"
@@ -878,7 +883,11 @@ onUnmounted(unWatch);
                 <p>PC版(NET6)</p>
               </a>
               <a
-                v-if="!isInStandaloneMode && installPromptShow"
+                v-if="
+                  !isInStandaloneMode &&
+                  installPromptShow &&
+                  !webView2Services.enabled
+                "
                 class="music-setting-about-card"
                 @click.stop="installPWA">
                 <div
@@ -1094,6 +1103,12 @@ onUnmounted(unWatch);
       }
       .el-checkbox {
         margin-left: 32px;
+      }
+    }
+    @media (max-width: 800px) {
+      & > span {
+        display: flex;
+        flex-direction: column;
       }
     }
     .el-select {

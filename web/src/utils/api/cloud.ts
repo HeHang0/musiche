@@ -249,7 +249,7 @@ export async function recommend(offset: number) {
   });
   const list: Playlist[] = [];
   const total: number = ret.total;
-  ret.playlists.map((m: any) => {
+  ret.playlists?.map((m: any) => {
     list.push({
       id: m.id,
       name: m.name,
@@ -371,6 +371,8 @@ export async function albumDetail(id: string) {
     const music = parseMusic(m);
     if (music) {
       music.image = image.image;
+      music.largeImage = image.largeImage;
+      music.mediumImage = image.mediumImage;
       list.push(music);
     }
   });
