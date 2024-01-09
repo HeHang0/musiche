@@ -109,7 +109,6 @@ export const isMobile =
   /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent
   );
-console.log('是', isWindows, isMobile);
 export const isSafari =
   !isWindows && !isAndroid && /Safari|AppleWebKit/i.test(navigator.userAgent);
 

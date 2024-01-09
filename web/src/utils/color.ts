@@ -70,11 +70,11 @@ export class ThemeColorManager {
     if (!ctx) return null;
     ctx.drawImage(image, 0, 0, shrinkWidth, shrinkHeight);
     ctx.filter = 'blur(26px)';
-    let imageData: ImageDataSettings | null = null;
+    let imageData: ImageData | null = null;
     try {
       imageData = ctx.getImageData(0, 0, width, height);
     } catch (error) {
-      console.log(error);
+      console.error('color parse image data error:', error);
     }
     image.remove();
     canvas.remove();

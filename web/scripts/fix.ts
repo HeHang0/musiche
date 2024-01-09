@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import { createHash } from 'crypto';
 import { Plugin } from 'vite';
 
 function fixJSMediaTagsError() {
@@ -30,7 +31,31 @@ export const FixJSMediaTagsErrorPlugin = function () {
   };
 };
 
+export function getHash(text: Buffer | string, length = 8): string {
+  const h = createHash('sha256')
+    .update(text)
+    .digest('hex')
+    .substring(0, length);
+  if (length <= 64) return h;
+  return h.padEnd(length, '_');
+}
+
+function fixWorkerJS(): string {
+  const distPath = path.resolve('dist');
+  const workerPath = path.resolve(distPath, 'worker.js');
+  if (fs.existsSync(workerPath)) {
+    const workerJS = fs.readFileSync(workerPath, { encoding: 'utf8' });
+    const hash = getHash(workerJS);
+    const workerName = `worker-${hash}.js`;
+    const workerNamePath = path.resolve(distPath, workerName);
+    fs.renameSync(workerPath, workerNamePath);
+    return `window.serviceWorkerJS = "${workerName}";`;
+  }
+  return '';
+}
+
 function transformIndexHtmlHandler(html: string) {
+  const workerJS = fixWorkerJS();
   let indexJS = '';
   const matchIndexJS =
     /[\s]*<script.+?src="\.*([\S]+index[\S]+\.js)"[^>]*>[\s]*<\/script>.*[\n]*/;
@@ -45,7 +70,7 @@ function transformIndexHtmlHandler(html: string) {
   }
   let indexCSS = '';
   const matchIndexCSS =
-    /[\s]*<link[\s]+rel="stylesheet"[\s]+href="\.*([\S]+index[\S]+\.css)"[^>]*>.*[\n]*/;
+    /[\s]*<link[\s]+rel="stylesheet"[\s]*[\S]*[\s]*href="\.*([\S]+index[\S]+\.css)"[^>]*>.*[\n]*/;
   if (matchIndexCSS.test(html)) {
     indexCSS = `
       const indexStyle = document.createElement('link');
@@ -64,6 +89,7 @@ function transformIndexHtmlHandler(html: string) {
       if(iconLink) iconLink.href = routerPrefix + '/logo-circle.png';
       const manifestLink = document.querySelector('link[rel="manifest"]');
       if(manifestLink) manifestLink.href = location.origin + routerPrefix + '/manifest.json';
+      ${workerJS}
       ${indexJS}${indexCSS}
       document.getElementById('musiche-script-fix').remove();
     </script>

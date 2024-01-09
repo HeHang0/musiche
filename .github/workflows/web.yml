@@ -29,12 +29,26 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
 
+      - name: Setup JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
 
       - name: Build
         run: |
           powershell
+          Remove-Item windows\logo.ico -Force -ErrorAction SilentlyContinue
+          Remove-Item web\public\logo.png -Force -ErrorAction SilentlyContinue
+          Remove-Item web\public\logo-circle.png -Force -ErrorAction SilentlyContinue
+          Remove-Item mobile\assets -Force -Recurse -ErrorAction SilentlyContinue
+          copy resources\logo.ico windows\logo.ico
+          copy resources\logo.png web\public\logo.png
+          copy resources\logo-circle.png web\public\logo-circle.png
           cd web
           yarn
           yarn build:zip
@@ -45,6 +59,7 @@ jobs:
           msbuild Musiche.sln -t:"Restore;Build" /p:Configuration=Release /p:Platform="Any CPU"
           msbuild Musiche.sln -t:"Restore;Build;Publish" /p:Configuration=Release /p:Platform="Any CPU" /p:PublishProfile="Properties\PublishProfiles\net6.0.pubxml" /p:TargetFramework=net6.0-windows
           cd ..\mobile
+          Copy-Item ..\web\dist assets -Force -Recurse
           flutter build apk --release
           cd ..
           copy windows\bin\Release\net472\Musiche.exe web\dist\Musiche.exe -ErrorAction SilentlyContinue

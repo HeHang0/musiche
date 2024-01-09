@@ -9,16 +9,11 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.database.Cursor;
 import android.graphics.Bitmap;
-import android.graphics.Color;
 import android.net.Uri;
-import android.os.Build;
 import android.os.IBinder;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.util.Size;
-import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 
@@ -116,6 +111,7 @@ public class MessagePlugin implements FlutterPlugin {
 
     private void updateMetaData(boolean playing, Integer position){
         if(position == null) return;
+        if(!playing && isServiceNotRunning(mBinding.getApplicationContext(), LyricService.class)) return;
         Intent intent = new Intent(mBinding.getApplicationContext(), NotificationService.class);
         intent.putExtra("playing", playing);
         intent.putExtra("position", position.intValue());
@@ -126,6 +122,7 @@ public class MessagePlugin implements FlutterPlugin {
     private void updateMetaData(
             String title, String artist, String album, String artwork,
             boolean playing, boolean lover, Integer position, Integer duration) {
+        if(!playing && isServiceNotRunning(mBinding.getApplicationContext(), LyricService.class)) return;
         Intent intent = new Intent(mBinding.getApplicationContext(), NotificationService.class);
         intent.putExtra("playing", playing);
         intent.putExtra("lover", lover);
@@ -233,23 +230,23 @@ public class MessagePlugin implements FlutterPlugin {
     }
 
     private void updateLyricLine(String line){
-        if(!isServiceRunning(mBinding.getApplicationContext(), LyricService.class)) return;
+        if(isServiceNotRunning(mBinding.getApplicationContext(), LyricService.class)) return;
         Intent intent = new Intent(mBinding.getApplicationContext(), LyricService.class);
         intent.putExtra("action", "line");
         intent.putExtra("line", line);
         mBinding.getApplicationContext().startService(intent);
     }
 
-    public static boolean isServiceRunning(Context context, Class<?> serviceClass) {
+    public static boolean isServiceNotRunning(Context context, Class<?> serviceClass) {
         ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         if (manager != null) {
             for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
                 if (serviceClass.getName().equals(service.service.getClassName())) {
-                    return true;
+                    return false;
                 }
             }
         }
-        return false;
+        return true;
     }
 
     @Override

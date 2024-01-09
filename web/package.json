@@ -39,11 +39,11 @@
     "jszip": "^3.10.1",
     "less": "*",
     "npm-run-all": "*",
+    "rollup-plugin-visualizer": "^5.12.0",
     "typescript": "*",
     "unplugin-auto-import": "*",
     "unplugin-vue-components": "*",
     "vite": "*",
-    "vite-plugin-pwa": "^0.16.7",
     "vue-tsc": "*"
   }
 }

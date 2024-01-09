@@ -1,10 +1,10 @@
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
+import Visualizer from 'rollup-plugin-visualizer';
 import AutoImport from 'unplugin-auto-import/vite';
 import Components from 'unplugin-vue-components/vite';
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
-import { VitePWA } from 'vite-plugin-pwa';
 
 import { ZipPlugin, VersionPlugin } from './scripts/zip';
 import { FixJSMediaTagsErrorPlugin, FixHeadPlugin } from './scripts/fix';
@@ -19,53 +19,12 @@ const plugins = [
   }),
   FixJSMediaTagsErrorPlugin(),
   FixHeadPlugin(),
-  VitePWA({
-    injectRegister: null,
-    manifest: false,
-    filename: 'worker.js',
-    registerType: 'autoUpdate',
-    workbox: {
-      runtimeCaching: [
-        {
-          urlPattern: /(.*?)\.(exe|apk|ipa)/,
-          handler: 'NetworkOnly'
-        },
-        {
-          urlPattern: /([^\/$]|index\.html)/,
-          handler: 'NetworkFirst'
-        },
-        {
-          urlPattern: /\/version$/i,
-          handler: 'CacheFirst',
-          options: {
-            cacheName: 'version-cache'
-          }
-        },
-        {
-          urlPattern: /\/proxy/i,
-          handler: 'CacheFirst',
-          options: {
-            cacheName: 'interface-cache'
-          }
-        },
-        {
-          urlPattern: /(.*?)\.(js|css|ts)/,
-          handler: 'CacheFirst',
-          options: {
-            cacheName: 'js-css-cache'
-          }
-        },
-        {
-          urlPattern: /(.*?)\.(png|jpe?g|svg|gif|bmp|psd|tiff|tga|eps)/,
-          handler: 'CacheFirst',
-          options: {
-            cacheName: 'image-cache'
-          }
-        }
-      ]
-    }
-  }),
-  VersionPlugin()
+  VersionPlugin(),
+  Visualizer({
+    open: true,
+    gzipSize: true,
+    brotliSize: true
+  })
 ];
 process.env.BUILD_ZIP === '1' && plugins.push(ZipPlugin());
 // https://vitejs.dev/config/

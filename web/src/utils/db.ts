@@ -41,10 +41,10 @@ export class IndexDB {
       });
     if (!request) return;
     request.onerror = function (event) {
-      console.log('db store add error', event);
+      console.error('db store add error', event);
     };
     request.onsuccess = function (_event) {
-      console.log('db store add success');
+      // console.log('db store add success');
     };
   }
 

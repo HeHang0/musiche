@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import Lyric from './Lyric.vue';
 import Disc2Image from '../../assets/images/disc3.png';
 import SmokeVideo from '../../assets/videos/smoke.webm';
@@ -15,7 +15,6 @@ const props = withDefaults(defineProps<Props>(), {
   tools: true
 });
 
-// const colors = ['#ab3c46', '#b78a62', '#b36159', '#727272'];
 let colorBase = 0;
 const play = usePlayStore();
 const setting = useSettingStore();
@@ -61,12 +60,6 @@ function setColor(
 ) {
   themeColor.value = `rgb(${rBase + r}, ${gBase + g}, ${bBase + b})`;
 }
-watch(
-  () => play.playStatus.playing,
-  value => {
-    console.log(value);
-  }
-);
 let colorInterval: any = null;
 onMounted(() => {
   setTimeout(() => {
@@ -161,11 +154,12 @@ onUnmounted(() => clearInterval(colorInterval));
     position: fixed;
     left: 50%;
     top: 0;
-    height: 80px;
-    line-height: 80px;
+    height: calc(var(--sat) + 80px);
+    line-height: calc(var(--sat) + 80px);
     width: calc(100% - 200px);
     text-align: center;
     transform: translateX(-50%);
+    transition: width 0.5s;
     opacity: 0;
     & > span {
       font-size: 18px;
@@ -185,6 +179,7 @@ onUnmounted(() => clearInterval(colorInterval));
     width: 50%;
     aspect-ratio: 1 / 1;
     max-height: 80vh;
+    max-width: 80vh;
     position: absolute;
     left: 25%;
     top: 50%;
@@ -208,18 +203,19 @@ onUnmounted(() => clearInterval(colorInterval));
       left: 50%;
       width: auto;
       height: 50%;
+      max-height: 100vw;
       top: 25%;
     }
   }
   &-lyric {
-    width: 45%;
+    width: calc(50% - 20px);
     height: 100%;
     position: absolute;
     right: 0;
     top: 0;
     color: white;
     @media (orientation: portrait) {
-      height: 45%;
+      height: calc(50% - 20px);
       width: 100%;
       bottom: 0;
       top: unset;
@@ -258,14 +254,16 @@ onUnmounted(() => clearInterval(colorInterval));
       mask: radial-gradient(
         circle at 50% 50%,
         rgba(0, 0, 0, 1) 50%,
-        rgba(0, 0, 0, 0.1) 60%,
-        rgba(0, 0, 0, 0) 60%
+        rgba(0, 0, 0, 0.2) 60%,
+        rgba(0, 0, 0, 0.1) 70%,
+        rgba(0, 0, 0, 0) 100%
       );
       -webkit-mask: radial-gradient(
         circle at 50% 50%,
         rgba(0, 0, 0, 1) 50%,
-        rgba(0, 0, 0, 0.1) 60%,
-        rgba(0, 0, 0, 0) 60%
+        rgba(0, 0, 0, 0.2) 60%,
+        rgba(0, 0, 0, 0.1) 70%,
+        rgba(0, 0, 0, 0) 100%
       );
     }
   }

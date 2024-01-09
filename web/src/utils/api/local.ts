@@ -2,9 +2,15 @@ import { IndexDB } from '../db';
 import { parseMusicFileImageAddress } from '../http';
 import { Music, MusicFileInfo } from '../type';
 import { checkReadPermission, getFileName, webView2Services } from '../utils';
-import jsmediatags from 'jsmediatags';
 import { TagType, jsmediatagsError } from 'jsmediatags/types';
 export const fileHandlerDB = new IndexDB('file-handles-store');
+
+let getJSMediaTags = async () => {
+  const jsmediatags = await import('jsmediatags');
+  const result = jsmediatags.default;
+  getJSMediaTags = () => Promise.resolve(result);
+  return result;
+};
 
 export async function fileToMusic(
   fileInfos: MusicFileInfo[]
@@ -15,14 +21,18 @@ export async function fileToMusic(
     let tag: TagType = {} as any;
     try {
       tag = await new Promise((resolve, reject) => {
-        jsmediatags.read(info.file, {
-          onSuccess: function (tag: TagType) {
-            resolve(tag);
-          },
-          onError: function (error: jsmediatagsError) {
-            reject(error);
-          }
-        });
+        getJSMediaTags()
+          .then(jsmediatags => {
+            jsmediatags.read(info.file, {
+              onSuccess: function (tag: TagType) {
+                resolve(tag);
+              },
+              onError: function (error: jsmediatagsError) {
+                reject(error);
+              }
+            });
+          })
+          .catch(reject);
       });
     } catch {}
     const rawName = info.file.name.replace(/\.[a-zA-Z\d]+$/, '');

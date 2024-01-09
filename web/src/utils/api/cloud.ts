@@ -1,4 +1,3 @@
-import * as CryptoJS from 'crypto-js';
 import {
   Music,
   MusicType,
@@ -32,8 +31,16 @@ var qrcodeGenerate: (text: string) => Promise<string> = async (
   return qrcodeGenerate(text);
 };
 
-function aesEncrypt(plain: string, key: string): string {
+let getCryptoJS = () => {
+  return import('crypto-js').then(CryptoJS => {
+    getCryptoJS = () => Promise.resolve(CryptoJS.default);
+    return CryptoJS.default;
+  });
+};
+
+async function aesEncrypt(plain: string, key: string): Promise<string> {
   var iv = '0102030405060708';
+  const CryptoJS = await getCryptoJS();
   var cipherText = CryptoJS.AES.encrypt(plain, CryptoJS.enc.Utf8.parse(key), {
     iv: CryptoJS.enc.Utf8.parse(iv),
     mode: CryptoJS.mode.CBC
@@ -71,8 +78,11 @@ async function httpRequest(
   if (!options) options = {};
   if (!options.data) options.data = {};
   options.data.csrf_token = csrfToken;
-  var param = aesEncrypt(JSON.stringify(options.data), '0CoJUm6Qyw8W8jud');
-  param = aesEncrypt(param, 't9Y0m4pdsoMznMlL');
+  var param = await aesEncrypt(
+    JSON.stringify(options.data),
+    '0CoJUm6Qyw8W8jud'
+  );
+  param = await aesEncrypt(param, 't9Y0m4pdsoMznMlL');
   param = encodeURIComponent(param);
   var encSecKey =
     '&encSecKey=409afd10f2fa06173df57525287c4a1cdf6fa08bd542c6400da953704eb92dc1ad3c582e82f51a707ebfa0f6a25bcd185139fc1509d40dd97b180ed21641df55e90af4884a0b587bd25256141a9270b1b6f18908c6a626b74167e5a55a796c0f808a2eb12c33e63d34a7c4d358bab1dc661637dd1e888a1268b81a89f6136053';
@@ -96,7 +106,7 @@ async function httpRequest(
   try {
     return await res.json();
   } catch (err) {
-    console.log('cloud api err: ', err);
+    console.error('cloud api err: ', err);
     return {};
   }
 }

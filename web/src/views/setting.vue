@@ -30,6 +30,7 @@ import {
 
 import { LogoCircleImage } from '../utils/logo';
 import { ThemeColorManager } from '../utils/color';
+import { getServiceWorkerRegistration } from '../sw/register';
 
 const { currentRoute, replace, options } = useRouter();
 const subItems = [
@@ -259,6 +260,7 @@ function forceRefreshPage() {
   const substringLength = historyBase ? historyBase.length + 2 : 1;
   if (historyBase && !historyBase.startsWith('/'))
     historyBase = '/' + historyBase;
+  getServiceWorkerRegistration()?.update();
   location.href =
     location.origin +
     historyBase +

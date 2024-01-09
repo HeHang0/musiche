@@ -8,8 +8,8 @@ import PlayingVideo from '../../assets/videos/playing.webm';
 import { LogoImage } from '../../utils/logo';
 import { usePlayStore } from '../../stores/play';
 import { Ref, onMounted, onUnmounted, ref, watch } from 'vue';
-import Snowflakes from 'magic-snowflakes';
 import Lyric from './Lyric.vue';
+import Snowflakes from 'magic-snowflakes';
 
 interface Props {
   tools?: boolean;
@@ -17,6 +17,13 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   tools: true
 });
+
+let getSnowflakes = async () => {
+  const snowflakes = await import('magic-snowflakes');
+  const result = snowflakes.default;
+  getSnowflakes = () => Promise.resolve(result);
+  return result;
+};
 
 const play = usePlayStore();
 const videoSrc = ref(play.playStatus.playing ? PlayingVideo : PausedVideo);
@@ -52,8 +59,9 @@ watch(
   }
 );
 let snowflakes: Snowflakes | null = null;
-onMounted(() => {
-  snowflakes = new Snowflakes({
+onMounted(async () => {
+  const Snow = await getSnowflakes();
+  snowflakes = new Snow({
     color: '#ffffffba',
     container: snowContainer.value,
     autoResize: true,

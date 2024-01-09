@@ -104,7 +104,6 @@ export function wsClient(
   onClose: () => void,
   onOpen?: () => void
 ): CommunicationClient {
-  console.log('connected websocket ' + useLocalAudio);
   if (useLocalAudio) {
     localAudio?.setOnMessage(onMessage);
     return {
@@ -142,8 +141,8 @@ export function wsClient(
   });
 
   // 当发生错误时触发
-  socket.addEventListener('error', function () {
-    console.log('WebSocket error');
+  socket.addEventListener('error', function (error) {
+    console.error('WebSocket error', error);
     socket.close();
     onClose && onClose();
   });

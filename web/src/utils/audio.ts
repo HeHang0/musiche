@@ -170,14 +170,12 @@ export class AudioPlayer {
       });
   }
   audioEnded() {
-    console.log('audio ended');
     if (this.audio.src?.startsWith('blob')) {
       URL.revokeObjectURL(this.audio.src);
     }
     this.sendMessage('next', true);
   }
   audioPlay() {
-    console.log('audio play');
     this.initMediaAction();
     this.statusChange();
   }

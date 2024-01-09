@@ -238,9 +238,7 @@ export async function parseLink(link: string): Promise<{
         }
       }
     }
-  } catch (e) {
-    console.log(e);
-  }
+  } catch (e) {}
   return null;
 }
 
