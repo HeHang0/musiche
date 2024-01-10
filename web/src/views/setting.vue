@@ -30,6 +30,7 @@ import {
 
 import { LogoCircleImage } from '../utils/logo';
 import { ThemeColorManager } from '../utils/color';
+import DroidImage from '../assets/images/droid.svg';
 import { getServiceWorkerRegistration } from '../sw/register';
 
 const { currentRoute, replace, options } = useRouter();
@@ -883,6 +884,17 @@ onUnmounted(unWatch);
                   .NET
                 </div>
                 <p>PC版(NET6)</p>
+              </a>
+              <a
+                class="music-setting-about-card"
+                href="https://hehang0.github.io/musiche/Musiche.apk"
+                target="_blank">
+                <div
+                  class="logo-app"
+                  style="--logo-app-color: var(--music-footer-background)">
+                  <img :src="DroidImage" />
+                </div>
+                <p>Android版</p>
               </a>
               <a
                 v-if="
