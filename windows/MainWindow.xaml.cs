@@ -231,6 +231,10 @@ namespace Musiche
 
         public void ShowApp(object sender, EventArgs e)
         {
+            if(sender is System.Windows.Forms.ToolStripMenuItem)
+            {
+                webSocketHandler.SendMessage("{\"type\": \"show\"}");
+            }
             Show();
             if (WindowState == WindowState.Minimized)
             {
