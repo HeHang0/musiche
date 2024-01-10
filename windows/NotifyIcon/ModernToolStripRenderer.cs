@@ -13,7 +13,7 @@ namespace Musiche.NotifyIcon
         public ModernToolStripRenderer()
         {
             pfc = new System.Drawing.Text.PrivateFontCollection();
-            pfc.AddFontFile(Utils.IconFont.IconFontPath);
+            pfc.AddFontFile(Utils.File.IconFontPath);
             iconFont = new Font(pfc.Families[0], 9, FontStyle.Bold);
         }
         protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)

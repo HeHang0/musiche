@@ -14,6 +14,7 @@ namespace Musiche.Webview2
     public partial class Webview2Control : UserControl
     {
         private Window _parentWindow;
+        private FileAccessor _fileAccessor;
         private static readonly CoreWebView2Environment _coreEnvironment;
 
         public event EventHandler<CoreWebView2WebMessageReceivedEventArgs> WebMessageReceived;
@@ -28,6 +29,7 @@ namespace Musiche.Webview2
             InitializeComponent();
             Unloaded += WebView2_Unloaded;
             Loaded += Webview2Control_Loaded;
+            _fileAccessor = new FileAccessor();
             InitWebViewCore();
             Logger.Logger.Info("webview2创建================================");
         }
@@ -37,6 +39,9 @@ namespace Musiche.Webview2
             webview2.DefaultBackgroundColor = System.Drawing.Color.Transparent;
             webview2.CoreWebView2InitializationCompleted += OnCoreWebView2InitializationCompleted;
             webview2.WebMessageReceived += OnWebMessageReceived;
+            var options = _coreEnvironment.CreateCoreWebView2ControllerOptions();
+            options.ProfileName = Utils.File.AppName;
+            options.IsInPrivateModeEnabled = false;
             await webview2.EnsureCoreWebView2Async(_coreEnvironment);
             Logger.Logger.Info("webview2初始化================================");
         }
@@ -66,6 +71,11 @@ namespace Musiche.Webview2
             {
                 webview2.CoreWebView2.Profile.PreferredColorScheme = preferredColorScheme;
             }
+        }
+
+        public void SaveConfig()
+        {
+            _fileAccessor.SaveConfig();
         }
 
         private void Webview2Control_Loaded(object sender, RoutedEventArgs e)
@@ -104,7 +114,7 @@ namespace Musiche.Webview2
             {
                 webview2.CoreWebView2.AddHostObjectToScript("specialService", new Utils.WindowResize(new WindowInteropHelper(_parentWindow).Handle));
             }
-            webview2.CoreWebView2.AddHostObjectToScript("fileAccessor", new FileAccessor());
+            webview2.CoreWebView2.AddHostObjectToScript("fileAccessor", _fileAccessor);
             SaveWindowStatus();
             webview2.CoreWebView2.ContainsFullScreenElementChanged += CoreWebView2_ContainsFullScreenElementChanged;
             webview2.CoreWebView2.DOMContentLoaded += CoreWebView2_DOMContentLoaded;

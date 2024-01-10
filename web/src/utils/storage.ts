@@ -1,5 +1,5 @@
 import { webView2Services } from '../utils/utils';
-const useFileAccessor = false;
+const useFileAccessor = webView2Services.enabled && webView2Services.isWindows;
 export enum StorageKey {
   Language = 'language',
   AppTheme = 'app-theme',
@@ -33,7 +33,7 @@ async function setValue<T>(key: string, value: T) {
     result = `${value}`;
   }
   if (useFileAccessor) {
-    await webView2Services.fileAccessor?.WriteFile('musiche-' + key, result);
+    await webView2Services.fileAccessor?.WriteConfig('musiche-' + key, result);
   } else {
     localStorage.setItem('musiche-' + key, result);
   }
@@ -47,7 +47,7 @@ async function getValue<T>(
   var value: any = '';
   if (useFileAccessor) {
     value =
-      (await webView2Services.fileAccessor?.ReadFile('musiche-' + key)) || '';
+      (await webView2Services.fileAccessor?.ReadConfig('musiche-' + key)) || '';
   } else {
     value = localStorage.getItem('musiche-' + key) as any;
   }
@@ -64,7 +64,7 @@ async function getValue<T>(
 
 async function removeKey(key: string) {
   if (useFileAccessor) {
-    await webView2Services.fileAccessor?.DeleteFile('musiche-' + key);
+    await webView2Services.fileAccessor?.DeleteConfig('musiche-' + key);
   } else {
     localStorage.removeItem('musiche-' + key);
   }

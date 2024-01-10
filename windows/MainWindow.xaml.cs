@@ -6,6 +6,7 @@ using Musiche.Webview2;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Pipes;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -65,6 +66,25 @@ namespace Musiche
                 positionTimer.Stop();
                 mediaMetaManager.AudioStatusChanged += OnAudioStatusChanged;
             }
+            InitNamedPipeServerStream();
+        }
+
+        private async void InitNamedPipeServerStream()
+        {
+            NamedPipeServerStream serverStream = new NamedPipeServerStream("_MUSICHE_PIPE", PipeDirection.InOut, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+            try
+            {
+                await serverStream.WaitForConnectionAsync();
+                Dispatcher.Invoke(() =>
+                {
+                    ShowApp(null, null);
+                });
+                serverStream.Close();
+            }
+            catch (Exception)
+            {
+            }
+            InitNamedPipeServerStream();
         }
 
         private void UpdateAudioPosition(object sender, ElapsedEventArgs e)
@@ -107,7 +127,7 @@ namespace Musiche
             webServer = new WebServer(54621);
             webview2.Control.Source = new Uri("http://127.0.0.1:5173");
             string exeDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location);
-            logStream = System.IO.File.Open(Path.Combine(exeDirectory, "log." + DateTime.Now.ToString("yyyy-MM-dd") + ".log"), FileMode.Append);
+            logStream = File.Open(Path.Combine(exeDirectory, "log." + DateTime.Now.ToString("yyyy-MM-dd") + ".log"), FileMode.Append);
 #else
             int port = GetAvailablePort();
             webServer = new WebServer(port);
@@ -135,6 +155,7 @@ namespace Musiche
         private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             webSocketHandler.SendMessage("{\"type\": \"close\"}");
+            webview2?.SaveConfig();
         }
 
         private async void WebServer_ClientConnected(object sender, System.Net.HttpListenerContext context)
@@ -248,6 +269,9 @@ namespace Musiche
             hotkey?.Clear();
             logStream?.Close();
             notifyIcon?.Dispose();
+            webview2?.SaveConfig();
+            webview2?.webview2?.Stop();
+            webview2?.webview2?.Dispose();
             Application.Current.Shutdown();
         }
 

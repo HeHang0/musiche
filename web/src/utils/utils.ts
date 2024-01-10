@@ -11,6 +11,9 @@ interface FileAccessor {
   ReadFile: (path: string) => Promise<string>;
   WriteFile: (path: string, text: string) => Promise<void>;
   DeleteFile: (path: string) => Promise<void>;
+  ReadConfig: (path: string) => Promise<string>;
+  WriteConfig: (path: string, text: string) => Promise<void>;
+  DeleteConfig: (path: string) => Promise<void>;
   FileExists: (path: string) => Promise<boolean>;
   ShowSelectedDirectory: () => Promise<string[]>;
   GetMyMusicDirectory: () => Promise<string>;
@@ -25,11 +28,15 @@ interface FileAccessor {
 export const webView2Services = {
   enabled: false,
   specialService: null,
-  fileAccessor: null
+  fileAccessor: null,
+  isWindows: false,
+  isMobile: false
 } as {
   enabled: boolean;
   specialService: SpecialService | null;
   fileAccessor: FileAccessor | null;
+  isWindows: boolean;
+  isMobile: boolean;
 };
 
 try {
@@ -58,6 +65,9 @@ try {
       callHandler = (window as any).flutter_inappwebview.callHandler;
     }
     webView2Services.fileAccessor = {
+      ReadConfig: (_path: string) => Promise.resolve(''),
+      WriteConfig: (_path: string, _text: string) => Promise.resolve(),
+      DeleteConfig: (_path: string) => Promise.resolve(),
       ReadFile: (path: string) =>
         callHandler ? callHandler('readFile', path) : Promise.resolve(''),
       WriteFile: (path: string, text: string) =>
@@ -81,6 +91,8 @@ try {
           ? callHandler('listAllAudios', path, recursive)
           : Promise.resolve('')
     };
+    webView2Services.isMobile = true;
+    webView2Services.isWindows = false;
   } else {
     webView2Services.specialService = (
       window as any
@@ -89,6 +101,8 @@ try {
       window as any
     )?.chrome?.webview?.hostObjects?.fileAccessor;
     webView2Services.enabled = !!webView2Services.specialService;
+    webView2Services.isMobile = !webView2Services.specialService;
+    webView2Services.isWindows = webView2Services.enabled;
   }
 } catch (error) {}
 

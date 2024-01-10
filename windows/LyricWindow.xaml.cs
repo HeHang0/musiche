@@ -89,7 +89,7 @@ namespace Musiche
 
         private void SetIcons()
         {
-            var uri = new Uri(Path.GetDirectoryName(Utils.IconFont.IconFontPath));
+            var uri = new Uri(Path.GetDirectoryName(Utils.File.IconFontPath));
             FontFamily fontFamily = new FontFamily(uri.AbsoluteUri+"/#iconfont");
             foreach (object item in IconPannel.Children)
             {
