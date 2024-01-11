@@ -1199,6 +1199,7 @@ onUnmounted(unWatch);
     flex-direction: column;
     &-download {
       display: flex;
+      margin-top: 30px;
     }
     &-update {
       cursor: pointer;
@@ -1207,12 +1208,14 @@ onUnmounted(unWatch);
     &-card {
       display: flex;
       flex-direction: column;
-      justify-content: center;
       align-items: center;
-      margin: 20px 30px 0 0;
       text-decoration: none;
+      text-align: center;
       cursor: pointer;
       color: -webkit-link;
+      & + & {
+        margin-left: 20px;
+      }
       &:hover {
         p {
           text-decoration: underline;

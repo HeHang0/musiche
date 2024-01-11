@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.WebSockets;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,10 +22,22 @@ namespace Musiche.Server
         [Router("/status")]
         public async Task WSStatus(WebSocket webSocket)
         {
+            await SendStatus(webSocket);
+        }
+
+        public async Task SendStatus(WebSocket webSocket=null)
+        {
             var status = await GetStatus();
             status.Add("type", "status");
             string text = JsonConvert.SerializeObject(status);
-            await SendString(webSocket, text);
+            if(webSocket == null)
+            {
+                SendMessage(text);
+            }
+            else
+            {
+                await SendString(webSocket, text);
+            }
         }
 
         public void SendMessage(string message)

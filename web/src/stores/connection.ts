@@ -31,9 +31,9 @@ export class MusicConnection {
       this.wsClose.bind(this),
       this.autoAppThemeChange.bind(this)
     );
-    if (interval) {
-      setInterval(this.sendWsStatus.bind(this), 500);
-    }
+    // if (interval) {
+    //   setInterval(this.sendWsStatus.bind(this), 500);
+    // }
     if (this.setting.pageValue.savePlayProgress) {
       try {
         const progress = parseInt(

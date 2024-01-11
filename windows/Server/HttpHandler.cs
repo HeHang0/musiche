@@ -84,7 +84,7 @@ namespace Musiche.Server
                 MediaMetadata data = JsonConvert.DeserializeObject<MediaMetadata>(ctx.Request.DataAsString());
                 _mediaMetaManager.Dispatcher.Invoke(() =>
                 {
-                    _mediaMetaManager.SetMediaMeta(data);
+                    _mediaMetaManager.SetMediaMeta(data, _audioPlay.Playing);
                 });
             }catch  (Exception) { }
             await SendString(ctx, "");

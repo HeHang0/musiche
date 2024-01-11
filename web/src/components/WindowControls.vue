@@ -75,6 +75,7 @@ function prepareClose() {
     )
   })
     .then(close)
+    .catch(() => {})
     .finally(() => {
       closing = false;
     });

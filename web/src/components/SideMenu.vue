@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { usePlayStore } from '../stores/play';
 import { LogoImage, LogoCircleImage } from '../utils/logo';
 import { useSettingStore } from '../stores/setting';
+import { getServiceWorkerRegistration } from '../sw/register';
 const { options, push } = useRouter();
 const route = useRoute();
 const play = usePlayStore();
@@ -29,6 +30,7 @@ function createMyPlaylists() {
   createPlaylistShow.value = false;
 }
 function toHome() {
+  getServiceWorkerRegistration()?.update();
   push('/');
 }
 </script>

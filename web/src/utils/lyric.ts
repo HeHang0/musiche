@@ -92,6 +92,7 @@ export class LyricManager {
   }
 
   public updateLyric(music: Music) {
+    console.log('updateLyric', music);
     const remoteId = `${music.type}${music.id}`;
     if (
       (this.parsed || this.parsing) &&
@@ -144,6 +145,7 @@ export class LyricManager {
     cancel?: boolean,
     music?: Music
   ) {
+    console.log('subscribeLyricLine', callback, cancel);
     if (!callback) return;
     const index = this.lyricLineChanges.indexOf(callback);
     if (!cancel && index < 0) {

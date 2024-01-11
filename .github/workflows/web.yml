@@ -42,6 +42,7 @@ jobs:
       - name: Build
         run: |
           powershell
+          node web\scripts\version.js
           Remove-Item windows\logo.ico -Force -ErrorAction SilentlyContinue
           Remove-Item web\public\logo.png -Force -ErrorAction SilentlyContinue
           Remove-Item web\public\logo-circle.png -Force -ErrorAction SilentlyContinue

@@ -9,7 +9,7 @@ using Windows.Media.Playback;
 namespace Musiche.Audio
 {
     public delegate void AudioStatusChangedEventHandler(object sender, string message);
-    public class MediaMetaManager
+    public class MediaMetaManager: IDisposable
     {
         private readonly Dispatcher _dispatcher;
         public Dispatcher Dispatcher => _dispatcher;
@@ -23,7 +23,13 @@ namespace Musiche.Audio
         public MediaMetaManager()
         {
             _dispatcher = Dispatcher.CurrentDispatcher;
+        }
 #if NETFRAMEWORK
+        MediaPlayer _mediaPlayer = null;
+        SystemMediaTransportControls _systemMediaTransportControls;
+        SystemMediaTransportControlsTimelineProperties _systemMediaTimelineProperties;
+        private void InitMediaPlay()
+        {
             _mediaPlayer = new MediaPlayer();
             _systemMediaTransportControls = _mediaPlayer.SystemMediaTransportControls;
             _mediaPlayer.CommandManager.IsEnabled = false;
@@ -37,10 +43,6 @@ namespace Musiche.Audio
             _systemMediaTransportControls.IsPlayEnabled = true;
             _systemMediaTimelineProperties = new SystemMediaTransportControlsTimelineProperties();
         }
-        readonly MediaPlayer _mediaPlayer;
-        readonly SystemMediaTransportControls _systemMediaTransportControls;
-        readonly SystemMediaTransportControlsTimelineProperties _systemMediaTimelineProperties;
-
         private void OnMediaTransportControlClick(SystemMediaTransportControls sender, SystemMediaTransportControlsButtonPressedEventArgs args)
         {
             string message = string.Empty;
@@ -71,14 +73,19 @@ namespace Musiche.Audio
                 AudioStatusChanged?.Invoke(this, message);
             }
         }
-#else
-        }
 #endif
-        public void SetMediaMeta(MediaMetadata metadata)
+        MediaMetadata _metadata = null;
+        public void SetMediaMeta(MediaMetadata metadata, bool playing)
         {
+            _metadata = metadata;
 #if NETFRAMEWORK
             try
             {
+                if (_mediaPlayer == null && !playing) return;
+                if(_mediaPlayer == null)
+                {
+                    InitMediaPlay();
+                }
                 if (_systemMediaTransportControls.DisplayUpdater.Type != MediaPlaybackType.Music)
                 {
                     // 如果尚未初始化，则初始化
@@ -108,6 +115,11 @@ namespace Musiche.Audio
         public void SetMediaControlPlayState(PlaybackState playbackState)
         {
 #if NETFRAMEWORK
+            if (_mediaPlayer == null)
+            {
+                InitMediaPlay();
+                if (_metadata != null) SetMediaMeta(_metadata, playbackState == PlaybackState.Playing);
+            }
             switch (playbackState)
             {
                 //case PlaybackState.Stopped: 
@@ -127,6 +139,7 @@ namespace Musiche.Audio
         public void UpdateMediaControlTimeline(TimeSpan position, TimeSpan endTime)
         {
 #if NETFRAMEWORK
+            if (_mediaPlayer == null) return;
             _systemMediaTimelineProperties.StartTime = TimeSpan.Zero;
             _systemMediaTimelineProperties.EndTime = endTime;
             _systemMediaTimelineProperties.Position = position;
@@ -139,8 +152,16 @@ namespace Musiche.Audio
         public void UpdateMediaControlPosition(TimeSpan position)
         {
 #if NETFRAMEWORK
+            if (_mediaPlayer == null) return;
             _systemMediaTimelineProperties.Position = position;
             _systemMediaTransportControls.UpdateTimelineProperties(_systemMediaTimelineProperties);
+#endif
+        }
+
+        public void Dispose()
+        {
+#if NETFRAMEWORK
+            _mediaPlayer?.Dispose();
 #endif
         }
     }

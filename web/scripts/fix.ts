@@ -90,7 +90,7 @@ function transformIndexHtmlHandler(html: string) {
       const manifestLink = document.querySelector('link[rel="manifest"]');
       if(manifestLink) manifestLink.href = location.origin + routerPrefix + '/manifest.json';
       ${workerJS}
-      ${indexJS}${indexCSS}
+      ${indexCSS}${indexJS}
       document.getElementById('musiche-script-fix').remove();
     </script>
   </head>`

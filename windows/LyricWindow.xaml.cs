@@ -179,8 +179,7 @@ namespace Musiche
             LyricScroll.ScrollToHorizontalOffset(0);
             Lyric.Content = line;
             lyricTimer?.Stop();
-            //更新行, 591.4000000000001, 350, 591.4000000000001
-            System.Diagnostics.Trace.WriteLine($"更新行, {LyricScroll.ExtentWidth}, {LyricScroll.ActualWidth}, {Lyric.ActualWidth}");
+            System.Diagnostics.Trace.WriteLine($"update lyric line, {LyricScroll.ExtentWidth}, {LyricScroll.ActualWidth}, {Lyric.ActualWidth}");
             if (duration > 0 && duration < 60000 && LyricScroll.ExtentWidth > LyricScroll.ActualWidth)
             {
                 scrollStep = (LyricScroll.ExtentWidth - LyricScroll.ActualWidth) / (duration / 33);

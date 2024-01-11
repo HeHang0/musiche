@@ -11,11 +11,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Timers;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
-using Timer = System.Timers.Timer;
 
 namespace Musiche
 {
@@ -32,7 +30,7 @@ namespace Musiche
         readonly WebSocketHandler webSocketHandler;
         readonly HttpHandler httpHandler;
         readonly NotifyIconInfo notifyIcon;
-        readonly Timer positionTimer;
+        readonly DispatcherTimer positionTimer;
         Stream logStream = null;
         Hotkey.Hotkey hotkey = null;
         LyricWindow lyricWindow;
@@ -56,14 +54,12 @@ namespace Musiche
             notifyIcon = new NotifyIconInfo(webSocketHandler, ShowApp, ExitApp);
             TaskbarItemInfo = taskbarInfo.TaskbarItemInfo;
             AppDomain.CurrentDomain.UnhandledException += UnhandledException;
+            positionTimer = new DispatcherTimer();
+            positionTimer.Interval = TimeSpan.FromMilliseconds(500);
+            positionTimer.Tick += UpdateAudioPosition;
+            positionTimer.Stop();
             if(MediaMetaManager.Supported)
             {
-                positionTimer = new Timer();
-                positionTimer.Interval = 1000;
-                positionTimer.AutoReset = true;
-                positionTimer.Enabled = true;
-                positionTimer.Elapsed += UpdateAudioPosition;
-                positionTimer.Stop();
                 mediaMetaManager.AudioStatusChanged += OnAudioStatusChanged;
             }
             InitNamedPipeServerStream();
@@ -87,9 +83,13 @@ namespace Musiche
             InitNamedPipeServerStream();
         }
 
-        private void UpdateAudioPosition(object sender, ElapsedEventArgs e)
+        private void UpdateAudioPosition(object sender, EventArgs e)
         {
-            mediaMetaManager.UpdateMediaControlPosition(audioPlay.CurrentTimeSpan);
+            _ = webSocketHandler.SendStatus();
+            if (MediaMetaManager.Supported)
+            {
+                mediaMetaManager.UpdateMediaControlPosition(audioPlay.CurrentTimeSpan);
+            }
         }
 
         private void UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -104,14 +104,14 @@ namespace Musiche
             notifyIcon?.AudioPlayStateChanged(playing);
             taskbarInfo?.AudioPlayStateChanged(playing);
             lyricWindow?.AudioPlayStateChanged(playing);
-            if(MediaMetaManager.Supported)
-            {
-                if (playing) positionTimer?.Start();
-                else positionTimer?.Stop();
-            }
+            if (playing) positionTimer?.Start();
+            else positionTimer?.Stop();
             if(state == NAudio.Wave.PlaybackState.Stopped)
             {
                 webSocketHandler.SendMessage("{\"type\": \"next\",\"data\": \"true\"}");
+            }else
+            {
+                UpdateAudioPosition(this, null);
             }
         }
 
@@ -156,6 +156,7 @@ namespace Musiche
         {
             webSocketHandler.SendMessage("{\"type\": \"close\"}");
             webview2?.SaveConfig();
+            e.Cancel = true;
         }
 
         private async void WebServer_ClientConnected(object sender, System.Net.HttpListenerContext context)
@@ -272,6 +273,7 @@ namespace Musiche
             webview2?.SaveConfig();
             webview2?.webview2?.Stop();
             webview2?.webview2?.Dispose();
+            mediaMetaManager?.Dispose();
             Application.Current.Shutdown();
         }
 

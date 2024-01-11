@@ -111,7 +111,7 @@ public class MessagePlugin implements FlutterPlugin {
 
     private void updateMetaData(boolean playing, Integer position){
         if(position == null) return;
-        if(!playing && isServiceNotRunning(mBinding.getApplicationContext(), LyricService.class)) return;
+        if(!playing && isServiceNotRunning(mBinding.getApplicationContext(), NotificationService.class)) return;
         Intent intent = new Intent(mBinding.getApplicationContext(), NotificationService.class);
         intent.putExtra("playing", playing);
         intent.putExtra("position", position.intValue());
@@ -122,7 +122,7 @@ public class MessagePlugin implements FlutterPlugin {
     private void updateMetaData(
             String title, String artist, String album, String artwork,
             boolean playing, boolean lover, Integer position, Integer duration) {
-        if(!playing && isServiceNotRunning(mBinding.getApplicationContext(), LyricService.class)) return;
+        if(!playing && isServiceNotRunning(mBinding.getApplicationContext(), NotificationService.class)) return;
         Intent intent = new Intent(mBinding.getApplicationContext(), NotificationService.class);
         intent.putExtra("playing", playing);
         intent.putExtra("lover", lover);
