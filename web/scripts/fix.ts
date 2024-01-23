@@ -91,6 +91,13 @@ function transformIndexHtmlHandler(html: string) {
       if(manifestLink) manifestLink.href = location.origin + routerPrefix + '/manifest.json';
       ${workerJS}
       ${indexCSS}${indexJS}
+      window.addEventListener('load', () => {
+        const googleLink = document.createElement('link');
+        googleLink.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+SC&display=swap';
+        googleLink.rel = 'stylesheet';
+        googleLink.type = 'text/css';
+        document.head.appendChild(googleLink);
+      })
       document.getElementById('musiche-script-fix').remove();
     </script>
   </head>`

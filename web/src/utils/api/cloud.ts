@@ -639,6 +639,6 @@ export async function userInfo(
   return {
     id: ret.profile.userId,
     name: ret.profile.nickname,
-    image: ret.profile.avatarUrl
+    image: (ret.profile.avatarUrl || '').replace('http://', 'https://')
   };
 }

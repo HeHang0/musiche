@@ -361,7 +361,7 @@ async function setCustomTheme() {
   const imageFile: File | null = await getImageFile();
   if (!imageFile) return;
   const fileUrl = URL.createObjectURL(imageFile);
-  const dataUrl = await imageToDataUrl(fileUrl, 1920);
+  const dataUrl = await imageToDataUrl(fileUrl, 1920, 1920);
   URL.revokeObjectURL(fileUrl);
   const c = await ThemeColorManager.getThemeColor(dataUrl);
   setting.setCustomTheme({

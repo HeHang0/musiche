@@ -1,6 +1,5 @@
 @import './base.less';
 @import './element.less';
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC&display=swap');
 
 @font-face {
   /*自定义字体名*/
