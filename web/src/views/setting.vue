@@ -484,6 +484,7 @@ onUnmounted(unWatch);
             <span>字体选择</span>
 
             <el-select
+              placeholder="默认"
               v-model="setting.pageValue.font"
               @change="
                 setting.setFont(
@@ -491,7 +492,7 @@ onUnmounted(unWatch);
                   setting.pageValue.fontBold
                 )
               ">
-              <el-option key="" label="默认" value="" />
+              <el-option key="default" label="默认" value="" />
               <el-option key="auto" label="系统" value="auto" />
               <el-option
                 v-for="item in setting.fonts || defaultFonts"
@@ -588,7 +589,10 @@ onUnmounted(unWatch);
             <span>
               <span>剩余关闭时间</span>
               <span>
-                <el-select v-model="delayMinute" @change="delayExitChange">
+                <el-select
+                  placeholder="默认"
+                  v-model="delayMinute"
+                  @change="delayExitChange">
                   <el-option
                     v-for="(_, index) in new Array(24)"
                     :key="index"
@@ -599,7 +603,10 @@ onUnmounted(unWatch);
                 小时
               </span>
               <span>
-                <el-select v-model="delaySecond" @change="delayExitChange">
+                <el-select
+                  placeholder="默认"
+                  v-model="delaySecond"
+                  @change="delayExitChange">
                   <el-option
                     v-for="(_, index) in new Array(60)"
                     :key="index"
@@ -764,11 +771,14 @@ onUnmounted(unWatch);
               </el-checkbox>
             </div>
             <div class="music-setting-lyric-item">
-              <span class="music-setting-lyric-item-title">字体</span>
+              <span class="music-setting-lyric-item-title"
+                >字<span style="opacity: 0">占位</span>体</span
+              >
               <el-select
+                placeholder="默认"
                 v-model="setting.pageValue.lyric.fontFamily"
                 @change="setting.setLyricOptions">
-                <el-option key="" label="默认" value="" />
+                <el-option key="default" label="默认" value="" />
                 <el-option
                   v-for="item in setting.fonts || defaultFonts"
                   :key="item"
@@ -785,8 +795,11 @@ onUnmounted(unWatch);
               </el-select>
             </div>
             <div class="music-setting-lyric-item">
-              <span class="music-setting-lyric-item-title">字号</span>
+              <span class="music-setting-lyric-item-title"
+                >字<span style="opacity: 0">占位</span>号</span
+              >
               <el-select
+                placeholder="默认"
                 class="short"
                 v-model="setting.pageValue.lyric.fontSize"
                 @change="setting.setLyricOptions">
@@ -819,6 +832,7 @@ onUnmounted(unWatch);
               <span class="music-setting-lyric-item-title">配色方案</span>
               <div class="music-setting-lyric-item-color">
                 <el-select
+                  placeholder="默认"
                   class="short"
                   v-model="setting.pageValue.lyric.fontColor"
                   @change="
@@ -1182,9 +1196,16 @@ onUnmounted(unWatch);
           background-color: var(--fix-color);
         }
       }
-      .el-select.short {
-        width: 80px;
-        height: 28px;
+      .el-select {
+        width: 140px;
+        &.short {
+          width: 80px;
+          height: 28px;
+          :deep(.el-select__wrapper) {
+            height: 28px;
+            min-height: 28px;
+          }
+        }
       }
       .el-checkbox {
         height: 24px;

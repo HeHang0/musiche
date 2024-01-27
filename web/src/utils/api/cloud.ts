@@ -204,9 +204,9 @@ export async function daily(): Promise<Playlist | null> {
       now.getMonth() + 1
     }-${now.getDate()}`,
     image:
-      'https://d2.music.126.net/dmusic/obj/w5zCg8OAw6HDjzjDgMK_/4130788701/352d/82fd/3ca7/215e645c39cee3bc72ba9f0520972f39.png',
-    backgroundImage:
       'https://d1.music.126.net/dmusic/obj/w5zCg8OAw6HDjzjDgMK_/4157354271/5697/762a/99fb/dc1515a2dc6708fe40a5f3b36d987614.png',
+    daily: true,
+    dailyColor: 'rgb(249, 133, 102)',
     type: musicType
   };
 }

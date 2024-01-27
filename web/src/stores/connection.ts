@@ -23,7 +23,7 @@ export class MusicConnection {
     }
   }
 
-  async init(interval: boolean) {
+  async init(_interval: boolean) {
     await this.play.initValue();
     await this.setting.initValue();
     this.webSocketClient = wsClient(

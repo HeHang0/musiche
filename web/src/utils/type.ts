@@ -57,7 +57,8 @@ export interface Playlist {
   id: string;
   name: string;
   image: string;
-  backgroundImage?: string;
+  daily?: boolean;
+  dailyColor?: string;
   type: MusicType;
   description?: string;
   musicList?: Music[];

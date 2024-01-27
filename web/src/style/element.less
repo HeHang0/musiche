@@ -5,6 +5,7 @@
     --el-mask-color: transparent !important;
     --el-slider-background-color: #7c7c7c33;
     --el-slider-full-background-color: var(--el-slider-background-color);
+    --el-bg-color: var(--music-background) !important;
 }
 
 input {
@@ -241,9 +242,14 @@ input {
 }
 
 .el-select {
+    --el-border-radius-base: var(--music-infinity);
     border-radius: var(--music-infinity);
-    box-shadow: 0 0 0 1px var(--el-input-border-color, var(--el-border-color)) inset !important;
+    // box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
     --el-select-input-focus-border-color: transparent !important;
+
+    &__wrapper {
+        background-color: transparent !important;
+    }
 
     .el-input {
         &__wrapper {

@@ -6,6 +6,7 @@ import { usePlayStore } from '../stores/play';
 import { Music, MusicType, Playlist } from '../utils/type';
 import MusicList from '../components/MusicList.vue';
 import { LogoImage } from '../utils/logo';
+import DailyImage from '../assets/images/calendar.png';
 import { useSettingStore } from '../stores/setting';
 const { currentRoute, replace } = useRouter();
 const play = usePlayStore();
@@ -131,18 +132,26 @@ onUnmounted(unWatch);
     <el-scrollbar>
       <div class="music-playlist-header">
         <img
-          v-if="playlistInfo?.backgroundImage"
-          class="music-playlist-header-image"
-          style="position: absolute"
-          :src="playlistInfo.backgroundImage" />
-        <img
           class="music-playlist-header-image"
           v-if="playlistInfoShow && !loading"
           :src="
             playlistInfo?.image ||
+            playlistInfo?.musicList?.at(0)?.largeImage ||
+            playlistInfo?.musicList?.at(0)?.mediumImage ||
             playlistInfo?.musicList?.at(0)?.image ||
             LogoImage
           " />
+
+        <div
+          v-if="playlistInfo?.daily"
+          class="music-playlist-header-image-daily">
+          <img :src="DailyImage" />
+          <span
+            v-if="playlistInfo?.daily"
+            :style="'color: ' + playlistInfo?.dailyColor"
+            >{{ new Date().getDate() }}</span
+          >
+        </div>
         <el-skeleton
           animated
           :loading="loading"
@@ -310,6 +319,27 @@ onUnmounted(unWatch);
       .el-skeleton__image {
         width: 100%;
         height: 100%;
+      }
+      &-daily {
+        width: 100px;
+        height: 100px;
+        position: absolute;
+        left: calc(var(--music-page-padding-horizontal) + 50px);
+        top: 50px;
+        & > img {
+          height: 100%;
+          width: 100%;
+        }
+        & > span {
+          font-size: 30px;
+          font-weight: bold;
+          text-align: center;
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          margin-top: 10px;
+          transform: translate(-50%, -50%);
+        }
       }
     }
 

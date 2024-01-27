@@ -17,9 +17,10 @@ const names: Record<string, string> = {
 };
 
 const loginTips: Record<string, string> = {
-  cloud: '使用 网易云音乐APP 扫码登录',
-  qq: '从QQ音乐获取cookie并填写',
-  migu: '打开 咪咕音乐app<br />点击顶部菜单图标,然后找到扫一扫并点击'
+  cloud:
+    '使用 <a href="https://music.163.com/#/download" target="_blank">网易云音乐APP</a> 扫码登录',
+  qq: '使用 <a href="https://im.qq.com" target="_blank">QQ手机版</a> 扫码登录',
+  migu: '打开 <a href="https://music.migu.cn/v3/app" target="_blank">咪咕音乐APP</a><br />点击顶部菜单图标,然后找到扫一扫并点击'
 };
 
 export const musicTypeInfo: Record<

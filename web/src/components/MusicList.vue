@@ -44,21 +44,21 @@ function menuPlay() {
   play.play(selectedMusic);
 }
 
-function addToPlayList(music: Music) {
+function addToPlayList(music?: Music) {
   if (!music && !selectedMusic) return;
-  play.add([music || selectedMusic]);
+  play.add([music || selectedMusic!]);
   play.showCurrentListPopover();
 }
 
-function nextPlay(music: Music) {
+function nextPlay(music?: Music) {
   if (!music && !selectedMusic) return;
-  play.setNextPlay(music || selectedMusic);
+  play.setNextPlay(music || selectedMusic!);
   play.showCurrentListPopover();
 }
 
-function favorite(music: Music) {
+function favorite(music?: Music) {
   if (!music && !selectedMusic) return;
-  play.beforeAddMyPlaylistsMusic([music || selectedMusic]);
+  play.beforeAddMyPlaylistsMusic([music || selectedMusic!]);
 }
 
 function deleteFromList() {
@@ -66,8 +66,9 @@ function deleteFromList() {
   play.remove(selectedMusic);
 }
 
-async function downloadMusic(music: Music) {
+async function downloadMusic(music?: Music) {
   if (!music && !selectedMusic) return;
+  music = music || selectedMusic!;
   const url = await api.downloadUrl(music);
   if (url && (!webView2Services.enabled || isMobile)) {
     const downloadLink = document.createElement('a');
@@ -86,29 +87,29 @@ const menus: any = [
   {
     icon: '播',
     label: '播放',
-    click: menuPlay
+    click: () => menuPlay()
   },
   {
     icon: '待',
     label: '下一首播放',
-    click: nextPlay
+    click: () => nextPlay()
   },
   {
     icon: '添',
     label: '添加到播放列表',
     divided: true,
-    click: addToPlayList
+    click: () => addToPlayList()
   },
   {
     icon: '收',
     label: '收藏',
-    click: favorite
+    click: () => favorite()
   },
   {
     icon: '载',
     label: '下载',
     divided: props.single,
-    click: downloadMusic
+    click: () => downloadMusic()
   }
 ];
 if (props.single) {

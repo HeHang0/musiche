@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Playlist } from '../utils/type';
 import { LogoImage } from '../utils/logo';
+import DailyImage from '../assets/images/calendar.png';
 interface Props {
   list: Playlist[];
   loading?: boolean;
@@ -17,13 +18,14 @@ const props = withDefaults(defineProps<Props>(), {
       v-for="item in props.list">
       <div class="music-play-list-item">
         <img
-          v-if="item.backgroundImage"
-          class="music-play-list-item-image"
-          style="position: absolute"
-          :src="item.backgroundImage" />
-        <img
           class="music-play-list-item-image"
           :src="item.image || LogoImage" />
+        <div v-if="item.daily" class="music-play-list-item-image-daily">
+          <img :src="DailyImage" />
+          <span v-if="item.daily" :style="'color: ' + item.dailyColor">{{
+            new Date().getDate()
+          }}</span>
+        </div>
         <div
           class="music-play-list-item-name text-overflow-3"
           v-html="item.name"></div>
@@ -62,6 +64,7 @@ const props = withDefaults(defineProps<Props>(), {
     // outline: 2px solid rgba(85, 85, 85, 0.1);
     overflow: hidden;
     box-shadow: 0px 0px 2px 0px #9a94945c;
+    text-align: center;
     &.el-skeleton {
       outline: none;
     }
@@ -75,10 +78,14 @@ const props = withDefaults(defineProps<Props>(), {
       bottom: 0;
       left: 0;
       text-shadow: 2px 2px 5px black;
+      text-align: left;
     }
     &:hover {
       .music-play-list-item-image {
         transform: scale(1.2);
+        &-daily {
+          transform: scale(1.2) translateX(-40%);
+        }
       }
     }
     &-image,
@@ -86,6 +93,33 @@ const props = withDefaults(defineProps<Props>(), {
       width: 100%;
       height: 100%;
       transition: transform 0.5s;
+    }
+    &-image {
+      &-daily {
+        display: block;
+        height: 50%;
+        width: 50%;
+        position: absolute;
+        left: 50%;
+        top: 20%;
+        transition: transform 0.5s;
+        transform: translateX(-50%);
+
+        & > img {
+          height: 100%;
+          width: 100%;
+        }
+        & > span {
+          font-size: 30px;
+          font-weight: bold;
+          text-align: center;
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          margin-top: 10px;
+          transform: translate(-50%, -50%);
+        }
+      }
     }
     .el-skeleton__image {
       background: var(--el-skeleton-color) 55;

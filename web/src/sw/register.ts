@@ -7,11 +7,7 @@ async function unregisterOldServiceWorker(workerName: string) {
     const registrations = await navigator.serviceWorker.getRegistrations();
     for (let registration of registrations) {
       if (!(registration.active?.scriptURL.endsWith(workerName) ?? true)) {
-        await registration
-          .update()
-          .then(console.log)
-          .catch(console.error)
-          .finally();
+        await registration.update().catch(console.error).finally();
         await registration.unregister();
       }
     }
