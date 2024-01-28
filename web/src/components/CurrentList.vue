@@ -2,7 +2,14 @@
 import { ElMessageBox } from 'element-plus';
 import MusicList from './MusicList.vue';
 import { usePlayStore } from '../stores/play';
+import { scrollToElement } from '../utils/utils';
+import { ref } from 'vue';
 const play = usePlayStore();
+const portrait = window.matchMedia('(orientation: portrait)');
+const drawerDirection = ref(portrait.matches ? 'btt' : 'rtl');
+portrait.addEventListener('change', () => {
+  drawerDirection.value = portrait.matches ? 'btt' : 'rtl';
+});
 function clear() {
   ElMessageBox.confirm('', '确定要清空播放列表吗？', {
     closeOnClickModal: false,
@@ -14,13 +21,25 @@ function clear() {
     })
     .catch(() => {});
 }
+function onOpen() {
+  const index = play.musicList.findIndex(
+    item => item.id === play.music?.id && item.type == play.music?.type
+  );
+  if (index < 0) return;
+  const elements = document.querySelectorAll(
+    '.music-current-list-content .music-list-item'
+  );
+  scrollToElement(elements.item(index) as HTMLElement, false, true);
+}
 </script>
 
 <template>
   <el-drawer
     class="music-current-list"
     v-model="play.currentListShow"
-    :with-header="false">
+    :with-header="false"
+    @opened="onOpen"
+    :direction="drawerDirection">
     <div class="music-current-list-header">
       <span class="music-current-list-header-title">
         播放列表
@@ -93,8 +112,22 @@ function clear() {
   height: calc(100% - 192px) !important;
   min-height: 80% !important;
   border-radius: var(--music-border-radius);
-  top: 50% !important;
-  transform: translateY(-50%);
+  margin-top: min(10%, 96px);
+  // top: 50% !important;
+  // transform: translateY(-50%);
+  @media (orientation: portrait) {
+    width: 100% !important;
+    height: calc(100% - 80px - calc(var(--sab) / 1.5)) !important;
+    margin-top: 0;
+    top: 0;
+    border-radius: 0 0 var(--music-border-radius) var(--music-border-radius);
+  }
+  @media (max-height: 600px) and (orientation: landscape) {
+    height: calc(100% - 80px - calc(var(--sab) / 1.5)) !important;
+    margin-top: 0;
+    border-radius: var(--music-border-radius) 0 var(--music-border-radius)
+      var(--music-border-radius);
+  }
   .el-drawer__body {
     padding: 0;
   }

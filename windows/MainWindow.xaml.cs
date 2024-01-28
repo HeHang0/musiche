@@ -52,6 +52,7 @@ namespace Musiche
             audioPlay.AudioInitialized += AudioPlay_AudioInitialized;
             taskbarInfo = new TaskbarInfo(webSocketHandler);
             notifyIcon = new NotifyIconInfo(webSocketHandler, ShowApp, ExitApp);
+            notifyIcon.LyricLockedChanged += OnLockLyric;
             TaskbarItemInfo = taskbarInfo.TaskbarItemInfo;
             AppDomain.CurrentDomain.UnhandledException += UnhandledException;
             positionTimer = new DispatcherTimer();
@@ -270,7 +271,7 @@ namespace Musiche
             hotkey?.Clear();
             logStream?.Close();
             notifyIcon?.Dispose();
-            webview2?.SaveConfig();
+            webview2?.SaveConfig(true);
             webview2?.webview2?.Stop();
             webview2?.webview2?.Dispose();
             mediaMetaManager?.Dispose();
@@ -307,16 +308,28 @@ namespace Musiche
 
         public void SetLyric(LyricOptions options)
         {
-            if(options.Show && lyricWindow == null)
+            notifyIcon.SetLyricShow(options.Show);
+            if (options.Show && lyricWindow == null)
             {
                 lyricWindow = new LyricWindow(webSocketHandler, options.Title, dark);
                 lyricWindow.Show();
-                lyricWindow.Closed += LyricWindow_Closed;
+                lyricWindow.Closed += OnLyricWindowClosed;
+                lyricWindow.LyricLockedChanged += OnLyricLockedChanged;
             }
             lyricWindow?.SetOptions(options);
         }
 
-        private void LyricWindow_Closed(object sender, EventArgs e)
+        private void OnLockLyric(object sender, bool locked)
+        {
+            lyricWindow?.SetLocked(locked);
+        }
+
+        private void OnLyricLockedChanged(object sender, bool locked)
+        {
+            notifyIcon.SetLyricLock(locked);
+        }
+
+        private void OnLyricWindowClosed(object sender, EventArgs e)
         {
             lyricWindow = null;
         }

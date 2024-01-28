@@ -7,6 +7,7 @@ namespace Musiche.NotifyIcon
 {
     public class NotifyIconInfo
     {
+        public event LyricLockedChangedEventHandler LyricLockedChanged;
         readonly WebSocketHandler webSocketHandler;
         readonly NotifyIcon notifyIcon;
         private readonly EventHandler showApp;
@@ -28,6 +29,8 @@ namespace Musiche.NotifyIcon
         ToolStripMenuItem titleMenu;
         ToolStripMenuItem playPauseMenu;
         ToolStripMenuItem loopTypeMenu;
+        ToolStripMenuItem lyricMenu;
+        ToolStripMenuItem lyricLockMenu;
         private ToolStripItem[] BuildMenu()
         {
             titleMenu = new ToolStripMenuItem("Musiche", null, showApp);
@@ -40,6 +43,11 @@ namespace Musiche.NotifyIcon
             nextMenu.Tag = "→";
             ToolStripMenuItem exitMenu = new ToolStripMenuItem("退出", null, exitApp);
             exitMenu.Tag = "退";
+            lyricMenu = new ToolStripMenuItem("打开桌面歌词", null, ShowLyric);
+            lyricMenu.Tag = "词";
+            lyricLockMenu = new ToolStripMenuItem("锁定桌面歌词", null, LockLyric);
+            lyricLockMenu.Tag = "锁";
+            lyricLockMenu.Visible = false;
             loopTypeMenu = new ToolStripMenuItem("列表循环", null, new ToolStripMenuItem[]
             {
                 new ToolStripMenuItem("列表循环", null, LoopTypeChange)
@@ -59,11 +67,17 @@ namespace Musiche.NotifyIcon
                     Tag = "顺"
                 }
             });
-            return new ToolStripItem[] { titleMenu, playPauseMenu, lastMenu, nextMenu, new ToolStripSeparator(), loopTypeMenu, new ToolStripSeparator(), exitMenu };
+            return new ToolStripItem[] {
+                titleMenu, playPauseMenu, lastMenu, nextMenu,
+                new ToolStripSeparator(), loopTypeMenu,
+                new ToolStripSeparator(), lyricMenu,lyricLockMenu,
+                new ToolStripSeparator(), exitMenu };
         }
 
+        bool isThemeDark = false;
         public void SetTheme(bool dark)
         {
+            isThemeDark = dark;
             notifyIcon.UpdateStyle(dark);
         }
 
@@ -90,6 +104,16 @@ namespace Musiche.NotifyIcon
         private void AudioNext(object sender, EventArgs e)
         {
             webSocketHandler.SendMessage("{\"type\": \"next\"}");
+        }
+
+        private void ShowLyric(object sender, EventArgs e)
+        {
+            webSocketHandler.SendMessage("{\"type\": \"lyric\", \"data\": " + (lyricShow ? "false" : "true") + "}");
+        }
+
+        private void LockLyric(object sender, EventArgs e)
+        {
+            LyricLockedChanged?.Invoke(this, !lyricLocked);
         }
 
         private void AudioLast(object sender, EventArgs e)
@@ -137,6 +161,20 @@ namespace Musiche.NotifyIcon
                     loopTypeMenu.Text = menuItem.Text;
                 }
             }
+        }
+        private bool lyricShow = false;
+        public void SetLyricShow(bool show)
+        {
+            lyricShow = show;
+            lyricMenu.Text = (show ? "关闭" : "打开") + "桌面歌词";
+            lyricLockMenu.Visible = show;
+        }
+        private bool lyricLocked = false;
+        public void SetLyricLock(bool locked)
+        {
+            lyricLocked = locked;
+            lyricLockMenu.Text = (locked ? "解锁" : "锁定") + "桌面歌词";
+            lyricLockMenu.Tag = locked ? "解" : "锁";
         }
 
         internal void SetTitle(string title)

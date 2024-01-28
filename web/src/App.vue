@@ -98,5 +98,8 @@ onMounted(() => {
     position: relative;
     min-height: 100%;
   }
+  :deep(.el-overlay) {
+    z-index: 2001;
+  }
 }
 </style>

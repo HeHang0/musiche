@@ -124,7 +124,7 @@ namespace Musiche.NotifyIcon
         {
             if (e.Item.Tag != null)
             {
-                e.Graphics.DrawString(e.Item.Tag.ToString(), iconFont, new SolidBrush(e.Item.ForeColor), e.ImageRectangle.X + 5, e.ImageRectangle.Y + 5);
+                e.Graphics.DrawString(e.Item.Tag.ToString(), iconFont, new SolidBrush(e.Item.ForeColor), e.ImageRectangle.X + 5, e.ImageRectangle.Y+2);
             }
             else if (e.Image != null)
             {

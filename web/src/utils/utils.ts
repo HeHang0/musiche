@@ -126,6 +126,19 @@ export const isMobile =
 export const isSafari =
   !isWindows && !isAndroid && /Safari|AppleWebKit/i.test(navigator.userAgent);
 
+export function scrollToElement(
+  ele: HTMLElement,
+  center?: boolean,
+  smooth?: boolean
+) {
+  if (!ele) return;
+  const scrollParams: ScrollIntoViewOptions = {
+    behavior: smooth ? 'smooth' : 'instant',
+    block: center ? 'center' : 'start'
+  };
+  ele.scrollIntoView(scrollParams);
+}
+
 export function scrollToElementId(
   id: string,
   center?: boolean,
@@ -137,7 +150,7 @@ export function scrollToElementId(
     behavior: smooth ? 'smooth' : 'instant',
     block: center ? 'center' : 'start'
   };
-  ele && ele.scrollIntoView(scrollParams);
+  ele.scrollIntoView(scrollParams);
 }
 
 // export function scrollToElementId(

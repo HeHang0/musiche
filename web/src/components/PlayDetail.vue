@@ -87,6 +87,7 @@ function setMouseStillness() {
 }
 let isTouching = false;
 function checkMouseStillness() {
+  if (isMobile) return;
   if (isTouching) {
     isTouching = false;
     return;
@@ -98,6 +99,7 @@ function checkMouseStillness() {
   mouseStillnessTimeout = setTimeout(setMouseStillness, 5000);
 }
 function setMouseMotion() {
+  if (isMobile) return;
   mouseStillness.value = false;
   clearTimeout(mouseStillnessTimeout);
 }
@@ -139,7 +141,6 @@ beforeResolve(() => {
   }
   if (play.playDetailShow) play.playDetailShow = false;
 });
-
 watch(() => play.playDetailShow, setTheme);
 </script>
 
@@ -152,11 +153,11 @@ watch(() => play.playDetailShow, setTheme);
     <div
       class="music-play-detail-layout"
       ref="pageElement"
-      @mouseleave="!isMobile ? checkMouseStillness : void 0"
+      @mouseleave="checkMouseStillness"
       :style="imageThemeStyle">
       <div
         class="music-play-detail-header"
-        @mouseenter="!isMobile ? setMouseMotion : void 0"
+        @mouseenter="setMouseMotion"
         :style="mouseStillness ? 'opacity:0' : ''">
         <span>
           <el-button class="music-button-pure music-icon" @click="close"
@@ -199,7 +200,7 @@ watch(() => play.playDetailShow, setTheme);
       <div
         class="music-play-detail-body"
         :class="mouseStillness ? '' : 'music-play-detail-body-short'"
-        @mousemove="!isMobile ? onMouseMove : void 0"
+        @mousemove="onMouseMove"
         @touchstart.stop="onTouchStart">
         <LyricMode v-if="play.playerMode == 'lyric'" />
         <PolarBearMode

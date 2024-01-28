@@ -16,8 +16,10 @@ namespace Musiche
     /// <summary>
     /// LyricWindow.xaml 的交互逻辑
     /// </summary>
+    public delegate void LyricLockedChangedEventHandler(object sender, bool locked);
     public partial class LyricWindow : Window
     {
+        public event LyricLockedChangedEventHandler LyricLockedChanged;
         private bool closeFlag = false;
         private bool locked = false;
         private readonly DropShadowEffect lyricEffect;
@@ -261,7 +263,7 @@ namespace Musiche
             SetLocked(label.Content?.ToString() == "锁");
         }
 
-        private void SetLocked(bool isLock, bool isInitial=false)
+        public void SetLocked(bool isLock, bool isInitial=false)
         {
             locked = isLock;
             LockLabel.Content = locked ? "解" : "锁";
@@ -277,6 +279,7 @@ namespace Musiche
                 LyricBorder.Background = locked ? Brushes.Transparent : hoverBackground;
                 ResizeGrid.Visibility = locked ? Visibility.Collapsed : Visibility.Visible;
             }
+            LyricLockedChanged?.Invoke(this, isLock);
         }
 
         private void CloseWindow(object sender, MouseButtonEventArgs e)

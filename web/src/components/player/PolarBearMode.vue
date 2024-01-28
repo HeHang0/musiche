@@ -75,8 +75,7 @@ onMounted(async () => {
 });
 function calcSeat() {
   if (!snowContainer.value) return;
-  const screenRatio =
-    snowContainer.value.offsetWidth / snowContainer.value.offsetHeight;
+  const screenRatio = window.innerWidth / window.innerHeight;
   const imageRatio = 1924 / 1080;
   let screenHeight = 0;
   let screenWidth = 0;
@@ -191,6 +190,7 @@ onUnmounted(() => {
     text-align: center;
     transform: translateX(-50%);
     opacity: 0;
+    margin-top: var(--sat, 0);
     transition: opacity 0.3s, width 0.3s;
     & > span {
       font-size: 18px;

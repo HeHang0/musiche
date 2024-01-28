@@ -37,6 +37,7 @@ async function cacheThenNetwork(request) {
     routerPattern.test(requestUrl);
   if (
     requestUrl.startsWith('http') &&
+    response.status == 200 &&
     (cacheRouter || (willCache && response.ok))
   ) {
     try {

@@ -73,9 +73,10 @@ namespace Musiche.Webview2
             }
         }
 
-        public void SaveConfig()
+        public void SaveConfig(bool clear=false)
         {
             _fileAccessor.SaveConfig();
+            if(clear) webview2.CoreWebView2.Profile.ClearBrowsingDataAsync();
         }
 
         private void Webview2Control_Loaded(object sender, RoutedEventArgs e)

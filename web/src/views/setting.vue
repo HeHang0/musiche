@@ -31,6 +31,7 @@ import {
 import { LogoCircleImage } from '../utils/logo';
 import { ThemeColorManager } from '../utils/color';
 import DroidImage from '../assets/images/droid.svg';
+import AppleImage from '../assets/images/apple.svg';
 import { getServiceWorkerRegistration } from '../sw/register';
 
 const { currentRoute, replace, options } = useRouter();
@@ -200,15 +201,20 @@ const delayShutdown = ref(false);
 const themes = ref([
   {
     id: '',
-    name: '默认',
+    name: '亮色',
     color: 'white'
   },
   {
     id: 'dark',
     name: '深色',
-    color: 'black'
+    color: '#13131a'
   },
   setting.customTheme,
+  {
+    id: 'dark pure',
+    name: '暗色',
+    color: 'black'
+  },
   {
     id: 'red',
     name: '红',
@@ -804,7 +810,7 @@ onUnmounted(unWatch);
                 v-model="setting.pageValue.lyric.fontSize"
                 @change="setting.setLyricOptions">
                 <el-option
-                  v-for="(_item, index) in new Array(50)"
+                  v-for="(_item, index) in new Array(53)"
                   :key="index"
                   :label="index + 20"
                   :value="index + 20">
@@ -828,7 +834,8 @@ onUnmounted(unWatch);
                 size="large">
               </el-checkbox>
             </div>
-            <div class="music-setting-lyric-item">
+            <div
+              class="music-setting-lyric-item music-setting-lyric-item-portrait-top">
               <span class="music-setting-lyric-item-title">配色方案</span>
               <div class="music-setting-lyric-item-color">
                 <el-select
@@ -858,6 +865,27 @@ onUnmounted(unWatch);
                   :style="'--fix-color:' + setting.pageValue.lyric.effectColor">
                   描边色
                 </span>
+              </div>
+            </div>
+            <div
+              class="music-setting-lyric-item music-setting-lyric-item-portrait-top">
+              <span class="music-setting-lyric-item-title"
+                >预<span style="opacity: 0">占位</span>览</span
+              >
+              <div
+                class="music-setting-lyric-item-preview"
+                :style="{
+                  fontSize: setting.pageValue.lyric.fontSize + 'px',
+                  fontFamily: setting.pageValue.lyric.fontFamily,
+                  color: setting.pageValue.lyric.fontColor,
+                  textShadow: setting.pageValue.lyric.effect
+                    ? '0 0 1px ' + setting.pageValue.lyric.effectColor
+                    : 'none',
+                  fontWeight: setting.pageValue.lyric.fontBold
+                    ? 'bold'
+                    : 'normal'
+                }">
+                音乐和
               </div>
             </div>
           </td>
@@ -909,6 +937,17 @@ onUnmounted(unWatch);
                   <img :src="DroidImage" />
                 </div>
                 <p>Android版</p>
+              </a>
+              <a
+                class="music-setting-about-card"
+                href="https://hehang0.github.io/musiche/Musiche.ipa"
+                target="_blank">
+                <div
+                  class="logo-app"
+                  style="--logo-app-color: var(--music-footer-background)">
+                  <img :src="AppleImage" />
+                </div>
+                <p>IOS版</p>
               </a>
               <a
                 v-if="
@@ -1196,6 +1235,16 @@ onUnmounted(unWatch);
           background-color: var(--fix-color);
         }
       }
+      &-preview {
+        border-radius: var(--music-border-radius);
+        border: 1px solid var(--music-button-info-border-color);
+        flex: 1;
+        height: 100px;
+        text-align: center;
+        line-height: 100px;
+        background-color: var(--music-side-background);
+        letter-spacing: 6px;
+      }
       .el-select {
         width: 140px;
         &.short {
@@ -1374,7 +1423,7 @@ onUnmounted(unWatch);
     }
     &-lyric {
       &-item {
-        &:last-child {
+        &-portrait-top {
           align-items: baseline;
         }
         &-fix-color {

@@ -18,7 +18,7 @@ export type LyricLineChange = (
   duration?: number
 ) => void;
 
-const devicePixelRatio = Math.max(window.devicePixelRatio || 1, 1.5) * 2;
+const devicePixelRatio = (window.devicePixelRatio || 1) * 2;
 let defaultFont = '';
 export class LyricManager {
   private static lyricOption = {} as Record<LyricOptionsKey, any>;
