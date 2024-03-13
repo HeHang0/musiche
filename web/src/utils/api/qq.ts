@@ -80,6 +80,10 @@ export function setPlayQuality(quality: MusicQuality) {
   playQuality = quality;
 }
 
+export function getCookie() {
+  return qqCookie;
+}
+
 export async function search(keywords: string, offset: number) {
   var res = await httpProxy({
     url: 'https://u.y.qq.com/cgi-bin/musicu.fcg',

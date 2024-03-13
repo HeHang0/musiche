@@ -4,21 +4,31 @@ import { webView2Services } from './utils';
 const musicRouterPrefix = localStorage.getItem('musiche-router-prefix');
 const history = musicRouterPrefix ? '/' + musicRouterPrefix : '';
 
-const httpAddress = import.meta.env.DEV ? '127.0.0.1:54621' : location.host;
+export const httpAddress = import.meta.env.DEV
+  ? '127.0.0.1:54621'
+  : location.host;
 const proxyAddress =
   (!webView2Services.enabled &&
     localStorage.getItem('musiche-proxy-address')) ||
   `//${httpAddress}/proxy`;
-const useLocalAudio = !webView2Services.enabled;
+let useLocalAudio = !webView2Services.enabled;
 var localAudio: AudioPlayer | null = null;
-if (useLocalAudio) {
-  localAudio = new AudioPlayer();
-}
+fetch(`//${httpAddress}/config`)
+  .then(r => r.json())
+  .then(r => {
+    if (r.remote) useLocalAudio = false;
+  });
 
+export function setRemoteMode(remote: boolean) {
+  useLocalAudio = !remote;
+}
 export function httpProxy(prd: ProxyRequestData): Promise<Response> {
   prd.method = prd.method || 'GET';
   return fetch(proxyAddress, {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify(prd),
     redirect: prd.allowAutoRedirect === false ? 'manual' : undefined
   });
@@ -71,9 +81,10 @@ export async function musicOperate(
     } catch {
       return '';
     }
-  } else if (useLocalAudio) {
+  } else if (useLocalAudio && url !== '/config') {
     const route = url.substring(1);
     try {
+      if (!localAudio) localAudio = new AudioPlayer();
       return localAudio?.process(route, data);
     } catch {
       return {};
@@ -144,7 +155,7 @@ export function wsClient(
   socket.addEventListener('error', function (error) {
     console.error('WebSocket error', error);
     socket.close();
-    onClose && onClose();
+    // onClose && onClose();
   });
   return {
     get readyState() {

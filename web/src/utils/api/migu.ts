@@ -130,6 +130,10 @@ export function setPlayQuality(quality: MusicQuality) {
   playQuality = quality;
 }
 
+export function getCookie() {
+  return miguCookie;
+}
+
 export async function search(keywords: string, offset: number) {
   var url = `https://m.music.migu.cn/migumusic/h5/search/all?text=${encodeURIComponent(
     keywords

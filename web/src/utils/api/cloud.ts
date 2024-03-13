@@ -111,6 +111,10 @@ async function httpRequest(
   }
 }
 
+export function getCookie() {
+  return cloudCookie;
+}
+
 function parseImage(imageUrl: string) {
   if (!imageUrl)
     return {

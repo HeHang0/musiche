@@ -20,6 +20,8 @@ export enum SortType {
 
 export interface PlayStatus {
   currentTime: string;
+  id?: string;
+  type?: string;
   playing: boolean;
   loading: boolean;
   stopped: boolean;

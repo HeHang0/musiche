@@ -287,3 +287,15 @@ export async function downloadUrl(music: Music): Promise<string> {
   } catch {}
   return '';
 }
+
+export function getCookie(type: MusicType) {
+  switch (type) {
+    case 'cloud':
+      return cloud.getCookie();
+    case 'qq':
+      return qq.getCookie();
+    case 'migu':
+      return migu.getCookie();
+  }
+  return '';
+}

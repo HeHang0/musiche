@@ -1,6 +1,11 @@
 import { watch } from 'vue';
-import { CommunicationClient, wsClient } from '../utils/http';
-import { StorageKey } from '../utils/storage';
+import {
+  CommunicationClient,
+  wsClient,
+  musicOperate,
+  setRemoteMode
+} from '../utils/http';
+import { StorageKey, storage } from '../utils/storage';
 import { ShortcutKey, ShortcutType } from '../utils/type';
 import { webView2Services } from '../utils/utils';
 import { usePlayStore } from './play';
@@ -24,8 +29,15 @@ export class MusicConnection {
   }
 
   async init(_interval: boolean) {
-    await this.play.initValue();
-    await this.setting.initValue();
+    let remoteMode = false;
+    try {
+      const config = await musicOperate('/config');
+      remoteMode = Boolean(config.remote);
+    } catch {}
+    setRemoteMode(remoteMode);
+    storage.setRemoteMode(remoteMode);
+    await this.play.initValue(remoteMode);
+    await this.setting.initValue(remoteMode);
     this.webSocketClient = wsClient(
       this.wsMessage.bind(this),
       this.wsClose.bind(this),
@@ -179,10 +191,13 @@ export class MusicConnection {
       }
     } catch {}
   }
-
   wsClose() {
     setTimeout(() => {
-      this.webSocketClient = wsClient(this.wsMessage, this.wsClose);
+      this.webSocketClient = wsClient(
+        this.wsMessage.bind(this),
+        this.wsClose.bind(this),
+        this.autoAppThemeChange.bind(this)
+      );
     }, 1000);
   }
 }

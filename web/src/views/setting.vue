@@ -649,16 +649,19 @@ onUnmounted(unWatch);
           <td></td>
           <td class="music-setting-play">
             <el-checkbox
+              v-if="!setting.remoteMode"
               v-model="setting.pageValue.playAtRun"
               @change="setting.setPlayAtRun"
               label="程序启动时自动播放"
               size="large" />
             <el-checkbox
+              v-if="!setting.remoteMode"
               v-model="setting.pageValue.savePlayProgress"
               @change="setting.setSavePlayProgress"
               label="程序启动时记住上一次播放进度"
               size="large" />
             <el-checkbox
+              v-if="!setting.remoteMode"
               v-model="setting.pageValue.fadeIn"
               @change="setting.setFadeIn()"
               label="开启音乐淡入"
@@ -894,12 +897,14 @@ onUnmounted(unWatch);
           <td></td>
           <td class="music-setting-about">
             <span> 当前版本 {{ currentVersion }} </span>
-            <span v-if="currentVersion != remoteVersion">
+            <span v-if="!setting.remoteMode && currentVersion != remoteVersion">
               最新版本 {{ remoteVersion }}
             </span>
             <span
               v-if="
-                !webView2Services.enabled && currentVersion != remoteVersion
+                !setting.remoteMode &&
+                !webView2Services.enabled &&
+                currentVersion != remoteVersion
               "
               class="music-setting-about-update"
               @click="forceRefreshPage">

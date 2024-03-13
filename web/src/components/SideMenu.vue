@@ -57,10 +57,13 @@ function toHome() {
             :index="'/' + item.key"
             :id="'/' + item.key"
             v-if="
-              item.key !== 'yours' ||
-              setting.userInfo.cloud.id ||
-              setting.userInfo.qq.id ||
-              setting.userInfo.migu.id
+              item.key === 'yours'
+                ? Boolean(
+                    setting.userInfo.cloud.id ||
+                      setting.userInfo.qq.id ||
+                      setting.userInfo.migu.id
+                  )
+                : item.key !== 'local' || !play.remoteMode
             "
             :class="route.meta.key == item.key ? 'is-active' : ''">
             <span class="music-icon">{{ item.icon }}</span>

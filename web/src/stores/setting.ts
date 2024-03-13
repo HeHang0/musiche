@@ -53,6 +53,7 @@ export const useSettingStore = defineStore('setting', {
     autoAppTheme: false,
     playQuality: 'SQ' as MusicQuality,
     downloadQuality: 'ZQ' as MusicQuality,
+    remoteMode: false,
     appTheme: {
       id: isInStandaloneMode && isIOS ? 'dark' : ''
     } as AppTheme,
@@ -523,7 +524,8 @@ export const useSettingStore = defineStore('setting', {
       }
       fontEle.innerText = `*{animation: none !important;transition: none !important}`;
     },
-    async initValue() {
+    async initValue(remoteMode: boolean) {
+      this.remoteMode = remoteMode;
       this.setCustomTheme(await storage.getValue(StorageKey.CustomTheme));
       this.autoAppTheme = Boolean(
         await storage.getValue(StorageKey.AutoAppTheme)

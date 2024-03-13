@@ -30,6 +30,7 @@ const lyricManager = new LyricManager();
 export const usePlayStore = defineStore('play', {
   state: () => {
     return {
+      remoteMode: false,
       music: {} as Music,
       musicList: [] as Music[],
       myLoves: [] as Music[],
@@ -270,6 +271,24 @@ export const usePlayStore = defineStore('play', {
       if (!noSet && !this.music.id && this.musicList.length > 0) {
         this.setCurrentMusic(this.musicList[0]);
       }
+      this.updateRemoteList();
+    },
+    async updateRemoteList() {
+      if (!this.remoteMode) return;
+      await musicOperate(
+        '/updatelist',
+        JSON.stringify({
+          music: this.music,
+          playlist: this.musicList.map(m => ({
+            ...m,
+            cookie: api.getCookie(m.type),
+            url: ''
+          }))
+        }),
+        {
+          'content-type': 'application/json'
+        }
+      );
     },
     async play(music?: Music, musicList?: Music[]) {
       if (this.preparePlay) {
@@ -332,6 +351,7 @@ export const usePlayStore = defineStore('play', {
         await musicOperate('/progress', '0');
       }
       this.checkingStatus = true;
+      await this.updateRemoteList();
       const res = await musicOperate('/play', music.url);
       this.setStatus(res.data);
       this.addHistory([this.music]);
@@ -453,6 +473,17 @@ export const usePlayStore = defineStore('play', {
           this.playStatus.loading = false;
         }
         if (
+          !this.preparePlay &&
+          data.id &&
+          data.type &&
+          (data.id != this.music?.id || data.type != this.music?.type)
+        ) {
+          const music = this.musicList.find(
+            item => item.id == data.id && item.type == data.type
+          );
+          music && this.setCurrentMusic(music);
+        }
+        if (
           this.playStatus.currentTime != data.currentTime &&
           data.currentTime
         ) {
@@ -539,7 +570,8 @@ export const usePlayStore = defineStore('play', {
       this.playerMode = mode;
       storage.setValue(StorageKey.PlayerMode, mode);
     },
-    async initValue() {
+    async initValue(remoteMode: boolean) {
+      this.remoteMode = remoteMode;
       this.add(await storage.getValue(StorageKey.CurrentMusicList), true);
       this.setCurrentMusic(
         (await storage.getValue(StorageKey.CurrentMusic)) || this.musicList[0],
@@ -560,7 +592,9 @@ export const usePlayStore = defineStore('play', {
       this.playStatus.volumeCache = await storage.getValue(
         StorageKey.VolumeCache
       );
-      this.changeVolume(await storage.getValue(StorageKey.Volume));
+      await this.updateRemoteList();
+      !this.remoteMode &&
+        this.changeVolume(await storage.getValue(StorageKey.Volume));
       musicOperate('/loop', this.sortType.toString());
       this.setTitle();
       (window as any).isPlayDetailShow = () => this.playDetailShow;
