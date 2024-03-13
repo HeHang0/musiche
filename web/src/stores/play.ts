@@ -306,6 +306,7 @@ export const usePlayStore = defineStore('play', {
       ) {
         this.checkingStatus = true;
         const res = await musicOperate('/play');
+        this.checkingStatus = false;
         this.setStatus(res.data);
         this.setTitle();
         this.preparePlay = false;
@@ -353,6 +354,7 @@ export const usePlayStore = defineStore('play', {
       this.checkingStatus = true;
       await this.updateRemoteList();
       const res = await musicOperate('/play', music.url);
+      this.checkingStatus = false;
       this.setStatus(res.data);
       this.addHistory([this.music]);
       this.setTitle();
@@ -362,6 +364,7 @@ export const usePlayStore = defineStore('play', {
     async pause() {
       this.checkingStatus = true;
       var res = await musicOperate('/pause');
+      this.checkingStatus = false;
       this.setStatus(res.data);
     },
     async remove(item: Music) {
@@ -437,6 +440,7 @@ export const usePlayStore = defineStore('play', {
       this.checkingStatus = true;
       this.playStatus.disableUpdateProgress = false;
       var res = await musicOperate('/progress', value.toString());
+      this.checkingStatus = false;
       this.setStatus(res.data);
     },
     async changeVolume(value: number) {
@@ -444,6 +448,7 @@ export const usePlayStore = defineStore('play', {
       this.checkingStatus = true;
       this.playStatus.disableUpdateVolume = false;
       var res = await musicOperate('/volume', value.toString());
+      this.checkingStatus = false;
       this.setStatus(res.data);
       storage.setValue(StorageKey.Volume, this.playStatus.volume);
     },
@@ -458,9 +463,8 @@ export const usePlayStore = defineStore('play', {
       storage.setValue(StorageKey.Volume, this.playStatus.volume);
     },
     async setStatus(data: PlayStatus) {
+      if (this.checkingStatus || !data) return;
       try {
-        this.checkingStatus = false;
-        if (!data) return;
         if (this.playStatus.playing != data.playing) {
           this.playStatus.playing = data.playing;
           this.playStatus.loading = false;

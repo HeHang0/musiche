@@ -128,7 +128,6 @@ const play = usePlayStore();
             v-model="play.playStatus.progress"
             :show-tooltip="false"
             :max="1000"
-            :title="play.playStatus.progress"
             @mousedown="play.playStatus.disableUpdateProgress = true"
             @touchstart="play.playStatus.disableUpdateProgress = true"
             @change="play.changeProgress" />
@@ -154,15 +153,40 @@ const play = usePlayStore();
             </span>
           </template>
         </el-popover>
+        <el-popover
+          v-if="play.remoteMode"
+          placement="top"
+          :width="30"
+          popper-class="music-footer-volume-popover"
+          popper-style="min-width:0;padding:0;background-color:var(--music-footer-background);padding-top:5px"
+          trigger="click">
+          <template #reference>
+            <span
+              class="music-icon music-footer-layout-right-vol-group"
+              title="静音">
+              {{ play.playStatus.volume > 0 ? '音' : '静' }}
+            </span>
+          </template>
+          <el-slider
+            v-model="play.playStatus.volume"
+            @mousedown="play.playStatus.disableUpdateVolume = true"
+            @touchstart="play.playStatus.disableUpdateVolume = true"
+            @change="play.changeVolume"
+            vertical
+            height="70px"
+            :show-tooltip="false"
+            style="width: 30px" />
+        </el-popover>
         <span
           v-if="!isMobile"
-          class="music-icon"
+          class="music-icon music-footer-layout-right-vol-icon"
           title="静音"
           @click="play.mute">
           {{ play.playStatus.volume > 0 ? '音' : '静' }}
         </span>
         <el-slider
           v-if="!isMobile"
+          class="music-footer-layout-right-vol-slider"
           v-model="play.playStatus.volume"
           @mousedown="play.playStatus.disableUpdateVolume = true"
           @touchstart="play.playStatus.disableUpdateVolume = true"
@@ -250,6 +274,15 @@ const play = usePlayStore();
       justify-content: flex-end;
       & > * + * {
         margin-left: 20px;
+      }
+      &-vol {
+        &-group {
+          display: none;
+        }
+        &-icon,
+        &-slider {
+          display: flex;
+        }
       }
     }
     &,
@@ -387,8 +420,14 @@ const play = usePlayStore();
       &-right {
         width: 60px;
         min-width: unset;
-        .el-slider {
-          display: none;
+        &-vol {
+          &-group {
+            display: flex;
+          }
+          &-icon,
+          &-slider {
+            display: none;
+          }
         }
         * + * {
           margin-left: 6px;
@@ -402,6 +441,34 @@ const play = usePlayStore();
         }
       }
     }
+  }
+}
+</style>
+<style lang="less">
+.music-footer-volume-popover {
+  transform: translateY(10px);
+
+  &::before,
+  &::after {
+    content: ' ';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: -1;
+  }
+
+  &::before {
+    background-color: var(--music-background);
+  }
+
+  &::after {
+    background-color: var(--music-footer-background);
+  }
+
+  .el-popper__arrow {
+    display: none;
   }
 }
 </style>

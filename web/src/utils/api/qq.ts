@@ -48,7 +48,7 @@ function parseAlbumImage(music: any) {
 }
 
 function parseMusic(m: any): Music {
-  const fileName = Array.isArray(m.vs) ? m.vs.find((n: any) => n) : void 0;
+  const fileName = (m.file && m.file.media_mid) || m.vs?.find((n: any) => n);
   const size = Math.round(
     (m.size128 || (m.file && m.file.size_128mp3) || 0) / 16
   );
@@ -577,10 +577,13 @@ function parseMusicUrl(ret: any) {
     ret.req_0.data.midurlinfo[0] &&
     ret.req_0.data.midurlinfo[0].purl
   ) {
-    const urlPrefix =
+    const urlPrefix: string =
       ret.req_0.data.sip.find((m: any) => Boolean(m)) ||
-      'http://dl.stream.qqmusic.qq.com/';
-    return urlPrefix + ret.req_0.data.midurlinfo[0].purl;
+      'https://dl.stream.qqmusic.qq.com/';
+    return (
+      urlPrefix.replace('http://', 'https://') +
+      ret.req_0.data.midurlinfo[0].purl
+    );
   }
   return '';
 }

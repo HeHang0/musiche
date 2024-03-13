@@ -282,7 +282,7 @@ input {
         display: flex;
         align-items: center;
         background-color: transparent;
-        cursor: default;
+        cursor: pointer;
 
         &::before {
             content: ' ';
@@ -300,33 +300,67 @@ input {
         }
 
         .el-slider__button-wrapper {
-            cursor: default;
-            top: -2px;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            top: 50%;
             display: none;
-            height: 20px;
-            width: 20px;
+            height: 10px;
+            width: 10px;
+            line-height: 10px;
+
+            .el-slider__button {
+                height: 10px;
+                width: 10px;
+                border: none;
+                box-shadow: 0px 0px 4px 0px #9a94945c;
+                cursor: pointer;
+                transform: none;
+            }
+        }
+
+        .el-slider__bar {
+            height: var(--music-progress-height);
+            cursor: pointer;
+            transition: width 0.5s;
+            background-color: var(--music-slider-color);
+            border-radius: var(--el-slider-border-radius);
+
+            .music-footer-full & {
+                background-color: var(--music-full-slider-color);
+            }
         }
     }
 
-    .el-slider__bar {
-        height: var(--music-progress-height);
-        cursor: default;
-        transition: width 0.5s;
-        background-color: var(--music-slider-color);
-        border-radius: var(--el-slider-border-radius);
+    &.is-vertical {
+        .el-slider__runway {
+            margin: 0;
 
-        .music-footer-full & {
-            background-color: var(--music-full-slider-color);
+            &::before {
+                height: 100%;
+                width: var(--music-progress-height);
+                transform: translateX(-50%);
+                left: 50%;
+                bottom: 0;
+                top: unset;
+            }
         }
-    }
 
-    .el-slider__button {
-        height: 10px;
-        width: 10px;
-        border: none;
-        box-shadow: 0px 0px 4px 0px #9a94945c;
-        cursor: default;
-        transform: none;
+        .el-slider__bar {
+            width: var(--music-progress-height);
+            height: auto;
+            transform: translateX(-50%);
+            left: 50%;
+        }
+
+        .el-slider__button-wrapper {
+            transform: translate(-50%, 50%);
+            left: 50%;
+            top: unset;
+
+            @media (orientation: portrait) {
+                display: block;
+            }
+        }
     }
 
 

@@ -314,12 +314,14 @@ export const useSettingStore = defineStore('setting', {
     },
     setPlayQuality(value: MusicQuality, noSave?: boolean) {
       this.playQuality = value;
-      api.setDownloadQuality(this.downloadQuality);
+      api.setPlayQuality(this.playQuality);
       !noSave && storage.setValue(StorageKey.PlayQuality, this.playQuality);
+      if (this.remoteMode)
+        musicOperate('/quality', this.playQuality.toString());
     },
     setDownloadQuality(value: MusicQuality, noSave?: boolean) {
       this.downloadQuality = value;
-      api.setPlayQuality(this.playQuality);
+      api.setDownloadQuality(this.downloadQuality);
       !noSave &&
         storage.setValue(StorageKey.DownloadQuality, this.downloadQuality);
     },

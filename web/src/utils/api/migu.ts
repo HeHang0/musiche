@@ -73,9 +73,9 @@ function parseImage(data: any) {
     largeImage = data.largePic || '';
   }
   return {
-    image: smallImage || '',
-    mediumImage: mediumImage || '',
-    largeImage: largeImage || ''
+    image: padProtocol(smallImage || ''),
+    mediumImage: padProtocol(mediumImage || ''),
+    largeImage: padProtocol(largeImage || '')
   };
 }
 
@@ -131,7 +131,7 @@ export function setPlayQuality(quality: MusicQuality) {
 }
 
 export function getCookie() {
-  return miguCookie;
+  return { cookie: miguCookie, uid: miguUid };
 }
 
 export async function search(keywords: string, offset: number) {
