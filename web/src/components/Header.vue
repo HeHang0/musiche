@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Ref, onUnmounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { RouteLocationNormalizedLoaded, useRouter } from 'vue-router';
 import { Search } from '@element-plus/icons-vue';
 
 import { useSettingStore } from '../stores/setting';
@@ -34,7 +34,7 @@ function changeMusicType(type: MusicType) {
     push({
       ...currentRoute.value,
       params: { ...currentRoute.value.params, type }
-    });
+    } as RouteLocationNormalizedLoaded);
   }
 }
 onUnmounted(unWatch);

@@ -23,13 +23,15 @@ export async function registerServiceWorker() {
       const workerName =
         (window as any).serviceWorkerJS || 'worker.js?' + Date.now();
       await unregisterOldServiceWorker(workerName);
-      swRegistration = await navigator.serviceWorker.register(
-        routerPrefix + '/' + workerName
-      );
-      console.log(
-        'Service Worker registered with scope:',
-        swRegistration.scope
-      );
+      if (!import.meta.env.DEV) {
+        swRegistration = await navigator.serviceWorker.register(
+          routerPrefix + '/' + workerName
+        );
+        console.log(
+          'Service Worker registered with scope:',
+          swRegistration.scope
+        );
+      }
     } catch (error) {
       console.error('Service Worker registration failed:', error);
     }

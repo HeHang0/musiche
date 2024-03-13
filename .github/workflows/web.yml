@@ -25,6 +25,8 @@ jobs:
 
       - name: Setup Pages
         uses: actions/setup-node@v3
+        with:
+          node-version: 20
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1

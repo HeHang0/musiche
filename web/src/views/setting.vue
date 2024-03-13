@@ -633,8 +633,8 @@ onUnmounted(unWatch);
             <div class="music-setting-system-center" v-if="!isMobile">
               <span>关闭主面板</span>
               <el-radio-group v-model="setting.pageValue.closeType">
-                <el-radio :label="CloseType.Hide">最小化到系统托盘</el-radio>
-                <el-radio :label="CloseType.Exit">退出音乐和</el-radio>
+                <el-radio :value="CloseType.Hide">最小化到系统托盘</el-radio>
+                <el-radio :value="CloseType.Exit">退出音乐和</el-radio>
               </el-radio-group>
               <el-checkbox
                 v-model="setting.pageValue.closeTypeNoRemind"
@@ -672,10 +672,10 @@ onUnmounted(unWatch);
                 class="radio-group-vertical"
                 v-model="setting.pageValue.onlyAddMusicListAtDbClick"
                 @change="setting.setOnlyAddMusicListAtDbClick">
-                <el-radio :label="false"
+                <el-radio :value="false"
                   >双击播放单曲时，用当前单曲所在列表替换播放列表</el-radio
                 >
-                <el-radio :label="true"
+                <el-radio :value="true"
                   >双击播放单曲时，仅把当前单曲添加到播放列表</el-radio
                 >
               </el-radio-group>
@@ -743,7 +743,7 @@ onUnmounted(unWatch);
                 class="music-setting-quality-item"
                 v-model="setting.playQuality"
                 @change="setting.setPlayQuality">
-                <el-radio v-for="item in musicQualities" :label="item.quality">
+                <el-radio v-for="item in musicQualities" :value="item.quality">
                   {{ item.title }}
                 </el-radio>
               </el-radio-group>
@@ -754,7 +754,7 @@ onUnmounted(unWatch);
                 class="music-setting-quality-item"
                 v-model="setting.downloadQuality"
                 @change="setting.setDownloadQuality">
-                <el-radio v-for="item in musicQualities" :label="item.quality">
+                <el-radio v-for="item in musicQualities" :value="item.quality">
                   {{ item.title }}
                 </el-radio>
               </el-radio-group>

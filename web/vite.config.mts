@@ -1,7 +1,7 @@
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import Visualizer from 'rollup-plugin-visualizer';
+import { visualizer } from 'rollup-plugin-visualizer';
 import AutoImport from 'unplugin-auto-import/vite';
 import Components from 'unplugin-vue-components/vite';
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
@@ -20,8 +20,8 @@ const plugins = [
   FixJSMediaTagsErrorPlugin(),
   FixHeadPlugin(),
   VersionPlugin(),
-  Visualizer({
-    open: true,
+  visualizer({
+    open: false,
     gzipSize: true,
     brotliSize: true
   })

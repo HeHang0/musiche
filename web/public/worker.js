@@ -4,6 +4,8 @@ const cacheFirst = [
   /(.*?)\.(html|js|json|css|png|jpg|jpeg|woff2|webm|webp)/i,
   /\/proxy\?url=[\S]+/i
 ];
+
+const networkFirst = /\/node_modules\//i;
 const routerPattern =
   /\/(recommend|yours|ranking|search|playlist|album|lover|recent|local|created|setting|version$)/i;
 
@@ -18,8 +20,6 @@ self.addEventListener('activate', event => {
 async function cacheThenNetwork(request) {
   const requestUrl = new URL(request.url).toString();
   let willCache = false;
-  if (!requestUrl.search) {
-  }
   for (let i = 0; i < cacheFirst.length; i++) {
     if (cacheFirst[i].test(requestUrl)) {
       willCache = true;
@@ -37,9 +37,12 @@ async function cacheThenNetwork(request) {
     routerPattern.test(requestUrl);
   if (
     requestUrl.startsWith('http') &&
-    response.status == 200 &&
+    request.method === 'GET' &&
+    response.status === 200 &&
+    !networkFirst.test(requestUrl) &&
     (cacheRouter || (willCache && response.ok))
   ) {
+    console.log('Caching response:', requestUrl);
     try {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, response.clone());

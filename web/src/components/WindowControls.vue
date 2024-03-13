@@ -44,7 +44,7 @@ function prepareClose() {
           {
             // 必须传ref才可以，如果用modelValue编译器会提示类型错误。浏览器会提示类型错误
             'model-value': closeType,
-            onChange: (val: boolean | string | number) => {
+            onChange: (val?: boolean | string | number) => {
               closeType.value = val as CloseType;
             },
             class: 'radio-group-vertical'

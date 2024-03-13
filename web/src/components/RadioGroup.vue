@@ -22,7 +22,7 @@ function valueChange(v: any) {
 </script>
 <template>
   <el-radio-group :model-value="value" :size="props.size" @change="valueChange">
-    <el-radio-button v-for="item in props.menu" :label="item.value">
+    <el-radio-button v-for="item in props.menu" :value="item.value">
       {{ item.label }}
     </el-radio-button>
   </el-radio-group>

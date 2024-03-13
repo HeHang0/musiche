@@ -26,7 +26,6 @@ function fixJSMediaTagsError() {
 export const FixJSMediaTagsErrorPlugin = function () {
   return {
     name: 'vite-plugin-fix-jsmediatags',
-    apply: 'build',
     buildStart: fixJSMediaTagsError
   };
 };

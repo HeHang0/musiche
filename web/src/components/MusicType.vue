@@ -30,7 +30,7 @@ function valueChange(v: MusicType) {
         v-if="
           currentRoute.meta.key !== 'yours' || setting.userInfo[info.type].id
         "
-        :label="info.type"
+        :value="info.type"
         :title="info.name">
         <img class="music-type-icon" v-if="info.image" :src="info.image" />
         <span v-else>{{ info.name }}</span>
