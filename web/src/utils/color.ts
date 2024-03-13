@@ -1,4 +1,6 @@
+import ColorThief from 'colorthief';
 import { parseHttpProxyAddress } from './http';
+const colorThief = new ColorThief();
 export interface ThemeColor {
   red: number;
   green: number;
@@ -33,12 +35,7 @@ export class ThemeColorManager {
     const realImgUrl = imgUrl?.startsWith('http')
       ? parseHttpProxyAddress(imgUrl)
       : imgUrl;
-    const imageData = await ThemeColorManager.getImageData(realImgUrl);
-    if (!imageData) {
-      ThemeColorManager.imageParsed(imgUrl, null);
-      return;
-    }
-    const themeColor = ThemeColorManager.getThemeColorFromImageData(imageData);
+    const themeColor = await ThemeColorManager.getThemeColorFromUrl(realImgUrl);
     ThemeColorManager.imageParsed(imgUrl, themeColor);
   }
 
@@ -50,7 +47,9 @@ export class ThemeColorManager {
     ThemeColorManager.colorProcessing.delete(imgUrl);
   }
 
-  private static async getImageData(imgUrl: string): Promise<ImageData | null> {
+  private static async getThemeColorFromUrl(
+    imgUrl: string
+  ): Promise<ThemeColor> {
     var image = new Image();
     image.crossOrigin = 'Anonymous';
     image.src = imgUrl;
@@ -58,82 +57,19 @@ export class ThemeColorManager {
       image.onload = resolve;
       image.onerror = resolve;
     });
-    let width = image.width;
-    let height = image.height;
-    let shrinkFactor = 10;
-    let shrinkWidth = width / shrinkFactor;
-    let shrinkHeight = height / shrinkFactor;
-    let canvas = document.createElement('canvas');
-    canvas.setAttribute('width', `${shrinkWidth}px`);
-    canvas.setAttribute('height', `${shrinkHeight}px`);
-    var ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.drawImage(image, 0, 0, shrinkWidth, shrinkHeight);
-    ctx.filter = 'blur(26px)';
-    let imageData: ImageData | null = null;
+    let color = [0, 0, 0];
     try {
-      imageData = ctx.getImageData(0, 0, width, height);
+      color = await colorThief.getColor(image);
     } catch (error) {
-      console.error('color parse image data error:', error);
+      console.log('color thief error', imgUrl, error);
     }
     image.remove();
-    canvas.remove();
-    return imageData;
-  }
-
-  // 开始筛选主题色
-  private static getThemeColorFromImageData(
-    originalPixels: ImageData
-  ): ThemeColor | null {
-    if (
-      !originalPixels ||
-      !originalPixels.data ||
-      originalPixels.data.length == 0
-    ) {
-      return null;
-    }
-    let rMax = 0;
-    let gMax = 0;
-    let bMax = 0;
-    let count = 0;
-    for (let i = 0; i < originalPixels.data.length; i += 4) {
-      let r = originalPixels.data[i];
-      let g = originalPixels.data[i + 1];
-      let b = originalPixels.data[i + 2];
-      let a = originalPixels.data[i + 3] / 255.0;
-      if (a > 0 && r < 250 && g < 250 && b < 250 && r > 9 && g > 9 && b > 9) {
-        rMax += r;
-        gMax += g;
-        bMax += b;
-        count++;
-      }
-    }
-    const [rValue, gValue, bValue] = this.adjustNumbers(
-      Math.round(rMax / count),
-      Math.round(gMax / count),
-      Math.round(bMax / count)
-    );
     return {
-      red: rValue,
-      green: gValue,
-      blue: bValue,
+      red: color[0],
+      green: color[1],
+      blue: color[2],
       alpha: 1,
-      dark: (rValue + gValue + bValue) / 3 < 128
+      dark: color.reduce((a, b) => a + b, 0) / 3 < 128
     };
-  }
-  private static adjustNumbers(a: number, b: number, c: number) {
-    const numbers = [a, b, c];
-    const min = Math.min(...numbers);
-    const max = Math.max(...numbers);
-    const middle = numbers.find(num => num !== min && num !== max);
-
-    const adjustedMin = Math.max(0, Math.min(min - 10, 255));
-    const adjustedMiddle = Math.max(0, Math.min(middle! - 5, 255));
-
-    return numbers.map(num => {
-      if (num === min) return adjustedMin;
-      if (num === middle) return adjustedMiddle;
-      return num;
-    });
   }
 }
