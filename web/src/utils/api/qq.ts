@@ -30,7 +30,8 @@ function parseAlbumImage(music: any) {
   if (albumPMId) {
     return `https://y.qq.com/music/photo_new/T002R300x300M000${albumPMId}.jpg?max_age=2592000`;
   }
-  const albumMid = music.albummid || (music.album && music.album.mid);
+  const albumMid =
+    music.albumMid || music.albummid || (music.album && music.album.mid);
   if (albumMid) {
     let s =
       albumMid[albumMid.length - 2] +
@@ -461,21 +462,11 @@ export function rankingPlaylist(ranking: RankingType): Playlist {
   };
 }
 
-export async function rankingFirst(ranking: RankingType, offset: number) {
-  let now = new Date();
-  if (now.getHours() < 10) now = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const month = (now.getMonth() + 1).toString().padStart(2, '0');
-  const day = now.getDate().toString().padStart(2, '0');
-  const date = `${now.getFullYear()}-${month}-${day}`;
-  var playlistId = 26;
-  switch (ranking) {
-    case RankingType.New:
-      playlistId = 27;
-      break;
-    case RankingType.Soar:
-      playlistId = 62;
-      break;
-  }
+async function getRankingFirstData(
+  playlistId: number,
+  offset: number,
+  date: string
+) {
   var url =
     `https://u.y.qq.com/cgi-bin/musicu.fcg?callback=&g_tk=5381&platform=yqq` +
     `&jsonpCallback=&loginUin=0&hostUin=0&format=json&inCharset=utf8` +
@@ -509,9 +500,40 @@ export async function rankingFirst(ranking: RankingType, offset: number) {
       Cookie: qqCookie
     }
   });
-  let json = await res.json();
-  const total: number = json.req_1.data.data.totalNum;
+  return await res.json();
+}
+
+export async function rankingFirst(ranking: RankingType, offset: number) {
+  let now = new Date();
+  if (now.getHours() < 10) now = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const day = now.getDate().toString().padStart(2, '0');
+  const date = `${now.getFullYear()}-${month}-${day}`;
+  var playlistId = 26;
+  switch (ranking) {
+    case RankingType.New:
+      playlistId = 27;
+      break;
+    case RankingType.Soar:
+      playlistId = 62;
+      break;
+  }
   const list: Music[] = [];
+  let json = await getRankingFirstData(playlistId, offset, date);
+  let total: number = json.req_1.data.data.totalNum;
+  if (
+    !json.req_1.data.songInfoList ||
+    json.req_1.data.songInfoList.length === 0
+  ) {
+    json = await getRankingFirstData(
+      playlistId,
+      offset,
+      `${now.getFullYear()}-${month}-${(now.getDate() - 1)
+        .toString()
+        .padStart(2, '0')}`
+    );
+    total = json.req_1.data.data.totalNum;
+  }
   json.req_1.data.songInfoList.map((m: any) => {
     list.push(parseMusic(m));
   });
@@ -545,8 +567,11 @@ export async function ranking(ranking: RankingType, offset: number) {
     now = new Date(now.valueOf() - 86400000);
   }
   var date = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-  var url = `https://c.y.qq.com/v8/fcg-bin/fcg_v8_toplist_cp.fcg?tpl=3&page=detail&date=${date}&topid=${playlistId}&type=top&song_begin=0&song_num=100&g_tk=5381&loginUin=0&hostUin=0&format=json&inCharset=utf8&outCharset=utf-8&notice=0&platform=yqq&needNewCode=0`;
-
+  var url =
+    'https://c.y.qq.com/v8/fcg-bin/fcg_v8_toplist_cp.fcg?tpl=3' +
+    '&song_num=100&g_tk=5381&loginUin=0&hostUin=0&format=json&inCharset=utf8' +
+    '&outCharset=utf-8&notice=0&platform=yqq&needNewCode=0' +
+    `&page=detail&date=${date}&topid=${playlistId}&type=top&song_begin=0`;
   var res = await httpProxy({
     url: url,
     method: 'GET',
@@ -640,6 +665,35 @@ export async function musicDetail(music: Music): Promise<Music> {
   return music;
 }
 
+export async function musicById(id: string): Promise<Music | null> {
+  var res = await httpProxy({
+    url: 'https://u.y.qq.com/cgi-bin/musicu.fcg',
+    method: 'POST',
+    data: JSON.stringify({
+      comm: {
+        cv: 4747474,
+        ct: 24,
+        format: 'json',
+        inCharset: 'utf-8',
+        outCharset: 'utf-8',
+        notice: 0,
+        platform: 'yqq.json',
+        needNewCode: 1
+      },
+      req_0: {
+        method: 'get_song_detail_yqq',
+        module: 'music.pf_song_detail_svr',
+        param: { song_mid: id }
+      }
+    }),
+    headers: {
+      Referer: 'https://y.qq.com',
+      Cookie: qqCookie
+    }
+  });
+  const ret = await res.json();
+  return parseMusic(ret.req_0.data.track_info);
+}
 const base64Header =
   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
 function decodeBase64(e: string) {

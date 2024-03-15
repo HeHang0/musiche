@@ -72,7 +72,8 @@ if (webView2Services.enabled) {
 export async function musicOperate(
   url: string,
   data?: string,
-  headers?: HeadersInit
+  headers?: HeadersInit,
+  method?: string
 ): Promise<string | any> {
   if (url === '/version') {
     try {
@@ -93,7 +94,7 @@ export async function musicOperate(
     var text = '';
     try {
       const res = await fetch(`//${httpAddress}${history}${url}`, {
-        method: 'POST',
+        method: method || 'POST',
         body: data,
         headers: headers
       });

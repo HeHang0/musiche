@@ -3,6 +3,7 @@ import { ElMessage } from 'element-plus';
 import * as api from '../utils/api/api';
 import {
   Music,
+  MusicType,
   PlayDetailMode,
   PlayStatus,
   Playlist,
@@ -462,6 +463,21 @@ export const usePlayStore = defineStore('play', {
       }
       storage.setValue(StorageKey.Volume, this.playStatus.volume);
     },
+    async setCurrentMusicById(id: string, type: MusicType) {
+      let music: Music | null | undefined = this.musicList.find(
+        item => item.id == id && item.type == type
+      );
+      let noSave = false;
+      if (!music) {
+        music = await api.musicById(type, id);
+        noSave = true;
+      }
+      if (music) {
+        this.setCurrentMusic(music, noSave);
+        this.setTitle();
+        return;
+      }
+    },
     async setStatus(data: PlayStatus) {
       if (this.checkingStatus || !data) return;
       try {
@@ -482,10 +498,9 @@ export const usePlayStore = defineStore('play', {
           data.type &&
           (data.id != this.music?.id || data.type != this.music?.type)
         ) {
-          const music = this.musicList.find(
-            item => item.id == data.id && item.type == data.type
-          );
-          music && this.setCurrentMusic(music);
+          this.music.id = data.id;
+          this.music.type = data.type;
+          this.setCurrentMusicById(data.id, data.type);
         }
         if (
           this.playStatus.currentTime != data.currentTime &&
@@ -549,6 +564,7 @@ export const usePlayStore = defineStore('play', {
       } else {
         title.value = '音乐和';
       }
+      if (this.remoteMode) return;
       musicOperate('/title', title.value);
       musicOperate(
         '/media',

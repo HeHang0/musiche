@@ -15,6 +15,7 @@ import {
   CloseType,
   MusicQuality,
   MusicType,
+  RemoteClient,
   ShortcutType
 } from '../utils/type';
 import {
@@ -379,6 +380,19 @@ async function setCustomTheme() {
   }
 }
 
+function onRemoteClientChanged(client: RemoteClient) {
+  musicOperate(
+    '/remote/client',
+    JSON.stringify({
+      address: client.address,
+      channel: client.channel
+    }),
+    {
+      'Content-Type': 'application/json'
+    }
+  );
+}
+
 function setAppTheme(theme: AppTheme) {
   if (
     theme.id?.startsWith('custom') &&
@@ -679,6 +693,34 @@ onUnmounted(unWatch);
                   >双击播放单曲时，仅把当前单曲添加到播放列表</el-radio
                 >
               </el-radio-group>
+            </div>
+            <div
+              class="music-setting-play-remote-clients"
+              v-if="setting.remoteMode && setting.remoteClients.length > 0">
+              <span>多机互联</span>
+              <div>
+                <div
+                  class="music-setting-play-remote-clients-item"
+                  v-for="client in setting.remoteClients">
+                  <div>
+                    <span class="name">
+                      {{ client.name }}
+                      <span class="local" v-if="client.local">本机</span>
+                    </span>
+                    <span class="origin">{{ client.origin }}</span>
+                  </div>
+                  <el-select
+                    v-model="client.channel"
+                    size="small"
+                    placeholder="禁用"
+                    @change="onRemoteClientChanged(client)">
+                    <el-option label="禁用" :value="-1" />
+                    <el-option label="立体声" :value="0" />
+                    <el-option label="左声道" :value="1" />
+                    <el-option label="右声道" :value="2" />
+                  </el-select>
+                </div>
+              </div>
             </div>
           </td>
         </tr>
@@ -1209,6 +1251,41 @@ onUnmounted(unWatch);
       }
       .el-checkbox {
         margin-left: 32px;
+      }
+    }
+    &-remote-clients {
+      & > span {
+        margin-bottom: 5px;
+      }
+      &-item {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        & + & {
+          margin-top: 10px;
+        }
+        & > div:first-child {
+          display: flex;
+          align-items: flex-start;
+          flex-direction: column;
+          justify-content: space-between;
+          .local {
+            border: 1px solid;
+            border-radius: 4px;
+            font-size: 0.5rem;
+            padding: 0 3px;
+            color: var(--music-primary-color);
+            vertical-align: text-top;
+            margin-left: 2px;
+          }
+          .origin {
+            opacity: 0.7;
+            font-size: 0.8rem;
+          }
+        }
+        .el-select {
+          width: 100px;
+        }
       }
     }
   }

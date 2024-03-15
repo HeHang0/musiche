@@ -42,7 +42,6 @@ async function cacheThenNetwork(request) {
     !networkFirst.test(requestUrl) &&
     (cacheRouter || (willCache && response.ok))
   ) {
-    console.log('Caching response:', requestUrl);
     try {
       const cache = await caches.open(CACHE_NAME);
       cache.put(request, response.clone());

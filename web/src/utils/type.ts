@@ -21,7 +21,7 @@ export enum SortType {
 export interface PlayStatus {
   currentTime: string;
   id?: string;
-  type?: string;
+  type?: MusicType;
   playing: boolean;
   loading: boolean;
   stopped: boolean;
@@ -167,6 +167,16 @@ export interface UserInfo {
   name?: string;
   image?: string;
   cookie?: Record<string, string> | string;
+}
+
+type RemoteClientType = -1 | 0 | 1 | 2;
+export interface RemoteClient {
+  address: string;
+  port: number;
+  name: string;
+  channel: RemoteClientType;
+  local: boolean;
+  origin: string;
 }
 
 export interface PlatformAPI {

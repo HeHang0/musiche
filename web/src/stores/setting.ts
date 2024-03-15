@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ElMessage } from 'element-plus';
-import { musicOperate, updateTheme } from '../utils/http';
+import { httpAddress, musicOperate, updateTheme } from '../utils/http';
 import {
   CloseType,
   ShortcutType,
@@ -10,11 +10,13 @@ import {
   DirectoryInfo,
   AppTheme,
   MusicQuality,
-  LyricOptionsKey
+  LyricOptionsKey,
+  RemoteClient
 } from '../utils/type';
 import { StorageKey, storage } from '../utils/storage';
 import * as api from '../utils/api/api';
 import {
+  clearArray,
   dataURLtoBlob,
   isAndroid,
   isInStandaloneMode,
@@ -205,7 +207,8 @@ export const useSettingStore = defineStore('setting', {
         name: '',
         image: ''
       }
-    } as Record<MusicType, UserInfo>
+    } as Record<MusicType, UserInfo>,
+    remoteClients: [] as RemoteClient[]
   }),
   actions: {
     setMaximized(maximized: boolean) {
@@ -526,6 +529,31 @@ export const useSettingStore = defineStore('setting', {
       }
       fontEle.innerText = `*{animation: none !important;transition: none !important}`;
     },
+    async updateRemoteClients() {
+      if (!this.remoteMode) return;
+      clearArray(this.remoteClients);
+      const data: RemoteClient[] = await musicOperate(
+        '/remote/clients',
+        void 0,
+        void 0,
+        'GET'
+      );
+      if (!data || !Array.isArray(data)) return;
+      data.forEach(item => {
+        this.remoteClients.push({
+          ...item,
+          origin:
+            location.protocol +
+            '//' +
+            item.address +
+            (item.port ? ':' + item.port : ''),
+          local:
+            item.address === location.host ||
+            item.address === location.hostname ||
+            httpAddress.includes(item.address)
+        });
+      });
+    },
     async initValue(remoteMode: boolean) {
       this.remoteMode = remoteMode;
       this.setCustomTheme(await storage.getValue(StorageKey.CustomTheme));
@@ -644,6 +672,7 @@ export const useSettingStore = defineStore('setting', {
           ? this.pageValue.lyric.effectColor
           : ''
       });
+      this.updateRemoteClients();
     }
   }
 });
