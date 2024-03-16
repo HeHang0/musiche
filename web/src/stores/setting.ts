@@ -257,7 +257,7 @@ export const useSettingStore = defineStore('setting', {
       }
     },
     handleThemeChange() {
-      this.setAppTheme({ id: darkModeMediaQuery.matches ? 'dark' : '' });
+      this.setAppTheme({ id: darkModeMediaQuery.matches ? 'dark pure' : '' });
     },
     updateDarkMode(dark: boolean) {
       if (!this.autoAppTheme) return;
@@ -286,6 +286,7 @@ export const useSettingStore = defineStore('setting', {
       });
       if (themeColor) {
         themeColor.content = dark ? '#13131a' : '#f7f7f7';
+        if (appTheme?.id.includes('pure')) themeColor.content = 'black';
       }
       updateTheme(preferredColorScheme);
     },
