@@ -52,6 +52,9 @@ async function searchMusic(clear: boolean = true) {
       break;
     case 'playlist':
       loading.value = true;
+      if (playlistId === 'daily') {
+        await setting.waitLoaded();
+      }
       result = await api.playlistDetail(
         musicType,
         playlistId,

@@ -47,6 +47,8 @@ const themeColor: HTMLMetaElement | null = document.querySelector(
 );
 export const useSettingStore = defineStore('setting', {
   state: () => ({
+    settingLoaded: false,
+    settingLoadedResolves: [] as ((value?: unknown) => void)[],
     maximized: false,
     fonts: null as string[] | null,
     currentMusicType: 'cloud' as MusicType,
@@ -627,17 +629,6 @@ export const useSettingStore = defineStore('setting', {
           }
         });
       }
-      const userInfoCache: any = await storage.getValue(StorageKey.UserInfo);
-      if (userInfoCache) {
-        Object.keys(userInfoCache).map(musicType => {
-          const userInfo = userInfoCache[musicType as MusicType];
-          if (this.userInfo[musicType as MusicType]) {
-            this.userInfo[musicType as MusicType].cookie =
-              userInfo?.cookie || '';
-            this.setUserInfo(musicType as MusicType);
-          }
-        });
-      }
       const localDirectories: DirectoryInfo[] = await storage.getValue(
         StorageKey.LocalDirectories
       );
@@ -673,7 +664,33 @@ export const useSettingStore = defineStore('setting', {
           ? this.pageValue.lyric.effectColor
           : ''
       });
+      const userInfoCache: any = await storage.getValue(StorageKey.UserInfo);
+      if (userInfoCache) {
+        const keys = Object.keys(userInfoCache);
+        for (let i = 0; i < keys.length; i++) {
+          const musicType = keys[i];
+          const userInfo = userInfoCache[musicType as MusicType];
+          if (this.userInfo[musicType as MusicType]) {
+            this.userInfo[musicType as MusicType].cookie =
+              userInfo?.cookie || '';
+            try {
+              await this.setUserInfo(musicType as MusicType);
+            } catch {}
+          }
+        }
+      }
       this.updateRemoteClients();
+      this.settingLoaded = true;
+      if (this.settingLoadedResolves.length > 0) {
+        this.settingLoadedResolves.forEach(resolve => resolve());
+        clearArray(this.settingLoadedResolves);
+      }
+    },
+    async waitLoaded() {
+      if (this.settingLoaded) return Promise.resolve();
+      return new Promise(resolve => {
+        this.settingLoadedResolves.push(resolve);
+      });
     }
   }
 });

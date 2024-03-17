@@ -195,6 +195,21 @@ function toHome() {
         </div>
       </el-dialog>
     </el-scrollbar>
+    <ul
+      role="menubar"
+      class="el-menu el-menu--vertical music-aside-menu"
+      style="--el-menu-level: 0"
+      @click="push('/setting')">
+      <li
+        class="el-menu-item"
+        :class="route.meta.key == 'setting' ? 'is-active' : ''"
+        role="menuitem"
+        tabindex="-1"
+        id="/setting">
+        <span class="music-icon">设</span>
+        <span>设置</span>
+      </li>
+    </ul>
   </el-aside>
 </template>
 <style lang="less" scoped>
@@ -212,7 +227,7 @@ function toHome() {
     background: transparent !important;
   }
   & > .el-scrollbar {
-    height: calc(100% - 80px);
+    height: calc(100% - 145px);
   }
   &-title {
     height: 80px;

@@ -66,14 +66,15 @@ onUnmounted(unWatch);
         v-show="setting.currentMusicTypeShow"
         :value="setting.currentMusicType"
         size="large"
-        @change="changeMusicType"
-        style="margin-right: 12px" />
+        @change="changeMusicType" />
     </div>
-    <div class="music-header-operate">
-      <span class="music-icon" @click="push('/setting')" title="设置">
+    <div
+      class="music-header-operate"
+      v-if="isWindows && webView2Services.enabled">
+      <!-- <span class="music-icon" @click="push('/setting')" title="设置">
         设
-      </span>
-      <WindowControls v-if="isWindows && webView2Services.enabled" />
+      </span> -->
+      <WindowControls />
     </div>
   </el-header>
 </template>
@@ -152,7 +153,7 @@ onUnmounted(unWatch);
       width: calc(100% - 13px);
     }
     button + &-search {
-      width: calc(100% - 50px);
+      width: calc(100% - 38px);
     }
     .el-radio-group {
       width: 100%;

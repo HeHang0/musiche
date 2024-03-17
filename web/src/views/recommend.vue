@@ -64,6 +64,7 @@ async function getPlaylist(clear: boolean = true) {
   loading.value = true;
   let result = null;
   if (key === 'yours') {
+    await setting.waitLoaded();
     result = await api.yours(setting.currentMusicType, playlist.value.length);
   } else {
     result = await api.recommend(
