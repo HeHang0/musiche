@@ -14,13 +14,15 @@ class WebSocketHandler extends Handler implements IHandler {
   static const String _tag = "MusicheWebSocketHandler";
   final Set<WebSocket> webSockets = <WebSocket>{};
   static const String _channelMediaOperate = "media-operate";
-  final EventChannel _eventChannel = const EventChannel(_channelMediaOperate);
   static bool _dark = false;
   WebSocketHandler(super.audioPlay) {
     audioPlay.onPlayerStateChanged.listen(_onPlayerStateChanged);
     audioPlay.onPositionChanged.listen(_onPositionChanged);
     audioPlay.onDurationChanged.listen(_onDurationChanged);
-    _eventChannel.receiveBroadcastStream().listen(_onMediaOperate);
+    if(Platform.isAndroid){
+      EventChannel eventChannel = const EventChannel(_channelMediaOperate);
+      eventChannel.receiveBroadcastStream().listen(_onMediaOperate);
+    }
   }
 
   void changeTheme(bool isDark) {

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:musiche/utils/android_channel.dart';
 
@@ -31,12 +32,14 @@ class AudioPlay {
   }
 
   Future<void> _onPositionChanged(Duration position) async {
-    AndroidChannel.setMediaPosition(playing, position.inMilliseconds);
+    if(kIsWeb) return;
+    if(Platform.isAndroid) AndroidChannel.setMediaPosition(playing, position.inMilliseconds);
   }
 
   Future<void> _onDurationChanged(Duration? duration) async {
     if(metadata == null || _audioPlayer.duration == null) return;
-    AndroidChannel.setMediaMetadata(metadata!, playing, _audioPlayer.position.inMilliseconds, _audioPlayer.duration!.inMilliseconds);
+    if(kIsWeb) return;
+    if(Platform.isAndroid) AndroidChannel.setMediaMetadata(metadata!, playing, _audioPlayer.position.inMilliseconds, _audioPlayer.duration!.inMilliseconds);
   }
 
   Future<void> setMediaMeta(MediaMetadata metadata) async {
@@ -45,7 +48,8 @@ class AudioPlay {
     if(duration == null || duration.inMilliseconds == 0){
       return;
     }
-    AndroidChannel.setMediaMetadata(metadata, playing, _audioPlayer.position.inMilliseconds, duration.inMilliseconds);
+    if(kIsWeb) return;
+    if(Platform.isAndroid) AndroidChannel.setMediaMetadata(metadata, playing, _audioPlayer.position.inMilliseconds, duration.inMilliseconds);
   }
   void pause() {
     _audioPlayer.pause();

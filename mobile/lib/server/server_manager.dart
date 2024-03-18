@@ -24,7 +24,7 @@ class ServerManager {
     _websocketHandler = WebSocketHandler(audioPlay);
     _port = kDebugMode ? 54621 : await Network.findAvailablePort();
     InternetAddress address = kDebugMode ? InternetAddress.anyIPv4 : InternetAddress.loopbackIPv4;
-    _server = await HttpServer.bind(address, _port);
+    _server = await HttpServer.bind(address, _port, shared: Platform.isMacOS);
     Logger.i(_tag, "start server: $address:$_port");
     _server?.forEach((HttpRequest request) {
       Logger.d(_tag, "accept connection: ${request.uri.path}");

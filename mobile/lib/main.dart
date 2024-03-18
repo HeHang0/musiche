@@ -1,6 +1,10 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:musiche/server/server_manager.dart';
 import 'package:musiche/webview.dart';
+import 'package:musiche/webview_macos.dart';
 
 
 Future<void> main() async {
@@ -17,8 +21,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     ServerManager.changeTheme(MediaQuery.of(context).platformBrightness == Brightness.dark);
-    return const MaterialApp(//WebViewApp(//)
-      home: WebViewApp(),
+    return MaterialApp(//WebViewApp(//)
+      home: !kIsWeb && Platform.isMacOS ? const WebViewMacOSApp() : const WebViewApp(),
       // theme: ThemeData(colorScheme: const ColorScheme.light()),
       // darkTheme: ThemeData(colorScheme: const ColorScheme.dark(background: Color.fromRGBO(19, 19, 26, 1))),
       // themeMode: ThemeMode.system,

@@ -15,6 +15,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../audio/media_metadata.dart';
 import '../utils/os_version.dart';
+import 'file_handler.dart';
 import 'http_proxy.dart';
 import 'router_call.dart';
 import 'handler.dart';
@@ -25,6 +26,7 @@ class HttpHandler extends Handler implements IHandler {
   HttpHandler(super.audioPlay){
     routers.addEntries([
       MapEntry("*", _handleIndex),
+      MapEntry("config", _handleConfig),
       MapEntry("version", _getVersion),
       MapEntry("title", _setTitle),
       MapEntry("media", _setMedia),
@@ -44,8 +46,46 @@ class HttpHandler extends Handler implements IHandler {
       MapEntry("image", _getMusicImage),
       MapEntry("lyric", _setLyric),
       MapEntry("lyricline", _setLyricLine),
-      MapEntry("proxy", _proxy)
+      MapEntry("proxy", _proxy),
+      MapEntry("file", _handleFiles)
     ]);
+  }
+
+  Future<void> _handleFiles(HttpRequest request) async {
+    dynamic data;
+    Map<String, dynamic> result = <String, dynamic>{};
+    String body = await _readBody(request);
+    switch(request.uri.path.toLowerCase()){
+      case "/file/read":
+        data = FileHandler.handlers["readFile"]!.call([]);break;
+      case "/file/write":
+        data = FileHandler.handlers["writeFile"]!.call([]);break;
+      case "/file/delete":
+        data = FileHandler.handlers["deleteFile"]!.call([body]);break;
+      case "/file/exists":
+        data = FileHandler.handlers["fileExists"]!.call([body]);break;
+      case "/file/select":
+        data = FileHandler.handlers["showSelectedDirectory"]!.call([]);break;
+      case "/file/directory/music":
+        data = FileHandler.handlers["getMyMusicDirectory"]!.call([]);break;
+      case "/file/list/all":
+        data = FileHandler.handlers["listAllFiles"]!.call([]);break;
+      case "/file/list/audio":
+        data = FileHandler.handlers["listAllAudios"]!.call([body, true]);break;
+      default:
+        data = null;
+    }
+    result["data"] = data;
+    request.response.statusCode = HttpStatus.ok;
+    request.response.headers.contentType = ContentType.json;
+    request.response.write(jsonEncode(result));
+  }
+
+  Future<void> _handleConfig(HttpRequest request) async {
+    Map<String, dynamic> result = <String, dynamic>{};
+    request.response.statusCode = HttpStatus.ok;
+    request.response.headers.contentType = ContentType.json;
+    request.response.write(jsonEncode(result));
   }
 
   Future<void> _handleIndex(HttpRequest request) async {
@@ -58,7 +98,11 @@ class HttpHandler extends Handler implements IHandler {
     try{
       result = Uint8List.sublistView(await rootBundle.load('assets/$realPath'));
     }catch(e){
-      Logger.e(_tag, "load file err", error: e);
+      try{
+        result = Uint8List.sublistView(await rootBundle.load('assets/index.html'));
+      }catch(e){
+        Logger.e(_tag, "load file err", error: e);
+      }
     }
     if(result == null){
       request.response.headers.set("Location", "/?redirect=${request.uri.path}");
@@ -173,10 +217,11 @@ class HttpHandler extends Handler implements IHandler {
     request.response.statusCode = HttpStatus.ok;
     String themeString = request.uri.queryParameters["theme"] ?? "";
     Brightness brightness = themeString == "1" ? Brightness.dark : Brightness.light;
-    if (!kIsWeb && Platform.isAndroid) {
+    if(Platform.isIOS) brightness = themeString == "1" ? Brightness.light : Brightness.dark;
+    if (!kIsWeb) {
       var androidInfo = await OSVersion.androidInfo;
       var sdkInt = androidInfo?.version.sdkInt ?? 0;
-      if(sdkInt >= 23 && sdkInt < 34){
+      if(!Platform.isAndroid || (sdkInt >= 23 && sdkInt < 34)){
         SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarBrightness: brightness,
@@ -188,7 +233,8 @@ class HttpHandler extends Handler implements IHandler {
           systemNavigationBarDividerColor: Colors.transparent,
         ));
       }else {
-        AndroidChannel.setStatusBarTheme(themeString != "1");
+        if(kIsWeb) return;
+        if(Platform.isAndroid) AndroidChannel.setStatusBarTheme(themeString != "1");
       }
     }
   }
@@ -209,7 +255,11 @@ class HttpHandler extends Handler implements IHandler {
     var filePath = request.uri.queryParameters["path"];
     if (filePath?.isNotEmpty ?? false) {
       if(filePath!.startsWith("content://")){
-        List<int>? imageData = await AndroidChannel.getThumbnail(filePath);
+        List<int>? imageData = [];
+        if(kIsWeb) return;
+        if(!kIsWeb && Platform.isAndroid){
+          imageData = await AndroidChannel.getThumbnail(filePath);
+        }
         if(imageData != null) {
           request.response.statusCode = HttpStatus.ok;
           request.response.headers.contentType = ContentType.parse("image/jpeg");
@@ -244,10 +294,10 @@ class HttpHandler extends Handler implements IHandler {
             status = await Permission.systemAlertWindow.request();
           }
           if(status.isGranted){
-            AndroidChannel.setLyricOptions(lyricOptions);
+            if(!kIsWeb && Platform.isAndroid) AndroidChannel.setLyricOptions(lyricOptions);
           }
         }else {
-          AndroidChannel.setLyricOptions(lyricOptions);
+          if(!kIsWeb && Platform.isAndroid) AndroidChannel.setLyricOptions(lyricOptions);
         }
       }catch(e){
         Logger.e(_tag, "parse lyric options err: $e");
@@ -263,7 +313,7 @@ class HttpHandler extends Handler implements IHandler {
       isGranted = (await Permission.systemAlertWindow.status).isGranted;
     }
     if(isGranted){
-      AndroidChannel.setLyricLine(await _readBody(request));
+      if(!kIsWeb && Platform.isAndroid) AndroidChannel.setLyricLine(await _readBody(request));
     }
     request.response.statusCode = HttpStatus.ok;
   }
@@ -285,9 +335,9 @@ class HttpHandler extends Handler implements IHandler {
       _setHeader(request.response, proxyResData.headers);
       request.response.headers.chunkedTransferEncoding = false;
       request.response.statusCode = proxyResData.statusCode;
-      if (proxyResData.contentLength > 0) {
-        request.response.contentLength = proxyResData.contentLength;
-      }
+      // if (proxyResData.contentLength > 0) {
+      //   request.response.contentLength = proxyResData.contentLength;
+      // }
       if (proxyResData.stream != null) {
         await request.response.addStream(proxyResData.stream!);
       }else if(proxyResData.data.isNotEmpty) {

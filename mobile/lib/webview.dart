@@ -21,12 +21,12 @@ class WebViewApp extends StatefulWidget {
 class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
   static const String _tag = "MusicWebView";
   final GlobalKey webViewKey = GlobalKey();
-  static final String _url = "http://127.0.0.1:${ServerManager.port}/index.html";//kDebugMode ? "http://192.168.3.2:5173" :
+  static final String _url = kDebugMode ? "http://192.168.3.2:5173" : "http://127.0.0.1:${ServerManager.port}/index.html";
   InAppWebViewController? webViewController;
   InAppWebViewSettings settings = InAppWebViewSettings(
       isInspectable: kDebugMode,
       mediaPlaybackRequiresUserGesture: false,
-      allowsPictureInPictureMediaPlayback:true,
+      allowsPictureInPictureMediaPlayback:false,
       transparentBackground: true,
       allowBackgroundAudioPlaying: false,
       disableContextMenu: true,
@@ -42,8 +42,6 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
       InAppWebViewController.setWebContentsDebuggingEnabled(kDebugMode);
     }
     WidgetsBinding.instance.addObserver(this);
-    // Logger.i(_tag, MediaQuery.of(context).platformBrightness);
-    // ServerManager.changeTheme(Theme.of(context).brightness == Brightness.dark);
   }
 
   @override
@@ -54,7 +52,14 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
 
   @override
   void didChangePlatformBrightness() {
+    super.didChangePlatformBrightness();
     ServerManager.changeTheme(MediaQuery.of(context).platformBrightness == Brightness.dark);
+  }
+
+  @override
+  void didChangeMetrics(){
+    super.didChangeMetrics();
+    _setSafeArea();
   }
 
   void _onBackClick(bool didPop) async {
@@ -87,23 +92,22 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
   }
 
   void _setSafeArea(){
-    if (!kIsWeb && Platform.isAndroid) {
-      EdgeInsets safePadding = MediaQuery.of(context).padding;
-      webViewController?.evaluateJavascript(source: ""
-          "let safeAreaStyle = document.getElementById('safe-area-style');"
-          "if(!safeAreaStyle){"
-          "safeAreaStyle = document.createElement('style');"
-          "safeAreaStyle.id = 'safe-area-style';"
-          "if (document.head) document.head.appendChild(safeAreaStyle);"
-          "else document.addEventListener('load',"
-          "()=>document.head.appendChild(safeAreaStyle));}"
-          "safeAreaStyle.innerHTML='"
-          ":root{--safe-area-inset-top: ${safePadding.top.toInt()}px;"
-          "--safe-area-inset-right: ${safePadding.right.toInt()}px;"
-          "--safe-area-inset-left: ${safePadding.left.toInt()}px;"
-          "--safe-area-inset-bottom: ${safePadding.bottom.toInt()}px;}';");
-      Logger.i(_tag, "inject safe area inset: $safePadding");
-    }
+    if (kIsWeb) return;
+    EdgeInsets safePadding = MediaQuery.of(context).padding;
+    webViewController?.evaluateJavascript(source: ""
+        "(function(){let safeAreaStyle = document.getElementById('safe-area-style');"
+        "if(!safeAreaStyle){"
+        "safeAreaStyle = document.createElement('style');"
+        "safeAreaStyle.id = 'safe-area-style';"
+        "if (document.head) document.head.appendChild(safeAreaStyle);"
+        "else document.addEventListener('load',"
+        "()=>document.head.appendChild(safeAreaStyle));}"
+        "safeAreaStyle.innerHTML='"
+        ":root{--safe-area-inset-top: ${safePadding.top.toInt()}px;"
+        "--safe-area-inset-right: ${safePadding.right.toInt()}px;"
+        "--safe-area-inset-left: ${safePadding.left.toInt()}px;"
+        "--safe-area-inset-bottom: ${safePadding.bottom.toInt()}px;}';})()");
+    Logger.i(_tag, "inject safe area inset: $safePadding");
   }
 
   _onWebViewCreated (InAppWebViewController controller) {
@@ -148,7 +152,7 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
     if("musiche loaded" == consoleMessage.message){// &&
       if(_opacity < 1){
         _delayShow?.cancel();
-        _delayShow = Timer(const Duration(milliseconds: 100), _showWebView);
+        _delayShow = Timer(const Duration(milliseconds: 1000), _showWebView);
       }else {
         _setSafeArea();
       }
