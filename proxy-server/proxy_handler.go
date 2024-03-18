@@ -18,6 +18,10 @@ func ProxyHandler(writer http.ResponseWriter, request *http.Request) {
 	}
 	if strings.HasPrefix(queryUrl, "http") {
 		requestData = &RequestData{Url: queryUrl}
+		requestData.Headers = map[string]string{}
+		for key, value := range request.Header {
+			requestData.Headers[key] = strings.Join(value, ",")
+		}
 	} else {
 		body := make([]byte, request.ContentLength)
 		_, _ = request.Body.Read(body)
@@ -84,7 +88,6 @@ func setRequestHeaders(request *http.Request, headers map[string]string) {
 		case "accept":
 			request.Header.Set("Accept", value)
 		case "host":
-		case "range":
 		default:
 			request.Header.Set(key, value)
 		}
@@ -107,9 +110,7 @@ func setResponseHeaders(response http.ResponseWriter, headers http.Header) {
 		case "accesscontrolexposeheaders":
 		case "accesscontrolallowcredentials":
 		default:
-			if len(value) > 0 {
-				response.Header().Set(key, value[0])
-			}
+			response.Header().Set(key, strings.Join(value, ", "))
 		}
 	}
 }
