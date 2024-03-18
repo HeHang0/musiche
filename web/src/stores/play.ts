@@ -91,7 +91,8 @@ export const usePlayStore = defineStore('play', {
       lyricManager.showInDesktop(
         title,
         this.desktopLyricShow,
-        this.closeDesktopLyric
+        this.closeDesktopLyric,
+        this.music
       );
     },
     clearMusicList() {

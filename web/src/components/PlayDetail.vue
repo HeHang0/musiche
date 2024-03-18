@@ -158,7 +158,7 @@ watch(() => play.playDetailShow, setTheme);
       <div
         class="music-play-detail-header"
         @mouseenter="setMouseMotion"
-        :style="mouseStillness ? 'opacity:0' : ''">
+        :style="mouseStillness ? 'opacity:0;pointer-events:none' : ''">
         <span>
           <el-button class="music-button-pure music-icon" @click="close"
             >下</el-button
@@ -212,7 +212,9 @@ watch(() => play.playDetailShow, setTheme);
         <DefaultMode v-else />
       </div>
       <div class="music-play-detail-footer" @mouseenter="setMouseMotion">
-        <Footer full :style="mouseStillness ? 'opacity:0' : ''" />
+        <Footer
+          full
+          :style="mouseStillness ? 'opacity:0;pointer-events:none' : ''" />
       </div>
     </div>
   </el-drawer>

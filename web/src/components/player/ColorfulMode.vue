@@ -7,7 +7,7 @@ import SmokeRingVideo from '../../assets/videos/smoke-ring.webm';
 import { LogoImage } from '../../utils/logo';
 import { usePlayStore } from '../../stores/play';
 import { useSettingStore } from '../../stores/setting';
-
+import { isIOS } from '@vueuse/core';
 interface Props {
   tools?: boolean;
 }
@@ -106,7 +106,9 @@ onUnmounted(() => clearInterval(colorInterval));
           loop
           :src="SmokeVideo"></video>
         <img class="music-mode-colorful-disc" :src="Disc2Image" />
-        <div class="music-mode-colorful-disc-background"></div>
+        <div
+          class="music-mode-colorful-disc-background"
+          :style="isIOS ? 'opacity: 0.6' : ''"></div>
 
         <img
           class="music-mode-colorful-album"

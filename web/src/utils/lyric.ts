@@ -6,7 +6,8 @@ import {
   parseLyric,
   webView2Services,
   isAndroid,
-  isWindows
+  isWindows,
+  isIOS
 } from './utils';
 import { musicOperate } from './http';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -227,19 +228,21 @@ export class LyricManager {
         fontStyle.push(fontFamily);
       } else {
         if (!defaultFont) {
-          defaultFont = window
-            .getComputedStyle(document.body)
-            .font.replace(/([\d]+px|[\/])/g, '')
-            .trim();
+          defaultFont =
+            window
+              .getComputedStyle(document.body)
+              .fontFamily.split(',')
+              .at(0)
+              ?.trim() || 'arial';
         }
         fontStyle.push(defaultFont);
       }
     }
-    this.canvasContext.font = fontStyle.join(' ');
-    this.canvasContext.fillStyle = this.lyricOption?.fontColor ?? 'white';
     const canvasWidth = this.canvas.width;
     const canvasHeight = this.canvas.height;
     this.canvasContext.clearRect(0, 0, canvasWidth, canvasHeight);
+    this.canvasContext.font = fontStyle.join(' ');
+    this.canvasContext.fillStyle = this.lyricOption?.fontColor ?? 'white';
     const x = Math.floor(canvasWidth / 2);
     const y = Math.floor(canvasHeight / 2);
     if (this.lyricOption?.effect) {
@@ -256,9 +259,10 @@ export class LyricManager {
   public showInDesktop(
     title: string,
     show: boolean = true,
-    callback: (() => void) | null = null
+    callback: (() => void) | null = null,
+    music?: Music
   ) {
-    if (webView2Services.enabled) {
+    if (webView2Services.enabled && !isIOS) {
       LyricManager.lyricDesktopShow = show;
       musicOperate(
         '/lyric',
@@ -288,10 +292,12 @@ export class LyricManager {
     (LyricManager.canvas as any).style['-webkit-font-smoothing'] =
       'antialiased';
     (LyricManager.canvas as any).style['-moz-osx-font-smoothing'] = 'grayscale';
-    LyricManager.canvas.width = 300 * devicePixelRatio;
-    LyricManager.canvas.height = 60 * devicePixelRatio;
-    LyricManager.canvas.style.width = '300px';
-    LyricManager.canvas.style.height = '60px';
+    const width = 300;
+    const height = 40;
+    LyricManager.canvas.width = width * devicePixelRatio;
+    LyricManager.canvas.height = height * devicePixelRatio;
+    LyricManager.canvas.style.width = width + 'px';
+    LyricManager.canvas.style.height = height + 'px';
     LyricManager.canvasContext = LyricManager.canvas.getContext('2d');
     if (!LyricManager.canvasContext) {
       LyricManager.canvas.remove();
@@ -308,6 +314,13 @@ export class LyricManager {
       if (!LyricManager.video?.requestPictureInPicture) {
         ElMessage(messageOption('暂不支持桌面歌词'));
         callback && callback();
+        return;
+      }
+      try {
+        LyricManager.video?.play();
+      } catch {}
+      if (webView2Services.enabled && isIOS) {
+        LyricManager.video?.requestPictureInPicture();
         return;
       }
       LyricManager.video?.requestPictureInPicture().catch(_e => {
@@ -344,10 +357,10 @@ export class LyricManager {
     LyricManager.video.autoplay = true;
     LyricManager.video.controls = false;
     LyricManager.video.playsInline = false;
-    LyricManager.video.width = 300;
-    LyricManager.video.height = 60;
-    LyricManager.video.srcObject = LyricManager.canvas.captureStream();
+    LyricManager.video.width = width;
+    LyricManager.video.height = height;
+    LyricManager.video.srcObject = LyricManager.canvas.captureStream(25);
     document.body.appendChild(LyricManager.video);
-    this.subscribeLyricLine(LyricManager.drawCanvas);
+    this.subscribeLyricLine(LyricManager.drawCanvas, false, music);
   }
 }

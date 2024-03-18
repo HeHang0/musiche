@@ -185,12 +185,12 @@ onUnmounted(() => {
     color: white;
     position: fixed;
     left: 50%;
-    top: 20px;
+    top: 0;
     width: calc(100% - 200px);
     text-align: center;
     transform: translateX(-50%);
     opacity: 0;
-    margin-top: var(--sat, 0);
+    margin-top: var(--sat, 20px);
     transition: opacity 0.3s, width 0.3s;
     & > span {
       font-size: 18px;

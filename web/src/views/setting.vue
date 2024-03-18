@@ -32,7 +32,7 @@ import {
 import { LogoCircleImage } from '../utils/logo';
 import { ThemeColorManager } from '../utils/color';
 import DroidImage from '../assets/images/droid.svg';
-import AppleImage from '../assets/images/apple.svg';
+import AppleImage from '../components/apple.vue';
 import { getServiceWorkerRegistration } from '../sw/register';
 
 const { currentRoute, replace, options } = useRouter();
@@ -991,8 +991,11 @@ onUnmounted(unWatch);
                 target="_blank">
                 <div
                   class="logo-app"
-                  style="--logo-app-color: var(--music-footer-background)">
-                  <img :src="AppleImage" />
+                  style="
+                    --logo-app-color: var(--music-footer-background);
+                    color: var(--music-text-color);
+                  ">
+                  <el-icon size="44"><AppleImage /></el-icon>
                 </div>
                 <p>IOS版</p>
               </a>
@@ -1364,7 +1367,7 @@ onUnmounted(unWatch);
       text-decoration: none;
       text-align: center;
       cursor: pointer;
-      color: -webkit-link;
+      color: inherit; //-webkit-link;
       & + & {
         margin-left: 20px;
       }

@@ -33,9 +33,12 @@ export class MusicConnection {
     try {
       const config = await musicOperate('/config');
       remoteMode = Boolean(config.remote);
+      if (remoteMode) {
+        setRemoteMode(remoteMode);
+        storage.setRemoteMode(remoteMode);
+      }
     } catch {}
-    setRemoteMode(remoteMode);
-    storage.setRemoteMode(remoteMode);
+
     await this.play.initValue(remoteMode);
     await this.setting.initValue(remoteMode);
     this.webSocketClient = wsClient(
