@@ -11,10 +11,11 @@ import {
 import {
   formatCookies,
   generateGuid,
-  getUuid,
   highlightKeys,
   millisecond2Duration,
-  parseCookie
+  parseCookie,
+  parseCookieWithDomain,
+  queryStringify
 } from '../utils';
 import RankingHotImage from '../../assets/images/ranking-hot.jpg';
 import RankingNewImage from '../../assets/images/ranking-new.jpg';
@@ -796,6 +797,7 @@ export async function loginStatus(key: string): Promise<{
     url: url,
     method: 'GET',
     headers: {
+      Host: 'ssl.ptlogin2.qq.com',
       Referer: 'https://xui.ptlogin2.qq.com/',
       Cookie: 'qrsig=' + key,
       'User-Agent':
@@ -809,93 +811,65 @@ export async function loginStatus(key: string): Promise<{
   const code = match && parseInt(match[1]);
   switch (code) {
     case 0:
-      const lastCookie = parseCookie(
+      const lastCookie = parseCookieWithDomain(
         res.headers.get('Set-Cookie-Renamed') || ''
       );
-      const ui = getUuid();
-      lastCookie['ui'] = ui;
       res = await httpProxy({
         url: match![2],
         method: 'GET',
         headers: {
-          Referer: 'https://xui.ptlogin2.qq.com/',
-          'Sec-Fetch-Dest': 'iframe',
-          'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'same-site',
-          'Upgrade-Insecure-Requests': '1',
-          Cookie: formatCookies({
-            ui: ui,
-            _qpsvr_localtk: '0.7235980088190543',
-            RK: lastCookie['RK'],
-            ptcz: lastCookie['ptcz']
-          }),
+          Cookie: 'qrsig=' + key,
           'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36'
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36',
+          Host: 'ssl.ptlogin2.graph.qq.com',
+          Referer: 'https://xui.ptlogin2.qq.com/'
         },
         allowAutoRedirect: false,
         setCookieRename: true
       });
       const redirectRet = await res.json();
-      console.log(redirectRet);
-      const cookies = parseCookie(
+      const checkSigCookie = parseCookieWithDomain(
         res.headers.get('Set-Cookie-Renamed') ||
           redirectRet['Set-Cookie-Renamed']
       );
-      const str = cookies['p_skey'] || '';
+      const str = (checkSigCookie['graph.qq.com'] || {})['p_skey'] || '';
       let hash = 5381;
       for (var i = 0, len = str.length; i < len; ++i) {
         hash += (hash << 5) + str.charCodeAt(i);
       }
       const g_tk = hash & 0x7fffffff;
-      // const data = {
-      //   response_type: 'code',
-      //   client_id: '100497308',
-      //   redirect_uri:
-      //     'https://y.qq.com/portal/wx_redirect.html?login_type=1&surl=https://y.qq.com/',
-      //   scope: 'all',
-      //   state: 'state',
-      //   switch: '',
-      //   from_ptlogin: '1',
-      //   src: '1',
-      //   update_auth: '1',
-      //   openapi: '80901010_1030',
-      //   g_tk: g_tk,
-      //   auth_time: Date.now(),
-      //   ui: ui
-      // };
-      const data = {
+      // const allCookies = { ...lastCookie, ...cookies };
+      // const g_tk = get_gtk(checkSigCookie['graph.qq.com']);
+      let data = {
         response_type: 'code',
         client_id: '100497308',
         redirect_uri:
           'https://y.qq.com/portal/wx_redirect.html?login_type=1&surl=https://y.qq.com/',
-        scope: '',
+        scope: 'all',
         state: 'state',
         switch: '',
-        from_ptlogin: 1,
-        src: 1,
-        update_auth: 1,
-        openapi: '1010_1030',
+        from_ptlogin: '1',
+        src: '1',
+        update_auth: '1',
+        openapi: '80901010_1030',
         g_tk: g_tk,
         auth_time: Date.now(),
-        ui: ui
+        ui: 'DFEC5395-9E69-4D3E-96A6-300BB770874D'
       };
-      const cookieStr = formatCookies({ ...lastCookie, ...cookies });
       res = await httpProxy({
         url: 'https://graph.qq.com/oauth2.0/authorize',
         method: 'POST',
-        data: JSON.stringify(data),
+        data: queryStringify(data),
         headers: {
-          Referer: 'https://xui.ptlogin2.qq.com/',
-          Cookie: cookieStr,
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36'
+          Cookie: formatCookies(checkSigCookie['graph.qq.com'])
         },
         allowAutoRedirect: false,
         setCookieRename: true
       });
       const authorizeRet = await res.json();
-      console.log(authorizeRet.Location);
-      const codeMatch = /&code=(.*?)&/.exec(authorizeRet.Location);
+      const codeMatch = /&code=(.*?)&/.exec(
+        authorizeRet.Location || authorizeRet.location
+      );
       const code = codeMatch ? codeMatch[1] : '';
       const uData = `{"comm":{"g_tk":5381,"platform":"yqq","ct":24,"cv":0},"req":{"module":"QQConnectLogin.LoginServer","method":"QQLogin","param":{"code":"${code}"}}}`;
       res = await httpProxy({
@@ -903,17 +877,21 @@ export async function loginStatus(key: string): Promise<{
         method: 'POST',
         data: uData,
         headers: {
-          Cookie: cookieStr
+          Cookie: formatCookies({
+            ...(lastCookie['qq.com'] || checkSigCookie['qq.com'] || {})
+          })
         },
         setCookieRename: true
       });
-      const qqCookie = parseCookie(res.headers.get('Set-Cookie-Renamed') || '');
+      const musicConfigCookie = formatCookies(
+        parseCookieWithDomain(res.headers.get('Set-Cookie-Renamed') || '')[
+          'qq.com'
+        ]
+      );
       const loginRet = await res.text();
-      console.log(loginRet);
-      console.log(qqCookie);
-      const user = await userInfo(res.headers.get('Set-Cookie-Renamed') || '');
+      const user = await userInfo(musicConfigCookie);
       if (user && user.id) {
-        user.cookie = cookies;
+        user.cookie = musicConfigCookie;
         return {
           status: 'success',
           user
