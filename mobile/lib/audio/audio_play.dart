@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:musiche/utils/android_channel.dart';
 
 import 'media_metadata.dart';
 
-class AudioPlay {
+class AudioPlay extends BaseAudioHandler {
   late final AudioPlayer _audioPlayer;
   Stream<PlayerState> get onPlayerStateChanged => _audioPlayer.playerStateStream;
   Stream<Duration?> get onDurationChanged => _audioPlayer.durationStream;
@@ -18,44 +19,107 @@ class AudioPlay {
   Future<Duration?> Function() get currentPosition => () => Future(() => _audioPlayer.position);
   Future<Duration?> Function() get duration => () => Future(() => _audioPlayer.duration);
   MediaMetadata? metadata;
-
   AudioPlay(){
     _audioPlayer = AudioPlayer();
+    _initAudioService();
     onDurationChanged.listen(_onDurationChanged);
     onPositionChanged.listen(_onPositionChanged);
     onPlayerStateChanged.listen(_onPlayerStateChanged);
   }
+  Future<void> _initAudioService() async {
+    await AudioService.init(
+      builder: () => this,
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.picapico.musiche.channel.audio',
+        androidNotificationChannelName: 'Musiche playback',
+      ),
+    );
+  }
+
+  @override
+  Future<void> play() async {
+    playCurrent();
+  }
+  // @override
+  // Future<void> pause() async {}
+  @override
+  Future<void> stop() async {
+    pause();
+  }
+  @override
+  Future<void> seek(Duration position) async {
+    _audioPlayer.seek(position);
+  }
+  @override
+  Future<void> skipToNext() async {}
+  @override
+  Future<void> skipToPrevious() async {}
+  // @override
+  // Future<void> skipToQueueItem(int i) async {}
 
   _onPlayerStateChanged(PlayerState state) async {
-    if(metadata == null) return;
-    setMediaMeta(metadata!);
+    setMediaMeta(metadata);
   }
 
   Future<void> _onPositionChanged(Duration position) async {
     if(kIsWeb) return;
-    if(Platform.isAndroid) AndroidChannel.setMediaPosition(playing, position.inMilliseconds);
+    if(Platform.isAndroid) {
+      AndroidChannel.setMediaPosition(playing, position.inMilliseconds);
+    } else{
+      playbackState?.add(PlaybackState(
+        controls: [
+          MediaControl.skipToPrevious,
+          playing ? MediaControl.pause : MediaControl.play,
+          MediaControl.skipToNext,
+        ],
+        systemActions: const {
+          MediaAction.seek
+        },
+        androidCompactActionIndices: const [0, 1, 2],
+        processingState:  AudioProcessingState.ready,
+        playing: _audioPlayer.playing,
+        updatePosition: _audioPlayer.position,
+        bufferedPosition: _audioPlayer.bufferedPosition,
+        speed: 1.0,
+        queueIndex: 0,
+      ));
+    }
   }
 
   Future<void> _onDurationChanged(Duration? duration) async {
-    if(metadata == null || _audioPlayer.duration == null) return;
-    if(kIsWeb) return;
-    if(Platform.isAndroid) AndroidChannel.setMediaMetadata(metadata!, playing, _audioPlayer.position.inMilliseconds, _audioPlayer.duration!.inMilliseconds);
+    setMediaMeta(metadata);
   }
 
-  Future<void> setMediaMeta(MediaMetadata metadata) async {
+  Future<void> setMediaMeta(MediaMetadata? metadata) async {
+    if(metadata == null) return;
     this.metadata = metadata;
     Duration? duration = _audioPlayer.duration;
     if(duration == null || duration.inMilliseconds == 0){
       return;
     }
     if(kIsWeb) return;
-    if(Platform.isAndroid) AndroidChannel.setMediaMetadata(metadata, playing, _audioPlayer.position.inMilliseconds, duration.inMilliseconds);
+    if(Platform.isAndroid) {
+      AndroidChannel.setMediaMetadata(metadata, playing, _audioPlayer.position.inMilliseconds, duration.inMilliseconds);
+    } else {
+      var item = MediaItem(
+          id: metadata.title + metadata.artist,
+          title: metadata.title,
+          album: metadata.album,
+          artist: metadata.album,
+          duration: duration,
+          artUri: Uri.parse(metadata.artwork)
+      );
+      mediaItem?.add(item);
+      playMediaItem(item);
+    }
   }
-  void pause() {
+
+  @override
+  Future<void> pause() async {
     _audioPlayer.pause();
   }
 
-  Future<void> play(String url) async {
+  Future<void> playUrl(String url) async {
     if(url.isEmpty) {
       playCurrent();
       return;

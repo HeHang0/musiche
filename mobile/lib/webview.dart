@@ -21,7 +21,7 @@ class WebViewApp extends StatefulWidget {
 class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
   static const String _tag = "MusicWebView";
   final GlobalKey webViewKey = GlobalKey();
-  static final String _url = kDebugMode ? "http://192.168.3.2:5173" : "http://127.0.0.1:${ServerManager.port}/index.html";
+  static final String _url = kDebugMode ? "http://192.168.3.165:5173" : "http://127.0.0.1:${ServerManager.port}/index.html";
   InAppWebViewController? webViewController;
   InAppWebViewSettings settings = InAppWebViewSettings(
       isInspectable: kDebugMode,
@@ -143,6 +143,9 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
         resources: request.resources,
         action: PermissionResponseAction.GRANT);
   }
+  Future<ServerTrustAuthResponse?> _onReceivedServerTrustAuthRequest(controller, challenge){
+    return Future(() => null);
+  }
   _onReceivedError(controller, request, error) {
     Logger.e(_tag, "receive web error", error: error);
   }
@@ -180,6 +183,7 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
             onProgressChanged: _onProgressChanged,
             onConsoleMessage: _onConsoleMessage,
             onPermissionRequest: _onPermissionRequest,
+            onReceivedServerTrustAuthRequest: _onReceivedServerTrustAuthRequest
           ),
         )
     );

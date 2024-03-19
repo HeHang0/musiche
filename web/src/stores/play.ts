@@ -573,7 +573,7 @@ export const usePlayStore = defineStore('play', {
       } else {
         title.value = '音乐和';
       }
-      if (this.config.remote) return;
+      if (this.config.list) return;
       musicOperate('/title', title.value);
       musicOperate(
         '/media',

@@ -33,6 +33,7 @@ function toHome() {
   getServiceWorkerRegistration()?.update();
   push('/');
 }
+const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
 </script>
 
 <template>
@@ -63,7 +64,7 @@ function toHome() {
                       setting.userInfo.qq.id ||
                       setting.userInfo.migu.id
                   )
-                : item.key !== 'local' || !play.remoteMode
+                : true
             "
             :class="route.meta.key == item.key ? 'is-active' : ''">
             <span class="music-icon">{{ item.icon }}</span>
@@ -73,7 +74,7 @@ function toHome() {
         <el-menu-item
           index="/local"
           id="/local"
-          v-if="setting.config.file || Boolean((window as any).showDirectoryPicker)"
+          v-if="setting.config.file || canDirectoryPicker"
           :class="route.meta.key == 'local' ? 'is-active' : ''">
           <span class="music-icon">乐</span>
           <span>本地音乐</span>

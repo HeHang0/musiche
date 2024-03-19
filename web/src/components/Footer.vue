@@ -154,7 +154,7 @@ const play = usePlayStore();
           </template>
         </el-popover>
         <el-popover
-          v-if="play.remoteMode"
+          v-if="!isMobile"
           placement="top"
           :width="30"
           popper-class="music-footer-volume-popover"

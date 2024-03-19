@@ -227,7 +227,7 @@ class HttpHandler extends Handler implements IHandler {
   }
 
   Future<void> _play(HttpRequest request) async {
-    await audioPlay.play(await _readBody(request));
+    await audioPlay.playUrl(await _readBody(request));
     await _sendStatus(request);
   }
 

@@ -4,7 +4,7 @@ const musicRouterPrefix = localStorage.getItem('musiche-router-prefix');
 const history = musicRouterPrefix ? '/' + musicRouterPrefix : '';
 
 export const httpAddress = import.meta.env.DEV
-  ? '192.168.3.194:8090'
+  ? '127.0.0.1:54621'
   : location.host;
 let proxyAddress =
   localStorage.getItem('musiche-proxy-address') || `//${httpAddress}/proxy`;
