@@ -7,15 +7,12 @@ import Footer from './components/Footer.vue';
 import CurrentList from './components/CurrentList.vue';
 import PlayDetail from './components/PlayDetail.vue';
 import WindowHelper from './components/WindowHelper.vue';
-import { webView2Services } from './utils/utils';
 import { MusicConnection } from './stores/connection';
 import { usePlayStore } from './stores/play';
 import { useSettingStore } from './stores/setting';
 import { LogoImage } from './utils/logo';
-import { fixPwaForIOS, isWindows } from './utils/utils';
-import { registerServiceWorker } from './sw/register';
-if (!webView2Services.enabled) registerServiceWorker();
-
+import { fixPwaForIOS } from './utils/utils';
+import { webView2Services } from './utils/files';
 const play = usePlayStore();
 const setting = useSettingStore();
 document.addEventListener(
@@ -32,12 +29,11 @@ document.addEventListener(
   },
   true
 );
-new MusicConnection(webView2Services.enabled && isWindows);
-let rootClass = webView2Services.enabled ? 'webview-host' : '';
+const connection = new MusicConnection();
+let rootClass = connection.config.remote ? 'webview-host' : '';
 onMounted(() => {
   fixPwaForIOS();
   console.log('musiche loaded');
-  document.addEventListener('load', () => {});
 });
 </script>
 
@@ -66,7 +62,7 @@ onMounted(() => {
     </el-container>
     <Footer v-show="play.musicList.length > 0" />
     <PlayDetail />
-    <WindowHelper v-if="webView2Services.enabled" />
+    <WindowHelper v-if="webView2Services.specialService" />
   </el-container>
 </template>
 

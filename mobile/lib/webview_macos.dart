@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:musiche/log/logger.dart';
 import 'package:musiche/server/server_manager.dart';
-import 'package:webview_all/webview_all.dart';
 
 
 class WebViewMacOSApp extends StatefulWidget {
@@ -17,9 +16,8 @@ class _WebViewMacOSAppState extends State<WebViewMacOSApp> with WidgetsBindingOb
   static const String _tag = "MusicWebViewMacOS";
   final GlobalKey webViewKey = GlobalKey();
   static final String _url = "http://127.0.0.1:${ServerManager.port}/index.html";//kDebugMode ? "http://192.168.3.2:5173" :
-  double _opacity = 1;
+  double _opacity = 0;
   Timer? _delayShow;
-  // late Webview webViewMacOS;
   @override
   void initState() {
     super.initState();
@@ -59,9 +57,9 @@ class _WebViewMacOSAppState extends State<WebViewMacOSApp> with WidgetsBindingOb
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
+    return const Opacity(
       opacity: 1,
-      child: Webview(url: _url),
+      // child: Webview(url: _url),
     );
   }
 }

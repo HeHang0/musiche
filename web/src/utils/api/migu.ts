@@ -681,7 +681,7 @@ export async function parseLink(link: string) {
       allowAutoRedirect: false
     });
     const data = await res.json();
-    const redirectLocation = (data && data.Location) || '';
+    const redirectLocation = (data && (data.Location || data.location)) || '';
     if (redirectLocation) {
       const matchMiguId =
         /migu\.cn[\S]+(song|playlist)[\S]*[\?&]id=([\d]+)/.exec(

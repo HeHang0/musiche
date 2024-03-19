@@ -1,26 +1,21 @@
 import { AudioPlayer } from './audio';
 import { ProxyRequestData } from './type';
-import { webView2Services } from './utils';
 const musicRouterPrefix = localStorage.getItem('musiche-router-prefix');
 const history = musicRouterPrefix ? '/' + musicRouterPrefix : '';
 
 export const httpAddress = import.meta.env.DEV
-  ? '127.0.0.1:54621'
+  ? '192.168.3.194:8090'
   : location.host;
-const proxyAddress =
-  (!webView2Services.enabled &&
-    localStorage.getItem('musiche-proxy-address')) ||
-  `//${httpAddress}/proxy`;
-let useLocalAudio = !webView2Services.enabled;
+let proxyAddress =
+  localStorage.getItem('musiche-proxy-address') || `//${httpAddress}/proxy`;
+let useLocalAudio = true;
 var localAudio: AudioPlayer | null = null;
-fetch(`//${httpAddress}/config`)
-  .then(r => r.json())
-  .then(r => {
-    if (r.remote) useLocalAudio = false;
-  });
 
 export function setRemoteMode(remote: boolean) {
   useLocalAudio = !remote;
+  if (remote) {
+    document.addEventListener('visibilitychange', onVisibilityChange);
+  }
 }
 export function httpProxy(prd: ProxyRequestData): Promise<Response> {
   prd.method = prd.method || 'GET';
@@ -64,9 +59,6 @@ function onVisibilityChange() {
   if (document.visibilityState == 'visible') {
     updateTheme();
   }
-}
-if (webView2Services.enabled) {
-  document.addEventListener('visibilitychange', onVisibilityChange);
 }
 
 export async function musicOperate(

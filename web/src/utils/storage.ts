@@ -1,6 +1,4 @@
-import { webView2Services } from '../utils/utils';
 import { httpAddress } from './http';
-const useFileAccessor = webView2Services.enabled && webView2Services.isWindows;
 let useRemote = false;
 export enum StorageKey {
   Language = 'language',
@@ -38,9 +36,7 @@ async function setValue<T>(key: string, value: T) {
   } catch {
     result = `${value}`;
   }
-  if (useFileAccessor) {
-    await webView2Services.fileAccessor?.WriteConfig('musiche-' + key, result);
-  } else if (useRemote) {
+  if (useRemote) {
     fetch(`//${httpAddress}/storage`, {
       method: 'POST',
       body: JSON.stringify({
@@ -62,10 +58,7 @@ async function getValue<T>(
   type?: string
 ): Promise<T> {
   var value: any = '';
-  if (useFileAccessor) {
-    value =
-      (await webView2Services.fileAccessor?.ReadConfig('musiche-' + key)) || '';
-  } else if (useRemote) {
+  if (useRemote) {
     try {
       const res = await fetch(
         `//${httpAddress}/storage?key=` + encodeURIComponent('musiche-' + key)
@@ -88,16 +81,55 @@ async function getValue<T>(
 }
 
 async function removeKey(key: string) {
-  if (useFileAccessor) {
-    await webView2Services.fileAccessor?.DeleteConfig('musiche-' + key);
+  if (useRemote) {
+    try {
+      await fetch(
+        `//${httpAddress}/storage?key=` + encodeURIComponent('musiche-' + key),
+        {
+          method: 'DELETE'
+        }
+      );
+    } catch {}
   } else {
     localStorage.removeItem('musiche-' + key);
   }
 }
 
+async function getAll() {
+  const result: Record<string, any> = {};
+  if (useRemote) {
+    try {
+      const res = await fetch(`//${httpAddress}/storages`);
+      const data = await res.json();
+      for (const key in data) {
+        if (!key || !key.startsWith('musiche-')) continue;
+        let value = data[key];
+        try {
+          result[key.substring(8)] = JSON.parse(value as string);
+        } catch {
+          result[key.substring(8)] = value;
+        }
+      }
+    } catch {}
+  } else {
+    for (let i = 0; i < localStorage.length; i++) {
+      let key = localStorage.key(i)?.trim();
+      if (!key || !key.startsWith('musiche-')) continue;
+      let value = localStorage.getItem(key);
+      try {
+        result[key.substring(8)] = JSON.parse(value as string);
+      } catch {
+        result[key.substring(8)] = value;
+      }
+    }
+  }
+  return result;
+}
+
 export const storage = {
   setValue,
   getValue,
+  getAll,
   removeKey,
   setRemoteMode
 };

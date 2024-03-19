@@ -10,11 +10,11 @@ import {
   clearArray,
   generateGuid,
   getFileName,
-  readAudioFiles,
-  webView2Services
+  readAudioFiles
 } from '../utils/utils';
 import { fileToMusic, fileHandlerDB, pathToMusic } from '../utils/api/local';
 import { useThrottleFn } from '@vueuse/core';
+import { musicOperate } from '../utils/http';
 
 const play = usePlayStore();
 const setting = useSettingStore();
@@ -37,10 +37,10 @@ var directorySelecting = false;
 async function addDirectory() {
   if (directorySelecting) return;
   directorySelecting = true;
-  if (webView2Services.enabled) {
-    const result = await webView2Services.fileAccessor?.ShowSelectedDirectory();
-    if (result) {
-      result.map(filePath => {
+  if (setting.config.file) {
+    const result = await musicOperate('/file/select');
+    if (result && Array.isArray(result.data)) {
+      result.data.map((filePath: string) => {
         if (!setting.localDirectories.find(m => m.path === filePath)) {
           setting.localDirectories.push({
             name: getFileName(filePath),
@@ -108,7 +108,7 @@ async function showLocalDirectorySelection() {
 async function syncLocalMusic() {
   loading.value = true;
   try {
-    if (webView2Services.enabled) {
+    if (setting.config.file) {
       await syncLocalMusicBackend();
       clearArray(musicList.value);
       musicListAll.forEach(m => musicList.value.push(m));
@@ -127,12 +127,11 @@ async function syncLocalMusicBackend() {
   for (let i = 0; i < setting.localDirectories.length; i++) {
     const directory = setting.localDirectories[i];
     if (!directory.selected) continue;
-    const musicFilesText = await webView2Services.fileAccessor?.ListAllAudios(
-      directory.path,
-      true
+    const musicFilesText = await musicOperate(
+      `/file/list/audio?path=${encodeURIComponent(directory.path)}&recursive=1`
     );
-    if (musicFilesText) {
-      pathToMusic(JSON.parse(musicFilesText)).forEach(m => {
+    if (musicFilesText && musicFilesText.data) {
+      pathToMusic(JSON.parse(musicFilesText.data)).forEach(m => {
         const filePath = m.url || m.id;
         if (
           filePath &&
@@ -182,12 +181,12 @@ async function loadMusicList(key: string) {
 }
 
 async function initMusic() {
-  if (setting.localDirectories.length === 0 && webView2Services.enabled) {
-    const myMusic = await webView2Services.fileAccessor!.GetMyMusicDirectory();
-    if (myMusic) {
+  if (setting.localDirectories.length === 0 && setting.config.file) {
+    const myMusic = await musicOperate('/file/directory/music');
+    if (myMusic && myMusic.data) {
       setting.localDirectories.push({
         name: '我的音乐',
-        path: myMusic,
+        path: myMusic.data,
         selected: true
       });
     }

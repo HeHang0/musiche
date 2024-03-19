@@ -6,52 +6,12 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Musiche.Webview2
+namespace Musiche.Server
 {
     public class FileAccessor
     {
-        private readonly Dictionary<string, string> _configMap;
         public FileAccessor()
         {
-            if (File.Exists(Utils.File.ConfigPath))
-            {
-                try
-                {
-                    _configMap = JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(Utils.File.ConfigPath));
-                    return;
-                }
-                catch (Exception)
-                {
-                }
-            }
-            _configMap = new Dictionary<string, string>();
-        }
-
-        public void SaveConfig()
-        {
-            try
-            {
-                File.WriteAllText(Utils.File.ConfigPath, JsonConvert.SerializeObject(_configMap));
-            }
-            catch (Exception)
-            {
-            }
-        }
-
-        public string ReadConfig(string key)
-        {
-            _configMap.TryGetValue(key, out string value);
-            return string.IsNullOrEmpty(value) ? string.Empty : value;
-        }
-
-        public void WriteConfig(string key, string value)
-        {
-            _configMap[key] = value;
-        }
-
-        public void DeleteConfig(string key)
-        {
-            _configMap.Remove(key);
         }
 
 #pragma warning disable CS1998

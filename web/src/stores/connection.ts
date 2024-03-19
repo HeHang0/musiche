@@ -1,23 +1,30 @@
 import { watch } from 'vue';
-import {
-  CommunicationClient,
-  wsClient,
-  musicOperate,
-  setRemoteMode
-} from '../utils/http';
+import * as http from '../utils/http';
 import { StorageKey, storage } from '../utils/storage';
-import { ShortcutKey, ShortcutType } from '../utils/type';
-import { webView2Services } from '../utils/utils';
+import { Config, ShortcutKey, ShortcutType } from '../utils/type';
 import { usePlayStore } from './play';
 import { useSettingStore } from './setting';
+import { registerServiceWorker } from '../sw/register';
+import { LyricManager } from '../utils/lyric';
+import * as local from '../utils/api/local';
 
 export class MusicConnection {
-  webSocketClient?: CommunicationClient;
+  webSocketClient?: http.CommunicationClient;
   play = usePlayStore();
   setting = useSettingStore();
+  public config: Config = {
+    remote: false,
+    storage: false,
+    file: false,
+    list: false,
+    lyric: false,
+    client: false,
+    shortcut: false,
+    gpu: false
+  };
 
-  constructor(interval: boolean) {
-    this.init(interval);
+  constructor() {
+    this.init();
     this.registerShortcut();
     watch(() => this.setting.autoAppTheme, this.autoAppThemeChange.bind(this));
   }
@@ -28,27 +35,32 @@ export class MusicConnection {
     }
   }
 
-  async init(_interval: boolean) {
-    let remoteMode = false;
+  async init() {
     try {
-      const config = await musicOperate('/config');
-      remoteMode = Boolean(config.remote);
-      if (remoteMode) {
-        setRemoteMode(remoteMode);
-        storage.setRemoteMode(remoteMode);
-      }
+      const res = await fetch(`//${http.httpAddress}/config`);
+      const remoteConfig: Config = await res.json();
+      this.config.remote = Boolean(remoteConfig.remote);
+      this.config.storage = Boolean(remoteConfig.storage);
+      this.config.file = Boolean(remoteConfig.file);
+      this.config.list = Boolean(remoteConfig.list);
+      this.config.client = Boolean(remoteConfig.client);
+      this.config.shortcut = Boolean(remoteConfig.shortcut);
+      this.config.gpu = Boolean(remoteConfig.gpu);
+      this.config.lyric = Boolean(remoteConfig.lyric);
     } catch {}
 
-    await this.play.initValue(remoteMode);
-    await this.setting.initValue(remoteMode);
-    this.webSocketClient = wsClient(
+    if (!this.config.remote) registerServiceWorker();
+    this.config.remote && http.setRemoteMode(true);
+    this.config.storage && storage.setRemoteMode(true);
+    this.config.lyric && LyricManager.setRemoteMode(true);
+    this.config.file && local.setRemoteMode(true);
+    await this.play.initValue(this.config);
+    await this.setting.initValue(this.config);
+    this.webSocketClient = http.wsClient(
       this.wsMessage.bind(this),
       this.wsClose.bind(this),
       this.autoAppThemeChange.bind(this)
     );
-    // if (interval) {
-    //   setInterval(this.sendWsStatus.bind(this), 500);
-    // }
     if (this.setting.pageValue.savePlayProgress) {
       try {
         const progress = parseInt(
@@ -72,7 +84,7 @@ export class MusicConnection {
     const target = event.target as HTMLElement;
     if (target?.tagName == 'INPUT' || target?.tagName == 'TEXTAREA') return;
     if (
-      !webView2Services.enabled &&
+      !this.config.shortcut &&
       this.setting.pageValue.systemMediaShortcutUsed
     ) {
       switch (event.key) {
@@ -196,7 +208,7 @@ export class MusicConnection {
   }
   wsClose() {
     setTimeout(() => {
-      this.webSocketClient = wsClient(
+      this.webSocketClient = http.wsClient(
         this.wsMessage.bind(this),
         this.wsClose.bind(this),
         this.autoAppThemeChange.bind(this)

@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:musiche/log/logger.dart';
 import 'package:musiche/server/websocket_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../audio/audio_play.dart';
 import '../utils/network.dart';
@@ -20,7 +21,13 @@ class ServerManager {
   static Future<void> startServer() async {
     if(_server != null) return;
     AudioPlay audioPlay = AudioPlay();
-    HttpHandler httpHandler = HttpHandler(audioPlay);
+    SharedPreferences? sharedPreferences;
+    try{
+      sharedPreferences = await SharedPreferences.getInstance();
+    }catch(e){
+      Logger.e(_tag, "init shared preferences error", error: e);
+    }
+    HttpHandler httpHandler = HttpHandler(audioPlay, sharedPreferences);
     _websocketHandler = WebSocketHandler(audioPlay);
     _port = kDebugMode ? 54621 : await Network.findAvailablePort();
     InternetAddress address = kDebugMode ? InternetAddress.anyIPv4 : InternetAddress.loopbackIPv4;

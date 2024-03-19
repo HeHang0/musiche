@@ -1,16 +1,9 @@
 import { LyricLine, LyricOptionsKey, Music } from './type';
 import * as api from './api/api';
-import {
-  clearArray,
-  messageOption,
-  parseLyric,
-  webView2Services,
-  isAndroid,
-  isWindows,
-  isIOS
-} from './utils';
+import { clearArray, messageOption, parseLyric, isWindows } from './utils';
 import { musicOperate } from './http';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { isIOS } from '@vueuse/core';
 
 export type LyricChange = (lines: string[]) => void;
 export type LyricLineChange = (
@@ -39,12 +32,17 @@ export class LyricManager {
   private static canvasContext: CanvasRenderingContext2D | null = null;
   private static canvas: HTMLCanvasElement | null = null;
   private static video: HTMLVideoElement | null = null;
+  private static remoteMode: boolean = false;
 
   constructor() {}
 
+  public static setRemoteMode(remote: boolean) {
+    this.remoteMode = remote;
+  }
+
   public static setLyricOptions(options: Record<LyricOptionsKey, any>) {
     this.lyricOption = options;
-    if (webView2Services.enabled && (isWindows || isAndroid)) {
+    if (this.remoteMode) {
       musicOperate(
         '/lyric',
         JSON.stringify({ ...options, show: LyricManager.lyricDesktopShow })
@@ -202,7 +200,7 @@ export class LyricManager {
         this,
         this.index,
         line.text,
-        webView2Services?.enabled
+        LyricManager.remoteMode
           ? (this.length * (line.max - line.progress)) / 1000
           : undefined
       )
@@ -253,7 +251,10 @@ export class LyricManager {
   };
 
   private setWebviewLine(_index: number, text: string, duration?: number) {
-    musicOperate('/lyricline?duration=' + (duration || ''), text);
+    musicOperate(
+      '/lyricline?duration=' + ((isWindows && duration) || ''),
+      text
+    );
   }
 
   public showInDesktop(
@@ -262,7 +263,7 @@ export class LyricManager {
     callback: (() => void) | null = null,
     music?: Music
   ) {
-    if (webView2Services.enabled && !isIOS) {
+    if (LyricManager.remoteMode) {
       LyricManager.lyricDesktopShow = show;
       musicOperate(
         '/lyric',
@@ -319,7 +320,7 @@ export class LyricManager {
       try {
         LyricManager.video?.play();
       } catch {}
-      if (webView2Services.enabled && isIOS) {
+      if ('flutter_inappwebview' in window && isIOS) {
         LyricManager.video?.requestPictureInPicture();
         return;
       }

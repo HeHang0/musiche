@@ -70,6 +70,14 @@ function toHome() {
             <span>{{ item.name }}</span>
           </el-menu-item>
         </template>
+        <el-menu-item
+          index="/local"
+          id="/local"
+          v-if="setting.config.file || Boolean((window as any).showDirectoryPicker)"
+          :class="route.meta.key == 'local' ? 'is-active' : ''">
+          <span class="music-icon">乐</span>
+          <span>本地音乐</span>
+        </el-menu-item>
         <el-divider></el-divider>
         <el-sub-menu index="favorite">
           <template #title>

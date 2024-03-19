@@ -122,6 +122,17 @@ export interface WindowInfo {
   maximized: boolean;
 }
 
+export interface Config {
+  remote: boolean;
+  storage: boolean;
+  file: boolean;
+  list: boolean;
+  lyric: boolean;
+  client: boolean;
+  shortcut: boolean;
+  gpu: boolean;
+}
+
 export type ShortcutType =
   | 'play'
   | 'last'

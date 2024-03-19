@@ -12,6 +12,7 @@ import 'package:musiche/server/proxy_request_data.dart';
 import 'package:musiche/server/proxy_response_data.dart';
 import 'package:musiche/utils/android_channel.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../audio/media_metadata.dart';
 import '../utils/os_version.dart';
@@ -23,7 +24,8 @@ import 'handler.dart';
 class HttpHandler extends Handler implements IHandler {
   static const String _tag = 'MusicheHttpHandler';
   Map<String, RouterCall> routers = <String, RouterCall>{};
-  HttpHandler(super.audioPlay){
+  final SharedPreferences? sharedPreferences;
+  HttpHandler(super.audioPlay, this.sharedPreferences){
     routers.addEntries([
       MapEntry("*", _handleIndex),
       MapEntry("config", _handleConfig),
@@ -37,6 +39,8 @@ class HttpHandler extends Handler implements IHandler {
       MapEntry("progress", _setProgress),
       MapEntry("volume", _setVolume),
       MapEntry("status", _getStatus),
+      MapEntry("storages", _getAllStorages),
+      MapEntry("storage", _storage),
       MapEntry("theme", _setTheme),
       MapEntry("window", _voidRouter),
       MapEntry("hotkey", _voidRouter),
@@ -83,6 +87,14 @@ class HttpHandler extends Handler implements IHandler {
 
   Future<void> _handleConfig(HttpRequest request) async {
     Map<String, dynamic> result = <String, dynamic>{};
+    result["remote"] = true;
+    result["storage"] = true;
+    result["file"] = true;
+    result["list"] = false;
+    result["client"] = false;
+    result["lyric"] = Platform.isAndroid;
+    result["shortcut"] = false;
+    result["gpu"] = false;
     request.response.statusCode = HttpStatus.ok;
     request.response.headers.contentType = ContentType.json;
     request.response.write(jsonEncode(result));
@@ -142,6 +154,38 @@ class HttpHandler extends Handler implements IHandler {
         return "video/webm";
     }
     return "text/html";
+  }
+
+  Future<void> _getAllStorages(HttpRequest request) async {
+    Map<String, dynamic> result = <String, dynamic>{};
+    sharedPreferences?.getKeys().forEach((key) {
+      result[key] = sharedPreferences!.getString(key);
+    });
+    request.response.statusCode = HttpStatus.ok;
+    request.response.write(jsonEncode(result));
+  }
+
+  Future<void> _storage(HttpRequest request) async {
+    String key = (request.uri.queryParameters["key"] ?? "").trim();
+    if(key.isEmpty) {
+      request.response.statusCode = HttpStatus.ok;
+      request.response.write("");
+      return;
+    }
+    String result = "";
+    switch(request.method.toUpperCase()){
+      case "GET":
+        result = sharedPreferences?.getString(key) ?? "";
+        break;
+      case "POST":
+        sharedPreferences?.setString(key, await _readBody(request));
+        break;
+      case "DELETE":
+        sharedPreferences?.remove(key);
+        break;
+    }
+    request.response.statusCode = HttpStatus.ok;
+    request.response.write(result.trim());
   }
 
   Future<void> _getVersion(HttpRequest request) async {

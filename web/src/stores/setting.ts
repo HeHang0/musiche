@@ -11,7 +11,8 @@ import {
   AppTheme,
   MusicQuality,
   LyricOptionsKey,
-  RemoteClient
+  RemoteClient,
+  Config
 } from '../utils/type';
 import { StorageKey, storage } from '../utils/storage';
 import * as api from '../utils/api/api';
@@ -20,12 +21,11 @@ import {
   dataURLtoBlob,
   isAndroid,
   isInStandaloneMode,
-  isIOS,
   isWindows,
-  messageOption,
-  webView2Services
+  messageOption
 } from '../utils/utils';
 import { LyricManager } from '../utils/lyric';
+import { isIOS } from '@vueuse/core';
 const controlKeys = [
   'ctrl',
   'control',
@@ -57,7 +57,14 @@ export const useSettingStore = defineStore('setting', {
     autoAppTheme: false,
     playQuality: 'SQ' as MusicQuality,
     downloadQuality: 'ZQ' as MusicQuality,
-    remoteMode: false,
+    config: {
+      remote: false,
+      storage: false,
+      file: false,
+      list: false,
+      client: false,
+      shortcut: false
+    } as Config,
     appTheme: {
       id: isInStandaloneMode && isIOS ? 'dark' : ''
     } as AppTheme,
@@ -242,7 +249,7 @@ export const useSettingStore = defineStore('setting', {
     autoAppThemeChanged(noSave?: boolean, appTheme?: AppTheme) {
       if (this.autoAppTheme) {
         darkModeMediaQuery.addEventListener('change', this.handleThemeChange);
-        if (isAndroid && webView2Services.enabled) {
+        if (isAndroid && this.config.remote) {
           this.setAppTheme(appTheme);
         } else {
           this.handleThemeChange();
@@ -270,7 +277,7 @@ export const useSettingStore = defineStore('setting', {
     setAppTheme(appTheme?: AppTheme) {
       let preferredColorScheme = 0;
       const dark = appTheme?.id.includes('dark');
-      if (!this.autoAppTheme || !isWindows || !webView2Services.enabled) {
+      if (!this.autoAppTheme || !isWindows || !this.config.remote) {
         preferredColorScheme = dark ? 2 : 1;
       }
       this.appTheme.id = appTheme?.id || '';
@@ -322,8 +329,7 @@ export const useSettingStore = defineStore('setting', {
       this.playQuality = value;
       api.setPlayQuality(this.playQuality);
       !noSave && storage.setValue(StorageKey.PlayQuality, this.playQuality);
-      if (this.remoteMode)
-        musicOperate('/quality', this.playQuality.toString());
+      this.config.list && musicOperate('/quality', this.playQuality.toString());
     },
     setDownloadQuality(value: MusicQuality, noSave?: boolean) {
       this.downloadQuality = value;
@@ -533,7 +539,7 @@ export const useSettingStore = defineStore('setting', {
       fontEle.innerText = `*{animation: none !important;transition: none !important}`;
     },
     async updateRemoteClients() {
-      if (!this.remoteMode) return;
+      if (!this.config.client) return;
       clearArray(this.remoteClients);
       const data: RemoteClient[] = await musicOperate(
         '/remote/clients',
@@ -557,21 +563,39 @@ export const useSettingStore = defineStore('setting', {
         });
       });
     },
-    async initValue(remoteMode: boolean) {
-      this.remoteMode = remoteMode;
-      this.setCustomTheme(await storage.getValue(StorageKey.CustomTheme));
+    setRemoteConfig(config: Config) {
+      for (const key in config) {
+        if (config.hasOwnProperty(key)) {
+          (this.config as any)[key] = (config as any)[key];
+        }
+      }
+    },
+    async initValue(remoteConfig: Config) {
+      this.setRemoteConfig(remoteConfig);
+      const storages = await storage.getAll();
+      this.setCustomTheme(
+        storages[StorageKey.CustomTheme] ||
+          (await storage.getValue(StorageKey.CustomTheme))
+      );
       this.autoAppTheme = Boolean(
-        await storage.getValue(StorageKey.AutoAppTheme)
+        storages[StorageKey.AutoAppTheme] ||
+          (await storage.getValue(StorageKey.AutoAppTheme))
       );
       if (this.autoAppTheme) {
         this.autoAppThemeChanged(
           true,
-          await storage.getValue(StorageKey.AppTheme)
+          storages[StorageKey.AppTheme] ||
+            (await storage.getValue(StorageKey.AppTheme))
         );
       } else {
-        this.setAppTheme(await storage.getValue(StorageKey.AppTheme));
+        this.setAppTheme(
+          storages[StorageKey.AppTheme] ||
+            (await storage.getValue(StorageKey.AppTheme))
+        );
       }
-      const settingCache: any = await storage.getValue(StorageKey.Setting);
+      const settingCache: any =
+        storages[StorageKey.Setting] ||
+        (await storage.getValue(StorageKey.Setting));
       const ignoreKeys = [
         'lyric',
         'shortcut',
@@ -629,9 +653,9 @@ export const useSettingStore = defineStore('setting', {
           }
         });
       }
-      const localDirectories: DirectoryInfo[] = await storage.getValue(
-        StorageKey.LocalDirectories
-      );
+      const localDirectories: DirectoryInfo[] =
+        storages[StorageKey.LocalDirectories] ||
+        (await storage.getValue(StorageKey.LocalDirectories));
       if (Array.isArray(localDirectories)) {
         this.localDirectories.splice(0, 0, ...localDirectories);
       }
@@ -651,11 +675,15 @@ export const useSettingStore = defineStore('setting', {
           this.registerGlobalShortCutMedia();
         });
       this.setPlayQuality(
-        (await storage.getValue(StorageKey.PlayQuality)) || 'SQ',
+        storages[StorageKey.PlayQuality] ||
+          (await storage.getValue(StorageKey.PlayQuality)) ||
+          'SQ',
         true
       );
       this.setDownloadQuality(
-        (await storage.getValue(StorageKey.DownloadQuality)) || 'ZQ',
+        storages[StorageKey.DownloadQuality] ||
+          (await storage.getValue(StorageKey.DownloadQuality)) ||
+          'ZQ',
         true
       );
       LyricManager.setLyricOptions({
@@ -664,7 +692,9 @@ export const useSettingStore = defineStore('setting', {
           ? this.pageValue.lyric.effectColor
           : ''
       });
-      const userInfoCache: any = await storage.getValue(StorageKey.UserInfo);
+      const userInfoCache: any =
+        storages[StorageKey.UserInfo] ||
+        (await storage.getValue(StorageKey.UserInfo));
       if (userInfoCache) {
         const keys = Object.keys(userInfoCache);
         for (let i = 0; i < keys.length; i++) {

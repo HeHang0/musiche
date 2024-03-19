@@ -14,7 +14,6 @@ namespace Musiche.Webview2
     public partial class Webview2Control : UserControl
     {
         private Window _parentWindow;
-        private FileAccessor _fileAccessor;
         private static readonly CoreWebView2Environment _coreEnvironment;
 
         public event EventHandler<CoreWebView2WebMessageReceivedEventArgs> WebMessageReceived;
@@ -29,7 +28,6 @@ namespace Musiche.Webview2
             InitializeComponent();
             Unloaded += WebView2_Unloaded;
             Loaded += Webview2Control_Loaded;
-            _fileAccessor = new FileAccessor();
             InitWebViewCore();
             Logger.Logger.Info("webview2创建================================");
         }
@@ -75,7 +73,6 @@ namespace Musiche.Webview2
 
         public void SaveConfig(bool clear=false)
         {
-            _fileAccessor.SaveConfig();
             if(clear) webview2.CoreWebView2.Profile.ClearBrowsingDataAsync();
         }
 
@@ -115,7 +112,6 @@ namespace Musiche.Webview2
             {
                 webview2.CoreWebView2.AddHostObjectToScript("specialService", new Utils.WindowResize(new WindowInteropHelper(_parentWindow).Handle));
             }
-            webview2.CoreWebView2.AddHostObjectToScript("fileAccessor", _fileAccessor);
             SaveWindowStatus();
             webview2.CoreWebView2.ContainsFullScreenElementChanged += CoreWebView2_ContainsFullScreenElementChanged;
             webview2.CoreWebView2.DOMContentLoaded += CoreWebView2_DOMContentLoaded;

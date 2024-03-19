@@ -156,7 +156,6 @@ namespace Musiche
         private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             webSocketHandler.SendMessage("{\"type\": \"close\"}");
-            webview2?.SaveConfig();
             e.Cancel = true;
         }
 
@@ -271,6 +270,7 @@ namespace Musiche
             hotkey?.Clear();
             logStream?.Close();
             notifyIcon?.Dispose();
+            httpHandler.SaveStorage();
             webview2?.SaveConfig(true);
             webview2?.webview2?.Stop();
             webview2?.webview2?.Dispose();

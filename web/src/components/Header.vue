@@ -5,7 +5,8 @@ import { Search } from '@element-plus/icons-vue';
 
 import { useSettingStore } from '../stores/setting';
 import { MusicType } from '../utils/type';
-import { isWindows, webView2Services } from '../utils/utils';
+import { isWindows } from '../utils/utils';
+import { webView2Services } from '../utils/files';
 
 import MusicTypeEle from './MusicType.vue';
 import WindowControls from './WindowControls.vue';
@@ -70,7 +71,7 @@ onUnmounted(unWatch);
     </div>
     <div
       class="music-header-operate"
-      v-if="isWindows && webView2Services.enabled">
+      v-if="isWindows && webView2Services.specialService">
       <!-- <span class="music-icon" @click="push('/setting')" title="设置">
         设
       </span> -->

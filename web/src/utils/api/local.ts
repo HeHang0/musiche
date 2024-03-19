@@ -1,9 +1,14 @@
 import { IndexDB } from '../db';
-import { parseMusicFileImageAddress } from '../http';
+import { musicOperate, parseMusicFileImageAddress } from '../http';
 import { Music, MusicFileInfo } from '../type';
-import { checkReadPermission, getFileName, webView2Services } from '../utils';
+import { checkReadPermission, getFileName } from '../utils';
 import { TagType, jsmediatagsError } from 'jsmediatags/types';
 export const fileHandlerDB = new IndexDB('file-handles-store');
+let remoteMode = false;
+
+export function setRemoteMode(remote: boolean) {
+  remoteMode = remote;
+}
 
 let getJSMediaTags = async () => {
   const jsmediatags = await import('jsmediatags');
@@ -87,12 +92,16 @@ export function pathToMusic(filePaths: string[] | Music[]): Music[] {
 }
 
 export async function musicDetail(music: Music): Promise<Music> {
-  if (webView2Services.enabled) {
+  if (remoteMode) {
     if (music.url) {
-      const exists = await webView2Services.fileAccessor?.FileExists(music.url);
+      const exists = await musicOperate(
+        '/file/exists?path=' + encodeURIComponent(music.url)
+      );
       if (exists) return music;
     }
-    const exists = await webView2Services.fileAccessor?.FileExists(music.id);
+    const exists = await musicOperate(
+      '/file/exists?path=' + encodeURIComponent(music.id)
+    );
     music.url = exists ? music.id : undefined;
     return music;
   } else {

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ElMessage } from 'element-plus';
 import * as api from '../utils/api/api';
 import {
+  Config,
   Music,
   MusicType,
   PlayDetailMode,
@@ -15,13 +16,12 @@ import {
   duration2Millisecond,
   generateGuid,
   getRandomInt,
-  isIOS,
   isInStandaloneMode,
   isSafari,
   messageOption,
   millisecond2Duration
 } from '../utils/utils';
-import { useTitle } from '@vueuse/core';
+import { isIOS, useTitle } from '@vueuse/core';
 import { LyricChange, LyricLineChange, LyricManager } from '../utils/lyric';
 
 const title = useTitle();
@@ -31,7 +31,15 @@ const lyricManager = new LyricManager();
 export const usePlayStore = defineStore('play', {
   state: () => {
     return {
-      remoteMode: false,
+      config: {
+        remote: false,
+        storage: false,
+        file: false,
+        list: false,
+        client: false,
+        shortcut: false,
+        lyric: false
+      } as Config,
       music: {} as Music,
       musicList: [] as Music[],
       myLoves: [] as Music[],
@@ -276,7 +284,7 @@ export const usePlayStore = defineStore('play', {
       this.updateRemoteList();
     },
     async updateRemoteList() {
-      if (!this.remoteMode) return;
+      if (!this.config.list) return;
       await musicOperate(
         '/updatelist',
         JSON.stringify({
@@ -565,7 +573,7 @@ export const usePlayStore = defineStore('play', {
       } else {
         title.value = '音乐和';
       }
-      if (this.remoteMode) return;
+      if (this.config.remote) return;
       musicOperate('/title', title.value);
       musicOperate(
         '/media',
@@ -591,31 +599,62 @@ export const usePlayStore = defineStore('play', {
       this.playerMode = mode;
       storage.setValue(StorageKey.PlayerMode, mode);
     },
-    async initValue(remoteMode: boolean) {
-      this.remoteMode = remoteMode;
-      this.add(await storage.getValue(StorageKey.CurrentMusicList), true);
-      this.setCurrentMusic(
-        (await storage.getValue(StorageKey.CurrentMusic)) || this.musicList[0],
+    setRemoteConfig(config: Config) {
+      for (const key in config) {
+        if (config.hasOwnProperty(key)) {
+          (this.config as any)[key] = (config as any)[key];
+        }
+      }
+    },
+    async initValue(remoteConfig: Config) {
+      const storages = await storage.getAll();
+      this.setRemoteConfig(remoteConfig);
+      this.add(
+        storages[StorageKey.CurrentMusicList] ||
+          (await storage.getValue(StorageKey.CurrentMusicList)),
         true
       );
-      this.addMyLove(await storage.getValue(StorageKey.MyLoves));
-      this.addMyFavorite(await storage.getValue(StorageKey.MyFavorites));
-      this.addMyPlaylists(await storage.getValue(StorageKey.MyPlaylists));
+      this.setCurrentMusic(
+        storages[StorageKey.CurrentMusic] ||
+          (await storage.getValue(StorageKey.CurrentMusic)) ||
+          this.musicList[0],
+        true
+      );
+      this.addMyLove(
+        storages[StorageKey.MyLoves] ||
+          (await storage.getValue(StorageKey.MyLoves))
+      );
+      this.addMyFavorite(
+        storages[StorageKey.MyFavorites] ||
+          (await storage.getValue(StorageKey.MyFavorites))
+      );
+      this.addMyPlaylists(
+        storages[StorageKey.MyPlaylists] ||
+          (await storage.getValue(StorageKey.MyPlaylists))
+      );
       this.addHistory(
-        await storage.getValue(StorageKey.CurrentMusicHistory),
+        storages[StorageKey.CurrentMusicHistory] ||
+          (await storage.getValue(StorageKey.CurrentMusicHistory)),
         false,
         true
       );
       this.sortType =
-        (await storage.getValue(StorageKey.SortType)) || SortType.Loop;
+        storages[StorageKey.SortType] ||
+        (await storage.getValue(StorageKey.SortType)) ||
+        SortType.Loop;
       this.playerMode =
-        (await storage.getValue(StorageKey.PlayerMode)) || 'default';
-      this.playStatus.volumeCache = await storage.getValue(
-        StorageKey.VolumeCache
-      );
+        storages[StorageKey.PlayerMode] ||
+        (await storage.getValue(StorageKey.PlayerMode)) ||
+        'default';
+      this.playStatus.volumeCache =
+        storages[StorageKey.VolumeCache] ||
+        (await storage.getValue(StorageKey.VolumeCache));
       await this.updateRemoteList();
-      !this.remoteMode &&
-        this.changeVolume(await storage.getValue(StorageKey.Volume));
+      !this.config.remote &&
+        this.changeVolume(
+          storages[StorageKey.Volume] ||
+            (await storage.getValue(StorageKey.Volume))
+        );
       musicOperate('/loop', this.sortType.toString());
       this.setTitle();
       (window as any).isPlayDetailShow = () => this.playDetailShow;

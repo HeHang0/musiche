@@ -10,7 +10,7 @@ import CloudMusicImage from '../assets/images/cloud-music.webp';
 import QQMusicImage from '../assets/images/qq-music.png';
 import MiguMusicImage from '../assets/images/migu-music.webp';
 import { useSettingStore } from '../stores/setting';
-import { isMobile, messageOption, webView2Services } from '../utils/utils';
+import { isMobile, messageOption } from '../utils/utils';
 import { ElMessage } from 'element-plus';
 interface Props {
   list: Music[];
@@ -70,7 +70,7 @@ async function downloadMusic(music?: Music) {
   if (!music && !selectedMusic) return;
   music = music || selectedMusic!;
   const url = await api.downloadUrl(music);
-  if (url && (!webView2Services.enabled || isMobile)) {
+  if (url && !setting.config.remote) {
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
     downloadLink.download = `${music.name} - ${music.singer}.mp3`;
@@ -79,7 +79,7 @@ async function downloadMusic(music?: Music) {
     downloadLink.click();
     downloadLink.remove();
   } else {
-    ElMessage(messageOption('当前音乐无法下载'));
+    ElMessage(messageOption('暂不支持'));
   }
 }
 

@@ -16,9 +16,13 @@ namespace Musiche.Server
         private readonly Dictionary<string, Func<HttpListenerContext, Task>> routers;
         private static readonly string installChineseFontsJson = string.Empty;
         private readonly FileHandler fileHandler = new FileHandler();
+        readonly LocalStorage localStorage;
+        readonly FileAccessor fileAccessor;
         public HttpHandler(MainWindow window, AudioPlay audioPlay, MediaMetaManager mediaMetaManager) : base(window, audioPlay, mediaMetaManager)
         {
+            localStorage = new LocalStorage(Utils.File.ConfigPath);
             routers = Router.ReadHttpRouter(this);
+            fileAccessor = new FileAccessor();
         }
 
         static HttpHandler()
@@ -63,6 +67,156 @@ namespace Musiche.Server
         {
             byte[] data = fileHandler.GetFile("version");
             await SendString(ctx, data != null ? Encoding.UTF8.GetString(data) : Utils.App.Version);
+        }
+
+        public void SaveStorage()
+        {
+            localStorage.SaveToFile(null);
+        }
+
+        [Router("/config")]
+        public async Task GetConfig(HttpListenerContext ctx)
+        {
+            Dictionary<string, object> result = new Dictionary<string, object>()
+            {
+                { "remote", true },
+                { "storage", true },
+                { "file", true },
+                { "list", false },
+                { "client", false },
+                { "shortcut", true },
+                { "gpu", true },
+                { "lyric", true }
+            };
+            string text = JsonConvert.SerializeObject(result);
+            await SendString(ctx, text, "text/json");
+        }
+
+        [Router("/file/read")]
+        public async Task ReadFile(HttpListenerContext ctx)
+        {
+            string path = ctx.Request.QueryString.Get("path");
+            string data = await fileAccessor.ReadFile(path);
+            Dictionary<string, object> result = new Dictionary<string, object>()
+            {
+                { "data", data }
+            };
+            await SendString(ctx, JsonConvert.SerializeObject(result), "text/json");
+        }
+
+        [Router("/file/write")]
+        public async Task WriteFile(HttpListenerContext ctx)
+        {
+            string path = ctx.Request.QueryString.Get("path");
+            await fileAccessor.WriteFile(path, ctx.Request.DataAsString());
+            Dictionary<string, object> result = new Dictionary<string, object>()
+            {
+                { "data", true }
+            };
+            await SendString(ctx, JsonConvert.SerializeObject(result), "text/json");
+        }
+
+        [Router("/file/delete")]
+        public async Task DeleteFile(HttpListenerContext ctx)
+        {
+            string path = ctx.Request.QueryString.Get("path");
+            await fileAccessor.DeleteFile(path);
+            Dictionary<string, object> result = new Dictionary<string, object>()
+            {
+                { "data", true }
+            };
+            await SendString(ctx, JsonConvert.SerializeObject(result), "text/json");
+        }
+
+        [Router("/file/exists")]
+        public async Task ExistsFile(HttpListenerContext ctx)
+        {
+            string path = ctx.Request.QueryString.Get("path");
+            bool exists = await fileAccessor.FileExists(path);
+            Dictionary<string, object> result = new Dictionary<string, object>()
+            {
+                { "data", exists }
+            };
+            await SendString(ctx, JsonConvert.SerializeObject(result), "text/json");
+        }
+
+        [Router("/file/select")]
+        public async Task SelectFile(HttpListenerContext ctx)
+        {
+            string[] files = await fileAccessor.ShowSelectedDirectory();
+            Dictionary<string, object> result = new Dictionary<string, object>()
+            {
+                { "data", files }
+            };
+            await SendString(ctx, JsonConvert.SerializeObject(result), "text/json");
+        }
+
+        [Router("/file/directory/music")]
+        public async Task GetMusicDirectory(HttpListenerContext ctx)
+        {
+            string dir = await fileAccessor.GetMyMusicDirectory();
+            Dictionary<string, object> result = new Dictionary<string, object>()
+            {
+                { "data", dir }
+            };
+            await SendString(ctx, JsonConvert.SerializeObject(result), "text/json");
+        }
+
+        [Router("/file/list/all")]
+        public async Task ListAllFile(HttpListenerContext ctx)
+        {
+            string path = ctx.Request.QueryString.Get("path");
+            bool recursive = ctx.Request.QueryString.Get("recursive") != "0";
+            string[] files = await fileAccessor.ListAllFiles(path, recursive);
+            Dictionary<string, object> result = new Dictionary<string, object>()
+            {
+                { "data", files }
+            };
+            await SendString(ctx, JsonConvert.SerializeObject(result), "text/json");
+        }
+
+        [Router("/file/list/audio")]
+        public async Task ListAudioFile(HttpListenerContext ctx)
+        {
+            string path = ctx.Request.QueryString.Get("path");
+            bool recursive = ctx.Request.QueryString.Get("recursive") != "0";
+            string data = await fileAccessor.ListAllAudios(path, recursive);
+            Dictionary<string, object> result = new Dictionary<string, object>()
+            {
+                { "data", data }
+            };
+            await SendString(ctx, JsonConvert.SerializeObject(result), "text/json");
+        }
+
+        [Router("/storages")]
+        public async Task GetStorages(HttpListenerContext ctx)
+        {
+            await SendString(ctx, localStorage.GetAll(), "text/json");
+        }
+
+        [Router("/storage")]
+        public async Task Storage(HttpListenerContext ctx)
+        {
+            string key = ctx.Request.QueryString.Get("key");
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                await SendString(ctx, "", "text/json");
+                return;
+            }
+            string result = string.Empty;
+            switch (ctx.Request.HttpMethod.ToUpper())
+            {
+                case "GET":
+                    result = localStorage.Get(key);
+                    break;
+                case "POST":
+                    localStorage.Set(key, ctx.Request.DataAsString());
+                    break;
+                case "DELETE":
+                    localStorage.Remove(key);
+                    break;
+            }
+            await SendString(ctx, result, "text/json");
         }
 
         [Router("/title")]

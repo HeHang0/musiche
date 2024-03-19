@@ -21,12 +21,10 @@ import {
 import {
   getImageFile,
   imageToDataUrl,
-  isIOS,
   isInStandaloneMode,
   isMobile,
   isWindows,
-  scrollToElementId,
-  webView2Services
+  scrollToElementId
 } from '../utils/utils';
 
 import { LogoCircleImage } from '../utils/logo';
@@ -34,9 +32,10 @@ import { ThemeColorManager } from '../utils/color';
 import DroidImage from '../assets/images/droid.svg';
 import AppleImage from '../components/apple.vue';
 import { getServiceWorkerRegistration } from '../sw/register';
+import { isIOS } from '@vueuse/core';
 
 const { currentRoute, replace, options } = useRouter();
-const subItems = [
+const subItems = ref([
   {
     name: '账号',
     id: 'account'
@@ -65,19 +64,17 @@ const subItems = [
     name: '关于',
     id: 'about'
   }
-];
+]);
 if (!isMobile) {
-  subItems.splice(4, 0, {
+  subItems.value.splice(4, 0, {
     name: '快捷键',
     id: 'shortcut'
   });
 }
-if (webView2Services.enabled) {
-  subItems.splice(3, 0, {
-    name: '系统',
-    id: 'system'
-  });
-}
+subItems.value.splice(3, 0, {
+  name: '系统',
+  id: 'system'
+});
 
 const shortcutItems: { name: string; operate: ShortcutType }[] = [
   {
@@ -284,8 +281,8 @@ function setItemsIdTitle() {
   for (let i = 0; i < tableEle.value.children.length; i++) {
     const item = tableEle.value.children[i] as HTMLTableRowElement;
     const itemTitle = item.children[0] as HTMLTableCellElement;
-    itemTitle.innerText = subItems[i].name;
-    itemTitle.id = 'music-header-' + subItems[i].id;
+    itemTitle.innerText = subItems.value[i].name;
+    itemTitle.id = 'music-header-' + subItems.value[i].id;
   }
   if (!document.getElementById(currentId.value))
     replace('#music-header-account');
@@ -540,13 +537,13 @@ onUnmounted(unWatch);
               label="字体加粗"
               size="large" />
             <el-checkbox
-              v-if="!isMobile && webView2Services.enabled"
+              v-if="isWindows && setting.config.remote"
               v-model="setting.pageValue.startup"
               @change="setting.setStartup"
               label="开机自动运行"
               size="large" />
             <el-checkbox
-              v-if="!isMobile && webView2Services.enabled"
+              v-if="setting.config.gpu"
               v-model="setting.pageValue.gpuAcceleration"
               @change="setting.setGpuAcceleration()"
               size="large">
@@ -598,7 +595,7 @@ onUnmounted(unWatch);
             </div>
           </td>
         </tr>
-        <tr v-if="webView2Services.enabled">
+        <tr v-if="isWindows && setting.config.remote">
           <td></td>
           <td class="music-setting-system">
             <el-checkbox
@@ -696,7 +693,7 @@ onUnmounted(unWatch);
             </div>
             <div
               class="music-setting-play-remote-clients"
-              v-if="setting.remoteMode && setting.remoteClients.length > 0">
+              v-if="setting.config.client && setting.remoteClients.length > 0">
               <span>多机互联</span>
               <div>
                 <div
@@ -740,7 +737,7 @@ onUnmounted(unWatch);
                     @keyup="setting.registerShortCut(item.operate, $event)" />
                 </div>
               </div>
-              <div v-if="isWindows && webView2Services.enabled">
+              <div v-if="isWindows && setting.config.remote">
                 <div>全局快捷键</div>
                 <div v-for="item in shortcutItems">
                   <el-input
@@ -757,7 +754,7 @@ onUnmounted(unWatch);
               </div>
             </div>
             <el-checkbox
-              v-if="isWindows && webView2Services.enabled"
+              v-if="isWindows && setting.config.remote"
               v-model="setting.pageValue.globalShortcutUsed"
               @change="setting.setGlobalShortcutUsed"
               size="large">
@@ -765,7 +762,7 @@ onUnmounted(unWatch);
               <span class="music-setting-subtext"> (在后台时也能响应) </span>
             </el-checkbox>
             <el-checkbox
-              v-if="isWindows && webView2Services.enabled"
+              v-if="isWindows && setting.config.remote"
               v-model="setting.pageValue.systemMediaShortcutUsed"
               @change="setting.setSystemMediaShortcutUsed"
               size="large">
@@ -814,7 +811,7 @@ onUnmounted(unWatch);
                 启用桌面歌词
               </el-checkbox>
               <el-checkbox
-                v-if="isWindows && webView2Services.enabled"
+                v-if="isWindows && setting.config.remote"
                 v-model="setting.pageValue.lyric.topmost"
                 @change="setting.setLyricOptions"
                 size="large">
@@ -943,11 +940,7 @@ onUnmounted(unWatch);
               最新版本 {{ remoteVersion }}
             </span>
             <span
-              v-if="
-                !setting.remoteMode &&
-                !webView2Services.enabled &&
-                currentVersion != remoteVersion
-              "
+              v-if="!setting.config.remote && currentVersion != remoteVersion"
               class="music-setting-about-update"
               @click="forceRefreshPage">
               点击更新
@@ -1003,7 +996,7 @@ onUnmounted(unWatch);
                 v-if="
                   !isInStandaloneMode &&
                   installPromptShow &&
-                  !webView2Services.enabled
+                  !setting.config.remote
                 "
                 class="music-setting-about-card"
                 @click.stop="installPWA">

@@ -1,121 +1,17 @@
 import { MessageParams } from 'element-plus';
 import { LyricLine, MusicFileInfo } from './type';
-
-interface SpecialService {
-  MouseDownDrag: () => void;
-  ResizeWindow: (direction: number) => void;
-  ReleaseMouse: () => void;
-}
-
-interface FileAccessor {
-  ReadFile: (path: string) => Promise<string>;
-  WriteFile: (path: string, text: string) => Promise<void>;
-  DeleteFile: (path: string) => Promise<void>;
-  ReadConfig: (path: string) => Promise<string>;
-  WriteConfig: (path: string, text: string) => Promise<void>;
-  DeleteConfig: (path: string) => Promise<void>;
-  FileExists: (path: string) => Promise<boolean>;
-  ShowSelectedDirectory: () => Promise<string[]>;
-  GetMyMusicDirectory: () => Promise<string>;
-  ListAllFiles: (
-    path: string,
-    recursive: boolean,
-    onlyAudio: boolean
-  ) => Promise<string[]>;
-  ListAllAudios: (path: string, recursive: boolean) => Promise<string>;
-}
-
-export const webView2Services = {
-  enabled: false,
-  specialService: null,
-  fileAccessor: null,
-  isWindows: false,
-  isMobile: false
-} as {
-  enabled: boolean;
-  specialService: SpecialService | null;
-  fileAccessor: FileAccessor | null;
-  isWindows: boolean;
-  isMobile: boolean;
-};
-
-try {
-  webView2Services.specialService = (
-    window as any
-  )?.chrome?.webview?.hostObjects?.sync.specialService;
-  webView2Services.fileAccessor = (
-    window as any
-  )?.chrome?.webview?.hostObjects?.fileAccessor;
-  webView2Services.enabled = !!webView2Services.specialService;
-} catch (error) {}
-let callHandler: ((handlerName: string, ...args: any[]) => any) | undefined =
-  void 0;
-window.addEventListener('flutterInAppWebViewPlatformReady', () => {
-  callHandler = (window as any).flutter_inappwebview.callHandler;
-});
-try {
-  if ('flutter_inappwebview' in window) {
-    webView2Services.enabled = true;
-    webView2Services.specialService = {
-      MouseDownDrag: () => {},
-      ResizeWindow: (_direction: number) => {},
-      ReleaseMouse: () => {}
-    };
-    if ((window as any).flutter_inappwebview.callHandler) {
-      callHandler = (window as any).flutter_inappwebview.callHandler;
-    }
-    webView2Services.fileAccessor = {
-      ReadConfig: (_path: string) => Promise.resolve(''),
-      WriteConfig: (_path: string, _text: string) => Promise.resolve(),
-      DeleteConfig: (_path: string) => Promise.resolve(),
-      ReadFile: (path: string) =>
-        callHandler ? callHandler('readFile', path) : Promise.resolve(''),
-      WriteFile: (path: string, text: string) =>
-        callHandler ? callHandler('writeFile', path, text) : Promise.resolve(),
-      DeleteFile: (path: string) =>
-        callHandler ? callHandler('deleteFile', path) : Promise.resolve(),
-      FileExists: (path: string) =>
-        callHandler ? callHandler('fileExists', path) : Promise.resolve(false),
-      ShowSelectedDirectory: () =>
-        callHandler
-          ? callHandler('showSelectedDirectory')
-          : Promise.resolve([]),
-      GetMyMusicDirectory: () =>
-        callHandler ? callHandler('getMyMusicDirectory') : Promise.resolve(''),
-      ListAllFiles: (path: string, recursive: boolean, onlyAudio: boolean) =>
-        callHandler
-          ? callHandler('listAllFiles', path, recursive, onlyAudio)
-          : Promise.resolve([]),
-      ListAllAudios: (path: string, recursive: boolean) =>
-        callHandler
-          ? callHandler('listAllAudios', path, recursive)
-          : Promise.resolve('')
-    };
-    webView2Services.isMobile = true;
-    webView2Services.isWindows = false;
-  } else {
-    webView2Services.specialService = (
-      window as any
-    )?.chrome?.webview?.hostObjects?.sync.specialService;
-    webView2Services.fileAccessor = (
-      window as any
-    )?.chrome?.webview?.hostObjects?.fileAccessor;
-    webView2Services.enabled = !!webView2Services.specialService;
-    webView2Services.isMobile = !webView2Services.specialService;
-    webView2Services.isWindows = webView2Services.enabled;
-  }
-} catch (error) {}
+import { isIOS } from '@vueuse/core';
 
 export const isInStandaloneMode = Boolean(
   ('standalone' in window.navigator && window.navigator.standalone) ||
     window.matchMedia('(display-mode: standalone)').matches
 );
-export const isIOS = !!(
-  navigator.userAgent.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/) ||
-  (/Mac OS X/.test(navigator.userAgent) &&
-    navigator.maxTouchPoints &&
-    navigator.maxTouchPoints > 2)
-);
+// export const isIOS = !!(
+//   navigator.userAgent.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/) ||
+//   (/Mac OS X/.test(navigator.userAgent) &&
+//     navigator.maxTouchPoints &&
+//     navigator.maxTouchPoints > 2)
+// );
 export const isAndroid = /Android/i.test(navigator.userAgent);
 export const isWindows = /Windows/i.test(navigator.userAgent);
 export const isMobile =
@@ -343,18 +239,48 @@ const cookieSkipKeys = new Set([
 ]);
 export function parseCookie(cookie: string): Record<string, string> {
   if (!cookie) cookie = '';
-  let cookies = cookie.split(/[;,]/);
+  cookie = cookie.replace(/Expires=[^;]*;/g, '');
+  cookie = cookie.replace(/Path=[^;]*;/g, '');
+  cookie = cookie.replace(/HttpOnly;/g, '');
+  cookie = cookie.replace(/SameSite[^;]*;/g, '');
+  cookie = cookie.replace(/Secure[^;]*;/g, '');
+  cookie = cookie.replace(/,/g, '');
+  cookie = cookie.replace(/Domain=[^;]*;/g, '');
+  let cookies = cookie.split(/[;]/);
   let cookieObj: Record<string, string> = {};
   cookies.map(item => {
     if (item.indexOf('=') === -1) return;
     let kv = item.split('=');
-    if (kv.length < 2) return;
+    if (kv.length < 1) return;
     let key = kv[0]?.trim() || '';
     let value = kv[1]?.trim() || '';
     if (key && !cookieSkipKeys.has(key.toLowerCase())) {
       if (value || !cookieObj[key]) cookieObj[key] = value;
     }
   });
+  return cookieObj;
+}
+export function parseCookieWithDomain(
+  cookie: string
+): Record<string, Record<string, string>> {
+  if (!cookie) cookie = '';
+  cookie = cookie.replace(/Expires=[^;]*;/g, '');
+  cookie = cookie.replace(/Path=[^;]*;/g, '');
+  cookie = cookie.replace(/HttpOnly;/g, '');
+  cookie = cookie.replace(/SameSite[^;]*;/g, '');
+  cookie = cookie.replace(/Secure[^;]*;/g, '');
+  cookie = cookie.replace(/,/g, '');
+  let cookieObj: Record<string, Record<string, string>> = {};
+  const regex = /([^=]+)=([^;]*);[\s\S]*?Domain=([^;]*);/g;
+  let match: RegExpExecArray | null = null;
+  while ((match = regex.exec(cookie))) {
+    const key = match[1]?.trim() || '';
+    const value = match[2]?.trim() || '';
+    const domain = match[3]?.trim() || '';
+    if (!key) continue;
+    if (!cookieObj[domain]) cookieObj[domain] = {};
+    cookieObj[domain][key] = value;
+  }
   return cookieObj;
 }
 
@@ -366,6 +292,12 @@ export function formatCookies(
   return Object.keys(cookies)
     .map(m => `${m}=${cookies[m]}`)
     .join('; ');
+}
+
+export function queryStringify(data: Record<string, any>) {
+  return Object.keys(data)
+    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(data[key])}`)
+    .join('&');
 }
 
 export async function checkReadPermission(

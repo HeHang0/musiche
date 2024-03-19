@@ -5,7 +5,8 @@ import { useThrottleFn } from '@vueuse/core';
 
 import { usePlayStore } from '../stores/play';
 import { ThemeColorManager } from '../utils/color';
-import { isMobile, isWindows, webView2Services } from '../utils/utils';
+import { isMobile } from '../utils/utils';
+import { webView2Services } from '../utils/files';
 
 import Footer from './Footer.vue';
 import WindowControls from './WindowControls.vue';
@@ -194,7 +195,7 @@ watch(() => play.playDetailShow, setTheme);
               </el-dropdown-menu>
             </template>
           </el-dropdown>
-          <WindowControls v-if="isWindows && webView2Services.enabled" />
+          <WindowControls v-if="webView2Services.specialService" />
         </div>
       </div>
       <div
