@@ -35,46 +35,6 @@ import { getServiceWorkerRegistration } from '../sw/register';
 import { isIOS } from '@vueuse/core';
 
 const { currentRoute, replace, options } = useRouter();
-const subItems = ref([
-  {
-    name: '账号',
-    id: 'account'
-  },
-  {
-    name: '常规',
-    id: 'general'
-  },
-  {
-    name: '主题',
-    id: 'theme'
-  },
-  {
-    name: '播放',
-    id: 'play'
-  },
-  {
-    name: '音质与下载',
-    id: 'quality'
-  },
-  {
-    name: '桌面歌词',
-    id: 'lyric'
-  },
-  {
-    name: '关于',
-    id: 'about'
-  }
-]);
-if (!isMobile) {
-  subItems.value.splice(4, 0, {
-    name: '快捷键',
-    id: 'shortcut'
-  });
-}
-subItems.value.splice(3, 0, {
-  name: '系统',
-  id: 'system'
-});
 
 const shortcutItems: { name: string; operate: ShortcutType }[] = [
   {
@@ -277,13 +237,6 @@ function forceRefreshPage() {
 
 function setItemsIdTitle() {
   setting.currentMusicTypeShow = false;
-  if (!tableEle.value) return;
-  for (let i = 0; i < tableEle.value.children.length; i++) {
-    const item = tableEle.value.children[i] as HTMLTableRowElement;
-    const itemTitle = item.children[0] as HTMLTableCellElement;
-    itemTitle.innerText = subItems.value[i].name;
-    itemTitle.id = 'music-header-' + subItems.value[i].id;
-  }
   if (!document.getElementById(currentId.value))
     replace('#music-header-account');
 }
@@ -329,7 +282,8 @@ function login(type: MusicType) {
 }
 
 async function checkLocalVersion() {
-  currentVersion.value = await musicOperate('/version');
+  const version = await musicOperate('/version');
+  if (/[\d]+\.[\d]+\.[\d]+/.test(version)) currentVersion.value = version;
 }
 
 async function checkRemoveVersion() {
@@ -460,22 +414,103 @@ onUnmounted(unWatch);
       <div class="music-setting-header-title">设置</div>
       <div class="music-setting-header-sub">
         <span
-          :id="'title-music-header-' + subItem.id"
+          id="title-music-header-"
           :class="
-            currentId === 'music-header-' + subItem.id
+            currentId === 'music-header-account'
               ? 'music-setting-header-active'
               : ''
           "
-          v-for="subItem in subItems"
-          @click="replace('#music-header-' + subItem.id)"
-          >{{ subItem.name }}</span
-        >
+          @click="replace('#music-header-account')">
+          账号
+        </span>
+        <span
+          id="title-music-header-"
+          :class="
+            currentId === 'music-header-general'
+              ? 'music-setting-header-active'
+              : ''
+          "
+          @click="replace('#music-header-general')">
+          常规
+        </span>
+        <span
+          id="title-music-header-"
+          :class="
+            currentId === 'music-header-theme'
+              ? 'music-setting-header-active'
+              : ''
+          "
+          @click="replace('#music-header-theme')">
+          主题
+        </span>
+        <span
+          v-if="isWindows && setting.config.remote"
+          id="title-music-header-"
+          :class="
+            currentId === 'music-header-system'
+              ? 'music-setting-header-active'
+              : ''
+          "
+          @click="replace('#music-header-system')">
+          系统
+        </span>
+        <span
+          id="title-music-header-"
+          :class="
+            currentId === 'music-header-play'
+              ? 'music-setting-header-active'
+              : ''
+          "
+          @click="replace('#music-header-play')">
+          播放
+        </span>
+        <span
+          v-if="!isMobile"
+          id="title-music-header-"
+          :class="
+            currentId === 'music-header-shortcut'
+              ? 'music-setting-header-active'
+              : ''
+          "
+          @click="replace('#music-header-shortcut')">
+          快捷键
+        </span>
+        <span
+          id="title-music-header-"
+          :class="
+            currentId === 'music-header-quality'
+              ? 'music-setting-header-active'
+              : ''
+          "
+          @click="replace('#music-header-quality')">
+          音质与下载
+        </span>
+        <span
+          id="title-music-header-"
+          :class="
+            currentId === 'music-header-lyric'
+              ? 'music-setting-header-active'
+              : ''
+          "
+          @click="replace('#music-header-lyric')">
+          桌面歌词
+        </span>
+        <span
+          id="title-music-header-"
+          :class="
+            currentId === 'music-header-about'
+              ? 'music-setting-header-active'
+              : ''
+          "
+          @click="replace('#music-header-about')">
+          关于
+        </span>
       </div>
     </div>
     <el-scrollbar class="music-setting-body">
       <table ref="tableEle">
         <tr>
-          <td></td>
+          <td id="music-header-account">账号</td>
           <td class="music-setting-account">
             <div v-for="info in musicTypeInfoAll">
               <img :src="info.image" />
@@ -496,7 +531,7 @@ onUnmounted(unWatch);
           </td>
         </tr>
         <tr>
-          <td></td>
+          <td id="music-header-general">常规</td>
           <td class="music-setting-general">
             <span>字体选择</span>
 
@@ -562,7 +597,7 @@ onUnmounted(unWatch);
           </td>
         </tr>
         <tr>
-          <td></td>
+          <td id="music-header-theme">主题</td>
           <td class="music-setting-theme">
             <span>
               <el-switch
@@ -596,7 +631,7 @@ onUnmounted(unWatch);
           </td>
         </tr>
         <tr v-if="isWindows && setting.config.remote">
-          <td></td>
+          <td id="music-header-system">系统</td>
           <td class="music-setting-system">
             <el-checkbox
               v-model="delayExit"
@@ -657,7 +692,7 @@ onUnmounted(unWatch);
           </td>
         </tr>
         <tr>
-          <td></td>
+          <td id="music-header-play">播放</td>
           <td class="music-setting-play">
             <el-checkbox
               v-if="setting.config.file"
@@ -722,7 +757,7 @@ onUnmounted(unWatch);
           </td>
         </tr>
         <tr v-if="!isMobile">
-          <td></td>
+          <td id="music-header-shortcut">快捷键</td>
           <td class="music-setting-shortcut">
             <div>
               <div>
@@ -774,7 +809,7 @@ onUnmounted(unWatch);
           </td>
         </tr>
         <tr>
-          <td></td>
+          <td id="music-header-quality">音质与下载</td>
           <td class="music-setting-quality">
             <div class="music-setting-quality-type">
               <div class="music-setting-quality-title">在线播放音质</div>
@@ -801,7 +836,7 @@ onUnmounted(unWatch);
           </td>
         </tr>
         <tr>
-          <td></td>
+          <td id="music-header-lyric">桌面歌词</td>
           <td class="music-setting-lyric">
             <div class="music-setting-lyric-item">
               <el-checkbox
@@ -933,7 +968,7 @@ onUnmounted(unWatch);
           </td>
         </tr>
         <tr>
-          <td></td>
+          <td id="music-header-about">关于</td>
           <td class="music-setting-about">
             <span> 当前版本 {{ currentVersion }} </span>
             <span

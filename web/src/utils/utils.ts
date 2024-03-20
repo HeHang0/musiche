@@ -1,6 +1,6 @@
 import { MessageParams } from 'element-plus';
-import { LyricLine, MusicFileInfo } from './type';
 import { isIOS } from '@vueuse/core';
+import { LyricLine, MusicFileInfo } from './type';
 
 export const isInStandaloneMode = Boolean(
   ('standalone' in window.navigator && window.navigator.standalone) ||
@@ -251,22 +251,31 @@ export function parseCookie(cookie: string): Record<string, string> {
   return result;
 }
 export function parseCookieWithDomain(
-  cookie: string
+  text: string
 ): Record<string, Record<string, string>> {
-  if (!cookie) cookie = '';
-  cookie = cookie.replace(/Expires=[^;]*;/g, '');
-  cookie = cookie.replace(/Path=[^;]*;/g, '');
-  cookie = cookie.replace(/HttpOnly;/g, '');
-  cookie = cookie.replace(/SameSite[^;]*;/g, '');
-  cookie = cookie.replace(/Secure[^;]*;/g, '');
-  cookie = cookie.replace(/,/g, '');
   let cookieObj: Record<string, Record<string, string>> = {};
-  const regex = /([^=]+)=([^;]*);[\s\S]*?Domain=([^;]*);/g;
-  let match: RegExpExecArray | null = null;
-  while ((match = regex.exec(cookie))) {
+  if (!text || typeof text !== 'string') return cookieObj;
+  const lines = text.split(',');
+  for (let i = 0; i < lines.length; i++) {
+    if (/[Ee]xpires=[a-zA-Z]+$/.test(lines[i]) && lines[i + 1]) {
+      lines[i] += lines[i + 1];
+      lines.splice(i + 1, 1);
+    }
+    lines[i] = lines[i]
+      .replace(/[\s]+/, '')
+      .replace(/[Ee]xpires=[^;]*[;]*/g, '')
+      .replace(/[Pp]ath=[^;]*[;]*/g, '')
+      .replace(/[Hh]ttpOnly[;]*/g, '')
+      .replace(/[Ss]ameSite[^;]*[;]*/g, '')
+      .replace(/[Ss]ecure[^;]*[;]*/g, '')
+      .replace(/[Mm]ax-[Aa]ge=[^;]*[;]*/g, '')
+      .trim();
+    const regex = /([^=]+)=([^;]*);[\s\S]*?([Dd]omain=([^;]*)[;]*)*$/g;
+    const match = regex.exec(lines[i]);
+    if (!match) continue;
     const key = match[1]?.trim() || '';
     const value = match[2]?.trim() || '';
-    const domain = match[3]?.trim() || '';
+    const domain = match[4]?.trim() || '';
     if (!key) continue;
     if (!cookieObj[domain]) cookieObj[domain] = {};
     cookieObj[domain][key] = value;
