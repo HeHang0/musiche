@@ -238,27 +238,17 @@ const cookieSkipKeys = new Set([
   'samesite'
 ]);
 export function parseCookie(cookie: string): Record<string, string> {
-  if (!cookie) cookie = '';
-  cookie = cookie.replace(/Expires=[^;]*;/g, '');
-  cookie = cookie.replace(/Path=[^;]*;/g, '');
-  cookie = cookie.replace(/HttpOnly;/g, '');
-  cookie = cookie.replace(/SameSite[^;]*;/g, '');
-  cookie = cookie.replace(/Secure[^;]*;/g, '');
-  cookie = cookie.replace(/,/g, '');
-  cookie = cookie.replace(/Domain=[^;]*;/g, '');
-  let cookies = cookie.split(/[;]/);
-  let cookieObj: Record<string, string> = {};
-  cookies.map(item => {
-    if (item.indexOf('=') === -1) return;
-    let kv = item.split('=');
-    if (kv.length < 1) return;
-    let key = kv[0]?.trim() || '';
-    let value = kv[1]?.trim() || '';
-    if (key && !cookieSkipKeys.has(key.toLowerCase())) {
-      if (value || !cookieObj[key]) cookieObj[key] = value;
+  const result: Record<string, string> = {};
+  const cookieDomains: Record<
+    string,
+    Record<string, string>
+  > = parseCookieWithDomain(cookie);
+  for (const domain in cookieDomains) {
+    for (const key in cookieDomains[domain]) {
+      if (!result[key]) result[key] = cookieDomains[domain][key];
     }
-  });
-  return cookieObj;
+  }
+  return result;
 }
 export function parseCookieWithDomain(
   cookie: string
