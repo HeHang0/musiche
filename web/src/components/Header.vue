@@ -72,9 +72,9 @@ onUnmounted(unWatch);
     <div
       class="music-header-operate"
       v-if="isWindows && webView2Services.specialService">
-      <!-- <span class="music-icon" @click="push('/setting')" title="设置">
+      <span class="music-icon" @click="push('/setting')" title="设置">
         设
-      </span> -->
+      </span>
       <WindowControls />
     </div>
   </el-header>
