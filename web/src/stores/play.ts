@@ -103,14 +103,15 @@ export const usePlayStore = defineStore('play', {
         this.music
       );
     },
-    clearMusicList() {
+    async clearMusicList() {
       this.musicList.splice(0, this.musicList.length);
+      await this.pause();
       this.setCurrentMusic();
       storage.setValue(StorageKey.CurrentMusicList, this.musicList);
       Object.keys(this.music).map(k => {
         delete (this.music as any)[k];
       });
-      this.pause();
+      this.updateRemoteList();
     },
     setCurrentMusic(music?: Music, noSave?: boolean) {
       this.music.id = music?.id || '';
@@ -292,7 +293,8 @@ export const usePlayStore = defineStore('play', {
           playlist: this.musicList.map(m => ({
             ...m,
             cookie: api.getCookie(m.type),
-            url: ''
+            url: '',
+            lover: !!this.myLover[m.type + m.id]
           }))
         }),
         {

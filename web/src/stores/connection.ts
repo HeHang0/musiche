@@ -191,7 +191,8 @@ export class MusicConnection {
           this.play.showDesktopLyric(Boolean(result.data));
           break;
         case 'show':
-          this.play.playDetailShow = true;
+          if (this.play.music.id && this.play.musicList.length > 0)
+            this.play.playDetailShow = true;
           break;
         case 'lover':
           if (this.play.music.type && this.play.music.type) {

@@ -1,3 +1,5 @@
+import 'package:musiche/audio/music_item.dart';
+
 import '../audio/audio_play.dart';
 import '../utils/utils.dart';
 
@@ -17,6 +19,11 @@ class Handler {
       "stopped": audioPlay.stopped,
       "progress": progress
     };
+    MusicItem? music = audioPlay.getCurrentMusic();
+    if(music != null) {
+      data["id"] = music.id;
+      data["type"] = music.type;
+    }
     Map<String, dynamic> result = <String, dynamic>{
       "data": data
     };

@@ -14,7 +14,7 @@ import 'package:musiche/utils/android_channel.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../audio/media_metadata.dart';
+import '../audio/music_play_request.dart';
 import '../utils/os_version.dart';
 import 'file_handler.dart';
 import 'http_proxy.dart';
@@ -34,6 +34,7 @@ class HttpHandler extends Handler implements IHandler {
       MapEntry("media", _setMedia),
       MapEntry("fadein", _setFadeIn),
       MapEntry("delayexit", _setDelayExit),
+      MapEntry("updatelist", _updateList),
       MapEntry("play", _play),
       MapEntry("pause", _pause),
       MapEntry("progress", _setProgress),
@@ -90,7 +91,7 @@ class HttpHandler extends Handler implements IHandler {
     result["remote"] = true;
     result["storage"] = true;
     result["file"] = true;
-    result["list"] = false;
+    result["list"] = true;
     result["client"] = false;
     result["lyric"] = Platform.isAndroid;
     result["shortcut"] = false;
@@ -199,8 +200,6 @@ class HttpHandler extends Handler implements IHandler {
   }
 
   Future<void> _setMedia(HttpRequest request) async {
-    var mediaMetadata = MediaMetadata.fromString(await _readBody(request));
-    audioPlay.setMediaMeta(mediaMetadata);
     request.response.statusCode = HttpStatus.ok;
   }
 
@@ -226,6 +225,11 @@ class HttpHandler extends Handler implements IHandler {
     request.response.statusCode = HttpStatus.ok;
   }
 
+  Future<void> _updateList(HttpRequest request) async {
+    MusicPlayRequest musicPlayRequest = MusicPlayRequest.fromString(await _readBody(request));
+    audioPlay.setMusicPlayRequest(musicPlayRequest);
+  }
+
   Future<void> _play(HttpRequest request) async {
     await audioPlay.playUrl(await _readBody(request));
     await _sendStatus(request);
@@ -245,12 +249,11 @@ class HttpHandler extends Handler implements IHandler {
   }
 
   Future<void> _setVolume(HttpRequest request) async {
-    request.response.statusCode = HttpStatus.ok;
-    // int? volume = int.tryParse(await _readBody(request));
-    // if (volume != null) {
-    //   audioPlay.setVolume(volume);
-    // }
-    // await _sendStatus(request);
+    int? volume = int.tryParse(await _readBody(request));
+    if (volume != null) {
+      audioPlay.setVolume(volume);
+    }
+    await _sendStatus(request);
   }
 
   Future<void> _getStatus(HttpRequest request) async {
@@ -262,24 +265,28 @@ class HttpHandler extends Handler implements IHandler {
     String themeString = request.uri.queryParameters["theme"] ?? "";
     Brightness brightness = themeString == "1" ? Brightness.dark : Brightness.light;
     if(Platform.isIOS) brightness = themeString == "1" ? Brightness.light : Brightness.dark;
-    if (!kIsWeb) {
-      var androidInfo = await OSVersion.androidInfo;
-      var sdkInt = androidInfo?.version.sdkInt ?? 0;
-      if(!Platform.isAndroid || (sdkInt >= 23 && sdkInt < 34)){
-        SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarBrightness: brightness,
-          statusBarIconBrightness: brightness,
-          systemStatusBarContrastEnforced: false,
-          systemNavigationBarContrastEnforced: false,
-          systemNavigationBarColor: Colors.transparent,
-          systemNavigationBarIconBrightness: brightness,
-          systemNavigationBarDividerColor: Colors.transparent,
-        ));
-      }else {
-        if(kIsWeb) return;
-        if(Platform.isAndroid) AndroidChannel.setStatusBarTheme(themeString != "1");
-      }
+    if (kIsWeb) {
+      return;
+    }
+    if(Platform.isMacOS){
+
+      return;
+    }
+    var androidInfo = await OSVersion.androidInfo;
+    var sdkInt = androidInfo?.version.sdkInt ?? 0;
+    if(!Platform.isAndroid || (sdkInt >= 23 && sdkInt < 34)){
+      SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarBrightness: brightness,
+        statusBarIconBrightness: brightness,
+        systemStatusBarContrastEnforced: false,
+        systemNavigationBarContrastEnforced: false,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarIconBrightness: brightness,
+        systemNavigationBarDividerColor: Colors.transparent,
+      ));
+    }else {
+      if(Platform.isAndroid) AndroidChannel.setStatusBarTheme(themeString != "1");
     }
   }
 

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { useThrottleFn } from '@vueuse/core';
 
 import { usePlayStore } from '../stores/play';
+import { useSettingStore } from '../stores/setting';
 import { ThemeColorManager } from '../utils/color';
 import { isMobile } from '../utils/utils';
 import { webView2Services } from '../utils/files';
@@ -19,6 +20,7 @@ import { PlayDetailMode } from '../utils/type';
 
 const { beforeResolve } = useRouter();
 const play = usePlayStore();
+const setting = useSettingStore();
 const pageElement: Ref<HTMLDivElement | null> = ref(null);
 const imageThemeStyle: Ref<string> = ref('');
 const fullscreen: Ref<boolean> = ref(Boolean(document.fullscreenElement));
@@ -50,7 +52,7 @@ function setThemeColor() {
     const colorEnd = `rgba(${c.red},${c.green},${c.blue},1)`;
     imageThemeStyle.value = `--music-slider-color-start: ${colorStart};--music-slider-color-end: ${colorEnd}`;
     popperEle.innerText = `:root{${imageThemeStyle.value}}`;
-    updateTheme(colorDark ? 2 : 1);
+    updateTheme(colorDark ? 2 : 1, setting.autoAppTheme);
   });
 }
 const canFullScreen = Boolean(
@@ -117,12 +119,15 @@ function close() {
 function setTheme() {
   if (play.playDetailShow && whiteThemeMode.has(play.playerMode)) {
     setTimeout(() => {
-      updateTheme(2);
+      updateTheme(2, setting.autoAppTheme);
     }, 200);
   } else if (!play.playDetailShow) {
-    updateTheme(document.documentElement.className.includes('dark') ? 2 : 1);
+    updateTheme(
+      document.documentElement.className.includes('dark') ? 2 : 1,
+      setting.autoAppTheme
+    );
   } else {
-    updateTheme(colorDark ? 2 : 1);
+    updateTheme(colorDark ? 2 : 1, setting.autoAppTheme);
   }
 }
 const unWatch = watch(() => play.music.image, setThemeColor);

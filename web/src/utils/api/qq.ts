@@ -888,7 +888,6 @@ export async function loginStatus(key: string): Promise<{
           'qq.com'
         ]
       );
-      const loginRet = await res.text();
       const user = await userInfo(musicConfigCookie);
       if (user && user.id) {
         user.cookie = musicConfigCookie;

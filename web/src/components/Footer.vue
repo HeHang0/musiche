@@ -153,46 +153,45 @@ const play = usePlayStore();
             </span>
           </template>
         </el-popover>
-        <el-popover
-          v-if="!isMobile"
-          placement="top"
-          :width="30"
-          popper-class="music-footer-volume-popover"
-          popper-style="min-width:0;padding:0;background-color:var(--music-footer-background);padding-top:5px"
-          trigger="click">
-          <template #reference>
-            <span
-              class="music-icon music-footer-layout-right-vol-group"
-              title="静音">
-              {{ play.playStatus.volume > 0 ? '音' : '静' }}
-            </span>
-          </template>
+        <template v-if="!isMobile || play.config.remote">
+          <el-popover
+            placement="top"
+            :width="30"
+            popper-class="music-footer-volume-popover"
+            popper-style="min-width:0;padding:0;background-color:var(--music-footer-background);padding-top:5px"
+            trigger="click">
+            <template #reference>
+              <span
+                class="music-icon music-footer-layout-right-vol-group"
+                title="静音">
+                {{ play.playStatus.volume > 0 ? '音' : '静' }}
+              </span>
+            </template>
+            <el-slider
+              v-model="play.playStatus.volume"
+              @mousedown="play.playStatus.disableUpdateVolume = true"
+              @touchstart="play.playStatus.disableUpdateVolume = true"
+              @change="play.changeVolume"
+              vertical
+              height="70px"
+              :show-tooltip="false"
+              style="width: 30px" />
+          </el-popover>
+          <span
+            class="music-icon music-footer-layout-right-vol-icon"
+            title="静音"
+            @click="play.mute">
+            {{ play.playStatus.volume > 0 ? '音' : '静' }}
+          </span>
           <el-slider
+            class="music-footer-layout-right-vol-slider"
             v-model="play.playStatus.volume"
             @mousedown="play.playStatus.disableUpdateVolume = true"
             @touchstart="play.playStatus.disableUpdateVolume = true"
             @change="play.changeVolume"
-            vertical
-            height="70px"
             :show-tooltip="false"
-            style="width: 30px" />
-        </el-popover>
-        <span
-          v-if="!isMobile"
-          class="music-icon music-footer-layout-right-vol-icon"
-          title="静音"
-          @click="play.mute">
-          {{ play.playStatus.volume > 0 ? '音' : '静' }}
-        </span>
-        <el-slider
-          v-if="!isMobile"
-          class="music-footer-layout-right-vol-slider"
-          v-model="play.playStatus.volume"
-          @mousedown="play.playStatus.disableUpdateVolume = true"
-          @touchstart="play.playStatus.disableUpdateVolume = true"
-          @change="play.changeVolume"
-          :show-tooltip="false"
-          style="width: 70px" />
+            style="width: 70px" />
+        </template>
       </div>
     </div>
   </el-footer>

@@ -297,7 +297,7 @@ export const useSettingStore = defineStore('setting', {
         themeColor.content = dark ? '#13131a' : '#f7f7f7';
         if (appTheme?.id.includes('pure')) themeColor.content = 'black';
       }
-      updateTheme(preferredColorScheme);
+      updateTheme(preferredColorScheme, this.autoAppTheme);
     },
     setCustomTheme(appTheme?: AppTheme) {
       this.customTheme.id = appTheme?.id || 'custom ';

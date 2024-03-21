@@ -1,13 +1,19 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:musiche/utils/android_channel.dart';
 
-import 'media_metadata.dart';
+import 'music_item.dart';
+import 'music_play_request.dart';
 
+enum LoopType {
+  loop, random, order, single
+}
 class AudioPlay extends BaseAudioHandler {
   late final AudioPlayer _audioPlayer;
   Stream<PlayerState> get onPlayerStateChanged => _audioPlayer.playerStateStream;
@@ -15,18 +21,29 @@ class AudioPlay extends BaseAudioHandler {
   Stream<Duration> get onPositionChanged => _audioPlayer.positionStream;
   bool get playing => _audioPlayer.playing;
   bool get stopped => _audioPlayer.playerState.processingState == ProcessingState.completed || _audioPlayer.playerState.processingState == ProcessingState.idle;
-  int get volume => (_audioPlayer.volume*100).toInt();
+  int get volume => _volume;
   Future<Duration?> Function() get currentPosition => () => Future(() => _audioPlayer.position);
   Future<Duration?> Function() get duration => () => Future(() => _audioPlayer.duration);
-  MediaMetadata? metadata;
+  // MediaMetadata? metadata;
+  int _lastIndex = 0;
+  LoopType _loopType = LoopType.loop;
+  Quality _quality = Quality.pq;
+  MusicPlayRequest? _musicPlayRequest;
+  int _volume = 100;
   AudioPlay(){
     _audioPlayer = AudioPlayer();
     _initAudioService();
     onDurationChanged.listen(_onDurationChanged);
     onPositionChanged.listen(_onPositionChanged);
     onPlayerStateChanged.listen(_onPlayerStateChanged);
+    FlutterVolumeController.addListener((volume) {
+      _volume = (100 * volume).toInt();
+    });
   }
+
   Future<void> _initAudioService() async {
+    double volume = await FlutterVolumeController.getVolume(stream: AudioStream.music) ?? 1;
+    _volume = (100 * volume).toInt();
     await AudioService.init(
       builder: () => this,
       config: const AudioServiceConfig(
@@ -34,6 +51,52 @@ class AudioPlay extends BaseAudioHandler {
         androidNotificationChannelName: 'Musiche playback',
       ),
     );
+  }
+
+  void setLoopType(LoopType loopType){
+    _loopType = loopType;
+  }
+  void setQuality(Quality quality){
+    _quality = quality;
+  }
+
+  LoopType getLoopType(){
+    return _loopType;
+  }
+
+  MusicItem? getCurrentMusic(){
+    return _musicPlayRequest?.music;
+  }
+
+  void setMusicPlayRequest(MusicPlayRequest request){
+    _musicPlayRequest = request;
+  }
+
+  void playIndex(int index){
+    MusicItem? music = _musicPlayRequest?.playlist.elementAt(index);
+    playMusic(music);
+  }
+
+  void playMusic(MusicItem? music) async {
+    if(music == null) return;
+    if(_musicPlayRequest != null) {
+      _lastIndex = _musicPlayRequest!.index;
+      _musicPlayRequest!.music = music;
+      int index = _musicPlayRequest!.playlist.indexOf(music);
+      if(index >= 0) {
+        _musicPlayRequest!.index = index;
+      }else {
+        _musicPlayRequest!.playlist.add(music);
+        _musicPlayRequest!.index = _musicPlayRequest!.playlist.length - 1;
+      }
+    }
+    String url = await music.getMusicUrl(_quality);
+    if(url.isNotEmpty) {
+      playUrl(url);
+    } else {
+      _musicPlayRequest?.playlist.remove(music);
+      skipToNext();
+    }
   }
 
   @override
@@ -51,14 +114,39 @@ class AudioPlay extends BaseAudioHandler {
     _audioPlayer.seek(position);
   }
   @override
-  Future<void> skipToNext() async {}
+  Future<void> skipToNext() async {
+    if((_musicPlayRequest?.playlist.length ?? 0) == 0 || _loopType == LoopType.single){
+      playCurrent();
+      return;
+    }
+    int index = _musicPlayRequest!.index + 1;
+    switch(_loopType){
+      case LoopType.loop:
+        if(index >= _musicPlayRequest!.playlist.length){
+          index = 0;
+        }
+        break;
+      case LoopType.order:
+        if(index >= _musicPlayRequest!.playlist.length){
+          pause();
+        }
+        break;
+      case LoopType.random:
+        index = Random().nextInt(_musicPlayRequest!.playlist.length);
+        break;
+      default:
+        break;
+    }
+    playIndex(index);
+  }
   @override
-  Future<void> skipToPrevious() async {}
-  // @override
-  // Future<void> skipToQueueItem(int i) async {}
+  Future<void> skipToPrevious() async {
+    playIndex(_lastIndex);
+  }
 
   _onPlayerStateChanged(PlayerState state) async {
-    setMediaMeta(metadata);
+    setMediaMeta();
+    if(stopped) skipToNext();
   }
 
   Future<void> _onPositionChanged(Duration position) async {
@@ -66,7 +154,7 @@ class AudioPlay extends BaseAudioHandler {
     if(Platform.isAndroid) {
       AndroidChannel.setMediaPosition(playing, position.inMilliseconds);
     } else{
-      playbackState?.add(PlaybackState(
+      playbackState.add(PlaybackState(
         controls: [
           MediaControl.skipToPrevious,
           playing ? MediaControl.pause : MediaControl.play,
@@ -87,30 +175,29 @@ class AudioPlay extends BaseAudioHandler {
   }
 
   Future<void> _onDurationChanged(Duration? duration) async {
-    setMediaMeta(metadata);
+    setMediaMeta();
   }
 
-  Future<void> setMediaMeta(MediaMetadata? metadata) async {
-    if(metadata == null) return;
-    this.metadata = metadata;
+  Future<void> setMediaMeta() async {
+    MusicItem? music = _musicPlayRequest?.music;
+    if(music == null) return;
     Duration? duration = _audioPlayer.duration;
     if(duration == null || duration.inMilliseconds == 0){
       return;
     }
     if(kIsWeb) return;
+    var item = MediaItem(
+        id: music.id,
+        title: music.name,
+        album: music.album,
+        artist: music.album,
+        duration: duration,
+        artUri: Uri.parse(music.image)
+    );
     if(Platform.isAndroid) {
-      AndroidChannel.setMediaMetadata(metadata, playing, _audioPlayer.position.inMilliseconds, duration.inMilliseconds);
+      AndroidChannel.setMediaMetadata(item, music.lover, playing, _audioPlayer.position.inMilliseconds, duration.inMilliseconds);
     } else {
-      var item = MediaItem(
-          id: metadata.title + metadata.artist,
-          title: metadata.title,
-          album: metadata.album,
-          artist: metadata.album,
-          duration: duration,
-          artUri: Uri.parse(metadata.artwork)
-      );
-      mediaItem?.add(item);
-      playMediaItem(item);
+      mediaItem.add(item);
     }
   }
 
@@ -142,6 +229,12 @@ class AudioPlay extends BaseAudioHandler {
   void setPosition(int milliseconds) {
     _audioPlayer.seek(Duration(milliseconds: milliseconds));
   }
+
+  Future<void> setVolume(int volume) async {
+    _volume = volume;
+    await FlutterVolumeController.setVolume(volume*1.0/100, stream: AudioStream.music);
+  }
+
   Future<void> setProgress(int progress) async {
     Duration? duration = _audioPlayer.duration;
     if(progress < 0 || duration == null || duration.inMilliseconds <= 0) {
