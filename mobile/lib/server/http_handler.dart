@@ -11,7 +11,7 @@ import 'package:musiche/server/handler_interface.dart';
 import 'package:musiche/server/proxy_request_data.dart';
 import 'package:musiche/server/proxy_response_data.dart';
 import 'package:musiche/utils/android_channel.dart';
-import 'package:musiche/utils/webview_macos.dart';
+import 'package:musiche/utils/macos_channel.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -53,8 +53,30 @@ class HttpHandler extends Handler implements IHandler {
       MapEntry("lyric", _setLyric),
       MapEntry("lyricline", _setLyricLine),
       MapEntry("proxy", _proxy),
-      MapEntry("file", _handleFiles)
+      MapEntry("file", _readFile),
+      MapEntry("file/read", _handleFiles),
+      MapEntry("file/write", _handleFiles),
+      MapEntry("file/delete", _handleFiles),
+      MapEntry("file/exists", _handleFiles),
+      MapEntry("file/select", _handleFiles),
+      MapEntry("file/select/image", _handleFiles),
+      MapEntry("file/directory/music", _handleFiles),
+      MapEntry("file/list/all", _handleFiles),
+      MapEntry("file/list/audio", _handleFiles)
     ]);
+  }
+
+  Future<void> _readFile(HttpRequest request) async {
+    String filePath = (request.uri.queryParameters["path"] ?? "").trim();
+    try {
+      final file = File(filePath);
+      final data = await file.readAsBytes();
+      request.response.statusCode = HttpStatus.ok;
+      request.response.headers.contentType = ContentType.parse(getMimeType(filePath));
+      request.response.add(data);
+    }catch(e){
+      request.response.statusCode = HttpStatus.notFound;
+    }
   }
 
   Future<void> _handleFiles(HttpRequest request) async {
@@ -63,21 +85,23 @@ class HttpHandler extends Handler implements IHandler {
     String body = await _readBody(request);
     switch(request.uri.path.toLowerCase()){
       case "/file/read":
-        data = FileHandler.handlers["readFile"]!.call([]);break;
+        data = await FileHandler.handlers["readFile"]!.call([]);break;
       case "/file/write":
-        data = FileHandler.handlers["writeFile"]!.call([]);break;
+        data = await FileHandler.handlers["writeFile"]!.call([]);break;
       case "/file/delete":
-        data = FileHandler.handlers["deleteFile"]!.call([body]);break;
+        data = await FileHandler.handlers["deleteFile"]!.call([body]);break;
       case "/file/exists":
-        data = FileHandler.handlers["fileExists"]!.call([body]);break;
+        data = await FileHandler.handlers["fileExists"]!.call([body]);break;
       case "/file/select":
-        data = FileHandler.handlers["showSelectedDirectory"]!.call([]);break;
+        data = await FileHandler.handlers["showSelectedDirectory"]!.call([]);break;
+      case "/file/select/image":
+        data = await FileHandler.handlers["showSelectedImage"]!.call([]);break;
       case "/file/directory/music":
-        data = FileHandler.handlers["getMyMusicDirectory"]!.call([]);break;
+        data = await FileHandler.handlers["getMyMusicDirectory"]!.call([]);break;
       case "/file/list/all":
-        data = FileHandler.handlers["listAllFiles"]!.call([]);break;
+        data = await FileHandler.handlers["listAllFiles"]!.call([]);break;
       case "/file/list/audio":
-        data = FileHandler.handlers["listAllAudios"]!.call([body, true]);break;
+        data = await FileHandler.handlers["listAllAudios"]!.call([body, true]);break;
       default:
         data = null;
     }
@@ -94,7 +118,7 @@ class HttpHandler extends Handler implements IHandler {
     result["file"] = !Platform.isIOS;
     result["list"] = true;
     result["client"] = false;
-    result["lyric"] = Platform.isAndroid;
+    result["lyric"] = Platform.isAndroid || Platform.isMacOS;
     result["shortcut"] = false;
     result["gpu"] = false;
     request.response.statusCode = HttpStatus.ok;
@@ -303,6 +327,10 @@ class HttpHandler extends Handler implements IHandler {
 
   Future<void> _getInstalledFonts(HttpRequest request) async {
     request.response.statusCode = HttpStatus.ok;
+    if(!kIsWeb && Platform.isMacOS){
+      request.response.headers.set("content-type", "application/json");
+      request.response.write(jsonEncode(await MacOSChannel.getFonts()));
+    }
   }
 
   Future<void> _getMusicImage(HttpRequest request) async {
@@ -336,40 +364,47 @@ class HttpHandler extends Handler implements IHandler {
   }
 
   Future<void> _setLyric(HttpRequest request) async {
-    if(!kIsWeb && Platform.isAndroid){
-      try {
-        Map<String, dynamic> lyricOptions = jsonDecode(await _readBody(request));
-        var androidInfo = await OSVersion.androidInfo;
+    request.response.statusCode = HttpStatus.ok;
+    if(kIsWeb || (!Platform.isAndroid && !Platform.isMacOS)) return;
+    Map<String, dynamic> lyricOptions = jsonDecode(await _readBody(request));
+    try {
+      var androidInfo = await OSVersion.androidInfo;
+      if(Platform.isMacOS){
+        MacOSChannel.setLyricOptions(lyricOptions);
+      } else if((androidInfo?.version.sdkInt ?? 0) >= 23){
+        var status = await Permission.systemAlertWindow.status;
         bool show = lyricOptions.containsKey("show") &&
             lyricOptions["show"] is bool && lyricOptions["show"];
-        if((androidInfo?.version.sdkInt ?? 0) >= 23){
-          var status = await Permission.systemAlertWindow.status;
-          if (show && !status.isGranted) {
-            status = await Permission.systemAlertWindow.request();
-          }
-          if(status.isGranted){
-            if(!kIsWeb && Platform.isAndroid) AndroidChannel.setLyricOptions(lyricOptions);
-          }
-        }else {
-          if(!kIsWeb && Platform.isAndroid) AndroidChannel.setLyricOptions(lyricOptions);
+        if (show && !status.isGranted) {
+          status = await Permission.systemAlertWindow.request();
         }
-      }catch(e){
-        Logger.e(_tag, "parse lyric options err: $e");
+        if(status.isGranted){
+          AndroidChannel.setLyricOptions(lyricOptions);
+        }
+      } else {
+        AndroidChannel.setLyricOptions(lyricOptions);
       }
+    }catch(e){
+      Logger.e(_tag, "parse lyric options err: $e");
     }
-    request.response.statusCode = HttpStatus.ok;
   }
 
   Future<void> _setLyricLine(HttpRequest request) async {
+    request.response.statusCode = HttpStatus.ok;
+    if(kIsWeb || (!Platform.isAndroid && !Platform.isMacOS)) return;
     var androidInfo = await OSVersion.androidInfo;
+    String line = await _readBody(request);
+    if(Platform.isMacOS){
+      MacOSChannel.setLyricLine(line);
+      return;
+    }
     bool isGranted = true;
     if((androidInfo?.version.sdkInt ?? 0) >= 23){
       isGranted = (await Permission.systemAlertWindow.status).isGranted;
     }
     if(isGranted){
-      if(!kIsWeb && Platform.isAndroid) AndroidChannel.setLyricLine(await _readBody(request));
+      AndroidChannel.setLyricLine(line);
     }
-    request.response.statusCode = HttpStatus.ok;
   }
 
   Future<void> _proxy(HttpRequest request) async {

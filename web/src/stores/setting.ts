@@ -665,7 +665,7 @@ export const useSettingStore = defineStore('setting', {
       this.setDisableAnimation(this.pageValue.disableAnimation, true);
       musicOperate('/fonts')
         .then(fonts => {
-          if (Array.isArray(fonts)) {
+          if (Array.isArray(fonts) && fonts.length > 0) {
             this.fonts = [];
             this.fonts.push(...fonts);
           }

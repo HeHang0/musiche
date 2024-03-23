@@ -8,7 +8,7 @@ import Login from '../components/Login.vue';
 
 import { useSettingStore } from '../stores/setting';
 import { usePlayStore } from '../stores/play';
-import { musicOperate } from '../utils/http';
+import { httpAddress, musicOperate } from '../utils/http';
 import { musicTypeInfo, musicTypeInfoAll } from '../utils/platform';
 import {
   AppTheme,
@@ -23,6 +23,7 @@ import {
   imageToDataUrl,
   isInStandaloneMode,
   isMobile,
+  isSafari,
   isWindows,
   scrollToElementId
 } from '../utils/utils';
@@ -316,9 +317,17 @@ function getCardBackground(appTheme: AppTheme) {
 }
 
 async function setCustomTheme() {
-  const imageFile: File | null = await getImageFile();
-  if (!imageFile) return;
-  const fileUrl = URL.createObjectURL(imageFile);
+  let fileUrl: string | null = null;
+  if (setting.config.remote && isSafari && !isMobile) {
+    const res = await musicOperate('/file/select/image');
+    if (res && res.data)
+      fileUrl = `//${httpAddress}/file?path=${encodeURIComponent(res.data)}`;
+  } else {
+    const imageFile: File | null = await getImageFile();
+    if (!imageFile) return;
+    fileUrl = URL.createObjectURL(imageFile);
+  }
+  if (!fileUrl) return;
   const dataUrl = await imageToDataUrl(fileUrl, 1920, 1920);
   URL.revokeObjectURL(fileUrl);
   const c = await ThemeColorManager.getThemeColor(dataUrl);

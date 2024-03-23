@@ -10,6 +10,9 @@ class MacOSChannel {
   static const _channel = 'musiche-method-channel-macos-webview';
   static const _methodOpen = "open";
   static const _methodTheme = "theme";
+  static const _methodFonts = "fonts";
+  static const _methodLyricOptions = "lyric-options";
+  static const _methodLyricLine = "lyric-line";
   static final MethodChannel? _methodChannel = Platform.isMacOS ? const MethodChannel(_channel) : null;
 
   static Future<void> open(String url) async {
@@ -18,10 +21,31 @@ class MacOSChannel {
     });
   }
 
+  static Future<List<String>> getFonts() async {
+    List<Object?>? result = await _methodChannel?.invokeMethod<List<Object?>>(_methodFonts);
+    List<String> fonts = [];
+    result?.forEach((element) {
+      if(element != null) fonts.add(element.toString());
+    });
+    return fonts;
+  }
+
   static Future<void> theme(bool dark, bool auto) async {
     await _methodChannel?.invokeMethod(_methodTheme, {
       'auto': auto,
       'dark': dark
+    });
+  }
+
+  static Future<void> setLyricOptions(Map<String, dynamic> lyricOptions) async {
+    if(!lyricOptions.containsKey('show')) lyricOptions['show'] = false;
+    if(!lyricOptions.containsKey('title')) lyricOptions['title'] = '';
+    await _methodChannel?.invokeMethod(_methodLyricOptions, lyricOptions);
+  }
+
+  static Future<void> setLyricLine(String line) async {
+    await _methodChannel?.invokeMethod(_methodLyricLine, {
+      'line': line
     });
   }
 

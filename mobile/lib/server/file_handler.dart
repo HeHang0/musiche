@@ -23,6 +23,7 @@ class FileHandler{
     "deleteFile": deleteFile,
     "fileExists": fileExists,
     "showSelectedDirectory": showSelectedDirectory,
+    "showSelectedImage": showSelectedImage,
     "getMyMusicDirectory": getMyMusicDirectory,
     "listAllFiles": listAllFiles,
     "listAllAudios": listAllAudios,
@@ -40,6 +41,13 @@ class FileHandler{
       return await File(arguments[0]).exists();
     }
     return false;
+  }
+  static Future<String?> showSelectedImage(List<dynamic> arguments) async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.image);
+    if(result != null) {
+      return result.files.first.path;
+    }
+    return null;
   }
   static Future<List<String>> showSelectedDirectory(List<dynamic> arguments) async {
     List<String> result = [];

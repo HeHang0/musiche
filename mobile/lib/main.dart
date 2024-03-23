@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:musiche/server/server_manager.dart';
 import 'package:musiche/webview.dart';
-import 'package:musiche/utils/webview_macos.dart';
+import 'package:musiche/utils/macos_channel.dart';
 import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
