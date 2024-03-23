@@ -39,20 +39,28 @@ export function parseMusicFileImageAddress(path: string): string {
 }
 
 let theme = -1;
-let autoAppTheme = 0;
 let updateThemeDelay: any = null;
-export async function updateTheme(themeValue?: number, auto?: boolean) {
+export async function updateTheme(
+  themeValue?: number,
+  auto?: boolean,
+  saved?: boolean
+) {
   if (themeValue != null && themeValue >= 0) {
     theme = themeValue;
   }
-  if (auto != null) autoAppTheme = auto ? 1 : 0;
   if (theme < 0) return;
   clearTimeout(updateThemeDelay);
-  if (themeValue == null) {
-    musicOperate(`/theme?theme=${theme}&auto=${autoAppTheme}`);
+  if (saved && themeValue != null) {
+    musicOperate(
+      `/theme?theme=${theme}&auto=${auto ? '1' : '0'}&saved=${
+        saved ? '1' : '0'
+      }`
+    );
+  } else if (themeValue == null) {
+    musicOperate(`/theme?theme=${theme}`);
   } else {
     updateThemeDelay = setTimeout(
-      () => musicOperate(`/theme?theme=${theme}&auto=${autoAppTheme}`),
+      () => musicOperate(`/theme?theme=${theme}`),
       100
     );
   }

@@ -1,0 +1,9 @@
+/* 
+  InfoPlist.strings
+  Runner
+
+  Created by 何航 on 2024/3/22.
+  
+*/
+"CFBundleName" = "Musiche";
+"CFBundleDisplayName" = "Musiche";

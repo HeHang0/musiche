@@ -11,6 +11,7 @@ import 'package:musiche/server/handler_interface.dart';
 import 'package:musiche/server/proxy_request_data.dart';
 import 'package:musiche/server/proxy_response_data.dart';
 import 'package:musiche/utils/android_channel.dart';
+import 'package:musiche/utils/webview_macos.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -90,7 +91,7 @@ class HttpHandler extends Handler implements IHandler {
     Map<String, dynamic> result = <String, dynamic>{};
     result["remote"] = true;
     result["storage"] = true;
-    result["file"] = true;
+    result["file"] = !Platform.isIOS;
     result["list"] = true;
     result["client"] = false;
     result["lyric"] = Platform.isAndroid;
@@ -179,7 +180,8 @@ class HttpHandler extends Handler implements IHandler {
         result = sharedPreferences?.getString(key) ?? "";
         break;
       case "POST":
-        sharedPreferences?.setString(key, await _readBody(request));
+        String text = await _readBody(request);
+        sharedPreferences?.setString(key, text);
         break;
       case "DELETE":
         sharedPreferences?.remove(key);
@@ -264,12 +266,8 @@ class HttpHandler extends Handler implements IHandler {
     request.response.statusCode = HttpStatus.ok;
     String themeString = request.uri.queryParameters["theme"] ?? "";
     Brightness brightness = themeString == "1" ? Brightness.dark : Brightness.light;
-    if(Platform.isIOS) brightness = themeString == "1" ? Brightness.light : Brightness.dark;
+    if(Platform.isIOS || Platform.isMacOS) brightness = themeString == "1" ? Brightness.light : Brightness.dark;
     if (kIsWeb) {
-      return;
-    }
-    if(Platform.isMacOS){
-
       return;
     }
     var androidInfo = await OSVersion.androidInfo;
@@ -285,6 +283,11 @@ class HttpHandler extends Handler implements IHandler {
         systemNavigationBarIconBrightness: brightness,
         systemNavigationBarDividerColor: Colors.transparent,
       ));
+      final saved = (request.uri.queryParameters["saved"] ?? "0") == "1";
+      if(Platform.isMacOS && saved){
+        final auto = (request.uri.queryParameters["auto"] ?? "0") == "1";
+        MacOSChannel.theme(themeString != "1", auto);
+      }
     }else {
       if(Platform.isAndroid) AndroidChannel.setStatusBarTheme(themeString != "1");
     }

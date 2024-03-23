@@ -226,17 +226,6 @@ export function getUuid() {
     })
     .toUpperCase();
 }
-
-const cookieSkipKeys = new Set([
-  'max-age',
-  'path',
-  'httponly',
-  'expires',
-  'domain',
-  'path',
-  'secure',
-  'samesite'
-]);
 export function parseCookie(cookie: string): Record<string, string> {
   const result: Record<string, string> = {};
   const cookieDomains: Record<

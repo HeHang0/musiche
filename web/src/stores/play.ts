@@ -343,12 +343,12 @@ export const usePlayStore = defineStore('play', {
       this.music.audition = music.audition;
       if (!music.url) {
         console.log('fail', music);
-        ElMessage(messageOption('当前音乐无法播放'));
+        ElMessage(messageOption(`当前音乐[${this.music.name}]无法播放`));
         this.preparePlay = false;
-        if (this.playStatus.playing) {
-          this.setCurrentMusic(lastMusic);
-          return;
-        }
+        // if (this.playStatus.playing) {
+        //   this.setCurrentMusic(lastMusic);
+        //   return;
+        // }
         const musicIndex = this.musicList.findIndex(
           n => music && music.id == n.id && music.type == n.type
         );

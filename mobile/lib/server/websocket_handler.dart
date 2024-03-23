@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:musiche/audio/audio_play.dart';
 import 'package:musiche/audio/music_item.dart';
-import 'package:musiche/utils/webview_macos.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -169,7 +168,7 @@ class WebSocketHandler extends Handler with TrayListener, WindowListener impleme
   }
 
   _onPlayerStateChanged(PlayerState state) async {
-    _setNotifyContextMenu();
+    if(Platform.isMacOS) _setNotifyContextMenu();
     await _sendStatus();
   }
 

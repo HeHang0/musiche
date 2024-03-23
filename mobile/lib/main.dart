@@ -9,10 +9,10 @@ import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await windowManager.ensureInitialized();
   await ServerManager.startServer();
   if(Platform.isMacOS) {
-    MacOSChannel.open("http://127.0.0.1:${ServerManager.port}/index.html");
+    await windowManager.ensureInitialized();
+    MacOSChannel.open("http://127.0.0.1:${kDebugMode ? 5173 : ServerManager.port}");
     MacOSChannel.listen();
   }
   runApp(const MyApp());

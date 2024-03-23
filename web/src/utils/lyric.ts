@@ -1,9 +1,14 @@
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { LyricLine, LyricOptionsKey, Music } from './type';
 import * as api from './api/api';
-import { clearArray, messageOption, parseLyric, isWindows } from './utils';
+import {
+  clearArray,
+  messageOption,
+  parseLyric,
+  isWindows,
+  isSafari
+} from './utils';
 import { musicOperate } from './http';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import { isIOS } from '@vueuse/core';
 
 export type LyricChange = (lines: string[]) => void;
 export type LyricLineChange = (
@@ -217,7 +222,10 @@ export class LyricManager {
       }
       if (this.lyricOption.fontSize) {
         fontStyle.push(
-          `${Math.floor(this.lyricOption.fontSize * devicePixelRatio)}px`
+          `${Math.floor(
+            this.lyricOption.fontSize *
+              (isSafari ? Math.min(devicePixelRatio, 3) : devicePixelRatio)
+          )}px`
         );
       }
       if (this.lyricOption.fontFamily) {
@@ -320,10 +328,7 @@ export class LyricManager {
       try {
         LyricManager.video?.play();
       } catch {}
-      if ('flutter_inappwebview' in window && isIOS) {
-        LyricManager.video?.requestPictureInPicture();
-        return;
-      }
+      if (document.pictureInPictureElement) return;
       LyricManager.video?.requestPictureInPicture().catch(_e => {
         ElMessageBox.confirm('', '开启桌面歌词', {
           closeOnClickModal: false,
@@ -357,7 +362,7 @@ export class LyricManager {
     LyricManager.video.muted = true;
     LyricManager.video.autoplay = true;
     LyricManager.video.controls = false;
-    LyricManager.video.playsInline = false;
+    LyricManager.video.playsInline = true;
     LyricManager.video.width = width;
     LyricManager.video.height = height;
     LyricManager.video.srcObject = LyricManager.canvas.captureStream(25);

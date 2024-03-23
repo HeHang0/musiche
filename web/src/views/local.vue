@@ -194,6 +194,7 @@ async function initMusic() {
 }
 
 onMounted(async () => {
+  setting.currentMusicTypeShow = false;
   initMusic().then(syncLocalMusic);
 });
 </script>

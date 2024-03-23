@@ -26,7 +26,8 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
   InAppWebViewSettings settings = InAppWebViewSettings(
       isInspectable: kDebugMode,
       mediaPlaybackRequiresUserGesture: false,
-      allowsPictureInPictureMediaPlayback:false,
+      allowsPictureInPictureMediaPlayback:true,
+      allowsInlineMediaPlayback: true,
       transparentBackground: true,
       allowBackgroundAudioPlaying: false,
       disableContextMenu: true,

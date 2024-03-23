@@ -20,7 +20,7 @@ class AudioPlay extends BaseAudioHandler {
   Stream<Duration?> get onDurationChanged => _audioPlayer.durationStream;
   Stream<Duration> get onPositionChanged => _audioPlayer.positionStream;
   bool get playing => _audioPlayer.playing;
-  bool get stopped => _audioPlayer.playerState.processingState == ProcessingState.completed || _audioPlayer.playerState.processingState == ProcessingState.idle;
+  bool get stopped => false;//_audioPlayer.playerState.processingState == ProcessingState.completed || _audioPlayer.playerState.processingState == ProcessingState.idle;
   int get volume => _volume;
   Future<Duration?> Function() get currentPosition => () => Future(() => _audioPlayer.position);
   Future<Duration?> Function() get duration => () => Future(() => _audioPlayer.duration);
@@ -223,7 +223,13 @@ class AudioPlay extends BaseAudioHandler {
     }
   }
   void playCurrent(){
-    _audioPlayer.play();
+    if((_audioPlayer.playerState.processingState == ProcessingState.completed ||
+        _audioPlayer.playerState.processingState == ProcessingState.idle) &&
+        _musicPlayRequest != null && _musicPlayRequest?.music != null){
+      playMusic(_musicPlayRequest?.music);
+    }else {
+      _audioPlayer.play();
+    }
   }
 
   void setPosition(int milliseconds) {

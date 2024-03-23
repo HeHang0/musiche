@@ -407,7 +407,7 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
   .music-aside {
     width: 50px;
     &-title {
-      padding: max(var(--sat), 20px) 0 0 5px;
+      padding: var(--sat) 0 0 5px;
       &-logo {
         width: 40px;
         height: 40px;

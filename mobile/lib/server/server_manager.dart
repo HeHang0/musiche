@@ -22,6 +22,7 @@ class ServerManager {
     AudioPlay audioPlay = AudioPlay();
     SharedPreferences? sharedPreferences;
     try{
+      SharedPreferences.setPrefix("musiche");
       sharedPreferences = await SharedPreferences.getInstance();
     }catch(e){
       Logger.e(_tag, "init shared preferences error", error: e);
@@ -29,9 +30,13 @@ class ServerManager {
     HttpHandler httpHandler = HttpHandler(audioPlay, sharedPreferences);
     _websocketHandler = WebSocketHandler(audioPlay);
     _port = kDebugMode ? 54621 : await Network.findAvailablePort();
-    InternetAddress address = kDebugMode ? InternetAddress.anyIPv4 : InternetAddress.loopbackIPv4;
-    _server = await HttpServer.bind(address, _port, shared: Platform.isMacOS);
+    InternetAddress address = kDebugMode ? InternetAddress.anyIPv4 : InternetAddress('127.0.0.1');
     Logger.i(_tag, "start server: $address:$_port");
+    try{
+      _server = await HttpServer.bind(address, _port, shared: Platform.isMacOS);
+    }catch(e){
+      Logger.e(_tag, "start server error", error: e);
+    }
     _server?.forEach((HttpRequest request) {
       Logger.d(_tag, "accept connection: ${request.uri.path}");
       Network.processCors(request.response);

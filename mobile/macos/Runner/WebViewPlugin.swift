@@ -47,7 +47,11 @@ public class WebViewPlugin: NSObject, FlutterPlugin {
     self.webview.navigationDelegate = self
     self.webview.translatesAutoresizingMaskIntoConstraints = false
     self.webview.configuration.userContentController.add(self, name: "logger")
+    self.webview.configuration.allowsAirPlayForMediaPlayback = true
     self.webview.isHidden = true
+    if #available(macOS 13.3, *) {
+      self.webview.isInspectable = true
+    }
     self.registrar.view!.addSubview(self.webview)
     NSLayoutConstraint.activate([
         self.webview.topAnchor.constraint(equalTo: registrar.view!.topAnchor),

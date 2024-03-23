@@ -37,16 +37,16 @@ async function setValue<T>(key: string, value: T) {
     result = `${value}`;
   }
   if (useRemote) {
-    fetch(`//${httpAddress}/storage`, {
-      method: 'POST',
-      body: JSON.stringify({
-        key: 'musiche-' + key,
-        value: result
-      }),
-      headers: {
-        'Content-Type': 'application/json'
+    fetch(
+      `//${httpAddress}/storage?key=` + encodeURIComponent('musiche-' + key),
+      {
+        method: 'POST',
+        body: result,
+        headers: {
+          'Content-Type': 'text/plain'
+        }
       }
-    });
+    );
   } else {
     localStorage.setItem('musiche-' + key, result);
   }
