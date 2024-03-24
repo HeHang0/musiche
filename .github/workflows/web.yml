@@ -14,25 +14,66 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  build-on-macos:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+
+      - name: Build
+        run: |
+          sw_vers -productVersion
+          xcodebuild -version
+          node web/scripts/version.js
+          npm install -g appdmg
+          cd web
+          yarn
+          yarn build
+          cd ../mobile
+          flutter pub get
+          flutter build ios --release --no-codesign
+          flutter build macos --release
+          appdmg dmg.json musiche.dmg
+          mkdir Payload
+          mv build/ios/Release-iphoneos/*.app Payload/musiche.app
+          zip -r musiche.zip Payload
+          mv musiche.zip musiche.ipa
+      - name: Upload macOS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-package
+          path: |
+            mobile/musiche.dmg
+            mobile/musiche.ipa
+
+  build-on-windows:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: windows-latest
+    needs: build-on-macos
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Pages
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1
+        uses: microsoft/setup-msbuild@v2
 
       - name: Setup JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -40,6 +81,11 @@ jobs:
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
+
+      - name: Download macOS package
+        uses: actions/download-artifact@v4
+      - name: Display structure of downloaded files
+        run: ls -R
 
       - name: Build
         run: |
@@ -68,17 +114,19 @@ jobs:
           copy windows\bin\Release\net472\Musiche.exe web\dist\Musiche.exe -ErrorAction SilentlyContinue
           copy windows\bin\Publish\net6.0-windows\Musiche.exe web\dist\Musiche.net6.exe -ErrorAction SilentlyContinue
           copy mobile\build\app\outputs\flutter-apk\app-release.apk web\dist\Musiche.apk -ErrorAction SilentlyContinue
+          copy macos-package\musiche.dmg web\dist\Musiche.dmg -ErrorAction SilentlyContinue
+          copy macos-package\musiche.ipa web\dist\Musiche.ipa -ErrorAction SilentlyContinue
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
         with:
           # Upload entire repository
           path: 'web/dist'
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v4
 
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
@@ -86,3 +134,5 @@ jobs:
             web\dist\Musiche.exe
             web\dist\Musiche.net6.exe
             web\dist\Musiche.apk
+            web\dist\Musiche.ipa
+            web\dist\Musiche.dmg

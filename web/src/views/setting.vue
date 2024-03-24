@@ -1017,6 +1017,20 @@ onUnmounted(unWatch);
               </a>
               <a
                 class="music-setting-about-card"
+                href="https://hehang0.github.io/musiche/Musiche.dmg"
+                target="_blank">
+                <div
+                  class="logo-app"
+                  style="
+                    --logo-app-color: var(--music-footer-background);
+                    color: white;
+                  ">
+                  <el-icon size="44"><AppleImage /></el-icon>
+                </div>
+                <p>MacOS版</p>
+              </a>
+              <a
+                class="music-setting-about-card"
                 href="https://hehang0.github.io/musiche/Musiche.apk"
                 target="_blank">
                 <div
@@ -1396,6 +1410,8 @@ onUnmounted(unWatch);
     &-download {
       display: flex;
       margin-top: 30px;
+      gap: 20px;
+      flex-wrap: wrap;
     }
     &-update {
       cursor: pointer;
@@ -1409,9 +1425,6 @@ onUnmounted(unWatch);
       text-align: center;
       cursor: pointer;
       color: inherit; //-webkit-link;
-      & + & {
-        margin-left: 20px;
-      }
       &:hover {
         p {
           text-decoration: underline;

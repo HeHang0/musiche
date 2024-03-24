@@ -1,0 +1,21 @@
+{
+  "title": "音乐和",
+  "icon": "build/macos/Build/Products/Release/musiche.app/Contents/Resources/AppIcon.icns",
+  "background-color": "#b9e7e4",
+  "icon-size": 80,
+  "contents": [
+    { "x": 340, "y": 120, "type": "link", "path": "/Applications" },
+    {
+      "x": 140,
+      "y": 120,
+      "type": "file",
+      "path": "build/macos/Build/Products/Release/musiche.app"
+    }
+  ],
+  "window": {
+    "size": {
+      "width": 480,
+      "height": 300
+    }
+  }
+}
