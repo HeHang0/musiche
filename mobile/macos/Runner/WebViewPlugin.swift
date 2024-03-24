@@ -15,7 +15,6 @@ public class WebViewPlugin: NSObject, FlutterPlugin {
   private let webview: WKWebView
   private var lyricWindow: LyricWindow?
   private let fonts: [String]
-  private var visibleTask: DispatchWorkItem?
 
   required init(channel: FlutterMethodChannel, registrar: FlutterPluginRegistrar) {
     self.channel = channel
@@ -49,7 +48,7 @@ public class WebViewPlugin: NSObject, FlutterPlugin {
     self.webview.translatesAutoresizingMaskIntoConstraints = false
     self.webview.configuration.userContentController.add(self, name: "logger")
     self.webview.configuration.allowsAirPlayForMediaPlayback = true
-    self.webview.isHidden = true
+    self.webview.setValue(true, forKey: "drawsTransparentBackground")
     if #available(macOS 13.3, *) {
       self.webview.isInspectable = true
     }
@@ -58,7 +57,7 @@ public class WebViewPlugin: NSObject, FlutterPlugin {
         self.webview.topAnchor.constraint(equalTo: registrar.view!.topAnchor),
         self.webview.leadingAnchor.constraint(equalTo: registrar.view!.leadingAnchor),
         self.webview.trailingAnchor.constraint(equalTo: registrar.view!.trailingAnchor),
-        self.webview.bottomAnchor.constraint(equalTo: registrar.view!.bottomAnchor),
+        self.webview.bottomAnchor.constraint(equalTo: registrar.view!.bottomAnchor)
     ])
     let script = WKUserScript(source: "document.body.oncontextmenu=e=>e.preventDefault();console.log = function(){let result='';for(let i=0;i<arguments.length;i++){result+=arguments[i]+' '};result=result.trim();result && window.webkit.messageHandlers['logger'].postMessage(result)}", injectionTime: .atDocumentEnd, forMainFrameOnly: true)
     self.webview.configuration.userContentController.addUserScript(script)
@@ -74,7 +73,7 @@ public class WebViewPlugin: NSObject, FlutterPlugin {
         view.topAnchor.constraint(equalTo: registrar.view!.topAnchor),
         view.leadingAnchor.constraint(equalTo: registrar.view!.leadingAnchor),
         view.trailingAnchor.constraint(equalTo: registrar.view!.trailingAnchor),
-        view.heightAnchor.constraint(equalToConstant: viewBarHeight),
+        view.heightAnchor.constraint(equalToConstant: viewBarHeight)
     ])
   }
   
@@ -95,18 +94,6 @@ public class WebViewPlugin: NSObject, FlutterPlugin {
         imageView.centerXAnchor.constraint(equalTo: self.registrar.view!.centerXAnchor),
         imageView.centerYAnchor.constraint(equalTo: self.registrar.view!.centerYAnchor)
     ])
-  }
-  
-  private func showWebView(){
-    if(!self.webview.isHidden){
-      return
-    }
-    self.visibleTask?.cancel()
-    self.visibleTask = DispatchWorkItem {
-      self.webview.isHidden = false
-      self.visibleTask = nil
-    }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: self.visibleTask!)
   }
   
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -138,17 +125,16 @@ public class WebViewPlugin: NSObject, FlutterPlugin {
   }
   private func setLyricOptions(call: FlutterMethodCall, result: @escaping FlutterResult) {
     let args = call.arguments as! [String: Any]
-    let show = args["show"] as! Bool
+    let show = (args["show"] as? Bool) ?? false
     if(!show) {
       self.lyricWindow?.close()
-      self.lyricWindow = nil
       result(nil)
       return
     }
     if(self.lyricWindow == nil) {
-      let title = args["title"] as! String
+      let title = (args["title"] as? String) ?? ""
       self.lyricWindow = LyricWindow(title: title)
-      self.lyricWindow?.makeKeyAndOrderFront(self)
+      self.lyricWindow?.isReleasedWhenClosed = false
       let dark = UserDefaults.standard.bool(forKey: "dark");
       let auto = UserDefaults.standard.bool(forKey: "auto");
       self.lyricWindow?.setTheme(dark: (auto && NSApp.effectiveAppearance.name == .darkAqua) || dark)
@@ -160,6 +146,7 @@ public class WebViewPlugin: NSObject, FlutterPlugin {
     let effectColor = args["effectColor"] as? String
     let fontColor = args["fontColor"] as? String
     self.lyricWindow?.setOptions(fontFamily: fontFamily, fontSize: CGFloat(fontSize), fontBold: fontBold, effectColor: effectColor, fontColor: fontColor)
+    self.lyricWindow?.orderFront(self)
     result(nil)
   }
   private func theme(call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -196,7 +183,7 @@ public class LyricWindow: NSWindow {
   
   public init(title: String){
     self.lyricLabel = NSTextField(labelWithString: title)
-    super.init(contentRect: NSRect(x: 0, y: 0, width: 500, height: 100), styleMask: [.fullSizeContentView, .borderless, .resizable], backing: .buffered, defer: false)
+    super.init(contentRect: NSRect(x: 0, y: 0, width: 500, height: 100), styleMask: [.fullSizeContentView, .borderless, .resizable], backing: .buffered, defer: true)
     setWindowPos()
     setWindowProperty()
     setContentView()
@@ -220,9 +207,10 @@ public class LyricWindow: NSWindow {
     shadow = NSShadow()
     let shadowColor = getColorFromString(hex: effectColor, defaultColor: NSColor.clear)
     shadow!.shadowColor = shadowColor
-    shadow!.shadowBlurRadius = 2
+    shadow!.shadowBlurRadius = 3
     self.lyricLabel.shadow = shadow
     self.lyricLabel.font = font
+    self.minSize.height = Double(fontSize)
   }
   func getColorFromString(hex: String?, defaultColor: NSColor=NSColor.clear) -> NSColor
   {
@@ -240,12 +228,12 @@ public class LyricWindow: NSWindow {
     self.lyricLabel.stringValue = text
   }
   private func setWindowPos(){
-    self.minSize.width = 360
+    self.minSize.width = 200
     self.minSize.height = 22
     let maxWidth = NSScreen.main?.visibleFrame.width ?? 1000
     let maxHeight = NSScreen.main?.visibleFrame.height ?? 1000
-    self.maxSize.width = maxWidth / 2
-    self.maxSize.height = maxHeight / 2
+    self.maxSize.width = maxWidth
+    self.maxSize.height = maxHeight
     var x = UserDefaults.standard.double(forKey: "lyric-x")
     var y = UserDefaults.standard.double(forKey: "lyric-y")
     var w = UserDefaults.standard.double(forKey: "lyric-w")
@@ -268,17 +256,19 @@ public class LyricWindow: NSWindow {
     if(y < 0) {
       y = 0
     }else if(y > maxHeight - h){
-      y = maxHeight - y
+      y = maxHeight - h
     }
     self.setContentSize(NSSize(width: w, height: h))
     self.setFrameOrigin(NSPoint(x: x, y: y))
   }
   private func setWindowProperty(){
-    self.titlebarAppearsTransparent = true
-    self.titleVisibility = .hidden
     self.isOpaque = false
     self.level = .floating
-    self.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+    if #available(macOS 13.0, *) {
+      self.collectionBehavior = [.canJoinAllSpaces, .canJoinAllApplications, .fullScreenAuxiliary]
+    } else {
+      self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+    }
     self.isMovable = true
     self.backgroundColor = NSColor.clear
   }
@@ -293,15 +283,19 @@ public class LyricWindow: NSWindow {
     if(self.contentView == nil) {
       return
     }
-    lyricLabel.isEditable = false
-    lyricLabel.isSelectable = false
-    lyricLabel.alignment = .center
-    lyricLabel.translatesAutoresizingMaskIntoConstraints = false
+    self.lyricLabel.isEditable = false
+    self.lyricLabel.isSelectable = false
+    self.lyricLabel.isBezeled = false
+    self.lyricLabel.isBordered = false
     
-    self.contentView!.addSubview(lyricLabel)
+    self.lyricLabel.alignment = .center
+    self.lyricLabel.backgroundColor = .clear
+    self.lyricLabel.drawsBackground = false
+    self.contentView!.addSubview(self.lyricLabel)
+    self.lyricLabel.translatesAutoresizingMaskIntoConstraints = false
     NSLayoutConstraint.activate([
-      lyricLabel.centerXAnchor.constraint(equalTo: self.contentView!.centerXAnchor),
-      lyricLabel.centerYAnchor.constraint(equalTo: self.contentView!.centerYAnchor)
+      self.lyricLabel.centerXAnchor.constraint(equalTo: self.contentView!.centerXAnchor),
+      self.lyricLabel.centerYAnchor.constraint(equalTo: self.contentView!.centerYAnchor)
     ])
   }
   public override func mouseDown(with event: NSEvent) {
@@ -320,9 +314,6 @@ extension WebViewPlugin: WKScriptMessageHandler {
 public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage){
     if message.name == "logger" {
         let body = message.body as! String
-        if(body == "musiche loaded"){
-          self.showWebView()
-        }
         channel.invokeMethod("onLogger", arguments: [ "message": body ])
     }
   }
@@ -347,7 +338,6 @@ extension WebViewPlugin: WKNavigationDelegate {
   }
 
   public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-    self.showWebView()
     guard let url = webView.url?.absoluteString else { return }
     channel.invokeMethod("onPageFinished", arguments: [ "url": url ])
   }

@@ -33,7 +33,6 @@ const connection = new MusicConnection();
 let rootClass = connection.config.remote ? 'webview-host' : '';
 onMounted(() => {
   fixPwaForIOS();
-  console.log('musiche loaded');
 });
 </script>
 

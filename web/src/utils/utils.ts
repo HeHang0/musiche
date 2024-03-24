@@ -164,6 +164,7 @@ export function parseLyric(text: string, length: number): LyricLine[] {
   const textList: { millisecond: number; duration: string; text: string }[] =
     [];
   lines.forEach(line => {
+    if (/\[[a-zA-Z]+:[\s\S]+\]/.test(line)) return;
     const text = line.replace(timeRegex, '').trim();
     let match;
     let matched = false;

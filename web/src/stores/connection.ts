@@ -56,6 +56,8 @@ export class MusicConnection {
     this.config.file && local.setRemoteMode(true);
     await this.play.initValue(this.config);
     await this.setting.initValue(this.config);
+    document.documentElement.style.opacity = '1';
+    console.log('musiche loaded');
     this.webSocketClient = http.wsClient(
       this.wsMessage.bind(this),
       this.wsClose.bind(this),
