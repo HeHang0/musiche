@@ -7,6 +7,7 @@ import { useSettingStore } from './setting';
 import { registerServiceWorker } from '../sw/register';
 import { LyricManager } from '../utils/lyric';
 import * as local from '../utils/api/local';
+import { isMobile } from '../utils/utils';
 
 export class MusicConnection {
   webSocketClient?: http.CommunicationClient;
@@ -56,6 +57,8 @@ export class MusicConnection {
     this.config.file && local.setRemoteMode(true);
     await this.play.initValue(this.config);
     await this.setting.initValue(this.config);
+    await import('../style/main.css');
+    if (!isMobile) import('default-passive-events');
     document.documentElement.style.opacity = '1';
     console.log('musiche loaded');
     this.webSocketClient = http.wsClient(
@@ -139,7 +142,7 @@ export class MusicConnection {
           this.play.addMyLove([this.play.music]);
           break;
         case 'lover':
-          if (this.play.music.type && this.play.music.type) {
+          if (this.play.music.id && this.play.music.type) {
             let exist =
               this.play.myLover[this.play.music.type + this.play.music.id];
             this.play.addMyLove([this.play.music], exist);

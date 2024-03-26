@@ -25,7 +25,8 @@ public class LyricService extends Service implements View.OnTouchListener {
     private View mLiricView;
     private OutlinedTextView mLyricTextView;
     SharedPreferences mPreferences;
-    private static final String positionKey = "lyric-position";
+    private static final String positionXKey = "lyric-position-x";
+    private static final String positionYKey = "lyric-position-y";
 
     @Override
     public void onCreate() {
@@ -106,7 +107,9 @@ public class LyricService extends Service implements View.OnTouchListener {
 
         // 设置悬浮窗口的位置
         mWindowParams.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
-        mWindowParams.y = mPreferences.getInt(positionKey, 100);
+        mWindowParams.y = mPreferences.getInt(positionYKey, 100);
+        int x = mPreferences.getInt(positionYKey, -1);
+        if(x != -1) mWindowParams.x = x;
 
         // 将悬浮窗口添加到 WindowManager
         mWindowManager.addView(mLiricView, mWindowParams);
@@ -133,6 +136,9 @@ public class LyricService extends Service implements View.OnTouchListener {
     private int initialY;
     private float initialTouchY;
 
+    private int initialX;
+    private float initialTouchX;
+
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouch(View v, MotionEvent event) {
@@ -141,14 +147,19 @@ public class LyricService extends Service implements View.OnTouchListener {
                 // 记录初始位置和触摸点位置
                 initialY = mWindowParams.y;
                 initialTouchY = event.getRawY();
+                // 记录初始位置和触摸点位置
+                initialX = mWindowParams.x;
+                initialTouchX = event.getRawX();
                 return true;
             case MotionEvent.ACTION_MOVE:
                 // 计算移动距离并更新悬浮窗口位置
                 mWindowParams.y = initialY + (int) (event.getRawY() - initialTouchY);
+                mWindowParams.x = initialX + (int) (event.getRawX() - initialTouchX);
                 mWindowManager.updateViewLayout(mLiricView, mWindowParams);
                 return true;
             case MotionEvent.ACTION_UP:
-                mPreferences.edit().putInt(positionKey, mWindowParams.y).apply();
+                mPreferences.edit().putInt(positionXKey, mWindowParams.x).apply();
+                mPreferences.edit().putInt(positionYKey, mWindowParams.y).apply();
                 return true;
             default:
                 return false;

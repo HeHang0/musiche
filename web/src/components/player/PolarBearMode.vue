@@ -104,7 +104,7 @@ function calcSeat() {
 }
 onUnmounted(() => {
   snowflakes?.destroy();
-  window.addEventListener('resize', calcSeat);
+  window.removeEventListener('resize', calcSeat);
   play.subscribeLyricLine(onLyricLine, true);
 });
 </script>

@@ -224,7 +224,7 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
 <style lang="less" scoped>
 .music-aside {
   --safe-area-left: calc(var(--sal) / 1.5);
-  width: 205px;
+  width: calc(205px + var(--safe-area-left));
   background-color: var(--music-side-background);
   padding-left: var(--safe-area-left);
   color: var(--music-side-text-color);
@@ -403,9 +403,9 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
 :deep(.el-dialog__body) {
   padding: 0;
 }
-@media (max-width: 800px) {
+@media (max-width: 800px) and (orientation: portrait) {
   .music-aside {
-    width: 50px;
+    width: calc(50px + var(--safe-area-left));
     &-title {
       padding: var(--sat) 0 0 5px;
       &-logo {
@@ -445,6 +445,16 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
   .el-sub-menu {
     :deep(.el-sub-menu__icon-arrow) {
       right: 5px !important;
+    }
+  }
+}
+@media (max-width: 800px) and (orientation: landscape) {
+  .music-aside {
+    width: calc(160px + var(--safe-area-left));
+    &-menu {
+      :deep(.el-sub-menu__title .el-sub-menu__icon-arrow) {
+        right: 10px;
+      }
     }
   }
 }

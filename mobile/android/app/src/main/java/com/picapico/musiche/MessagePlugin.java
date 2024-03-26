@@ -7,6 +7,7 @@ import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
@@ -23,7 +24,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
-import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 
@@ -31,18 +31,16 @@ public class MessagePlugin implements FlutterPlugin {
     private static final String TAG = "MusicheMessagePlugin";
     private static final String CHANNEL = "musiche-method-channel";
     private static final String METHOD_BACK_TO_HOME = "back-to-home";
-    private static final String METHOD_MEDIA_METADATA = "media-metadata";
-    private static final String METHOD_MEDIA_POSITION = "media-position";
     private static final String METHOD_MEDIA_AUDIO_ALL = "media-audio-all";
     private static final String METHOD_MEDIA_THUMBNAIL = "media-thumbnail";
     private static final String METHOD_LYRIC_OPTIONS = "lyric-options";
     private static final String METHOD_LYRIC_LINE = "lyric-line";
     private static final String METHOD_STATUS_BAR_THEME = "status-bar-theme";
-    private static final String CHANNEL_MEDIA_OPERATE = "media-operate";
+    private static final String METHOD_SAVE_THEME = "save-theme";
     private FlutterPluginBinding mBinding;
     private boolean isServiceBound = false;
-    private final NotificationCallback mMediaSessionCallback = new NotificationCallback();
     private Activity mCurrentActivity;
+    private SharedPreferences mPreferences;
     public interface OnBackToHomeListener {
         void onBackToHome();
     }
@@ -56,29 +54,11 @@ public class MessagePlugin implements FlutterPlugin {
     }
 
     private void onMethodCall(MethodCall call, MethodChannel.Result result){
-        Integer position;
-        boolean playing;
         switch (call.method) {
             case METHOD_BACK_TO_HOME:
                 if(mBackToHomeListener != null) {
                     mBackToHomeListener.onBackToHome();
                 }
-                break;
-            case METHOD_MEDIA_METADATA:
-                final String title = call.argument("title");
-                final String artist = call.argument("artist");
-                final String album = call.argument("album");
-                final String artwork = call.argument("artwork");
-                final Integer duration = call.argument("duration");
-                position = call.argument("position");
-                playing = Boolean.TRUE.equals(call.argument("playing"));
-                boolean lover = Boolean.TRUE.equals(call.argument("lover"));
-                updateMetaData(title, artist, album, artwork, playing, lover, position, duration);
-                break;
-            case METHOD_MEDIA_POSITION:
-                position = call.argument("position");
-                playing = Boolean.TRUE.equals(call.argument("playing"));
-                updateMetaData(playing, position);
                 break;
             case METHOD_LYRIC_OPTIONS:
                 final boolean show = Boolean.TRUE.equals(call.argument("show"));
@@ -94,50 +74,32 @@ public class MessagePlugin implements FlutterPlugin {
                 updateLyricLine(lyricLine);
                 break;
             case METHOD_STATUS_BAR_THEME:
+            case METHOD_SAVE_THEME:
                 final boolean dark = Boolean.TRUE.equals(call.argument("dark"));
-                if(mCurrentActivity != null) {
+                final boolean auto = Boolean.TRUE.equals(call.argument("auto"));
+                final boolean saved = Boolean.TRUE.equals(call.argument("saved"));
+                final boolean bar = METHOD_STATUS_BAR_THEME.equals(call.method);
+                if(bar && mCurrentActivity != null) {
                     SystemBarEdge.setEdgeToEdge(mCurrentActivity.getWindow(), dark);
                 }
+                if(saved || !bar) saveTheme(dark, auto);
                 break;
             case METHOD_MEDIA_AUDIO_ALL:
                 result.success(getAllAudios());
-                break;
+                return;
             case METHOD_MEDIA_THUMBNAIL:
                 String uri = call.argument("uri");
                 result.success(getThumbnail(uri));
-                break;
+                return;
         }
+        result.success(null);
     }
 
-    private void updateMetaData(boolean playing, Integer position){
-        if(position == null) return;
-        if(!playing && isServiceNotRunning(mBinding.getApplicationContext(), NotificationService.class)) return;
-        Intent intent = new Intent(mBinding.getApplicationContext(), NotificationService.class);
-        intent.putExtra("playing", playing);
-        intent.putExtra("position", position.intValue());
-        mBinding.getApplicationContext().startService(intent);
-        if(!isServiceBound) mBinding.getApplicationContext().bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
-    }
-
-    private void updateMetaData(
-            String title, String artist, String album, String artwork,
-            boolean playing, boolean lover, Integer position, Integer duration) {
-        if(!playing && isServiceNotRunning(mBinding.getApplicationContext(), NotificationService.class)) return;
-        Intent intent = new Intent(mBinding.getApplicationContext(), NotificationService.class);
-        intent.putExtra("playing", playing);
-        intent.putExtra("lover", lover);
-        intent.putExtra("title", title);
-        intent.putExtra("artist", artist);
-        intent.putExtra("album", album);
-        intent.putExtra("artwork", artwork);
-        if(position != null) {
-            intent.putExtra("position", position.intValue());
+    private void saveTheme(boolean dark, boolean auto){
+        if(mPreferences != null){
+            mPreferences.edit().putBoolean("dark", dark).putBoolean("auto", auto).apply();
         }
-        if(duration != null) {
-            intent.putExtra("duration", duration.intValue());
-        }
-        mBinding.getApplicationContext().startService(intent);
-        if(!isServiceBound) mBinding.getApplicationContext().bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
+        SystemBarEdge.setDarkMode(mBinding.getApplicationContext(), dark, auto);
     }
 
     private ArrayList<HashMap<String, Object>> getAllAudios(){
@@ -175,9 +137,6 @@ public class MessagePlugin implements FlutterPlugin {
                         String data = cursor.getString(dataColumn);
                         Uri contentUri = ContentUris.withAppendedId(
                                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id);
-                        Log.i("音乐URI", String.format(
-                                "名字：%s, 歌手：%s, 专辑：%s, 时间：%d, 标题：%s, id: %d, URI：%s, Data: %s",
-                                displayName, artist, album, duration, title, id, contentUri, data));
                         if(title.isEmpty()) title = displayName;
                         HashMap<String, Object> song = new HashMap<>();
                         song.put("name", title);
@@ -252,35 +211,9 @@ public class MessagePlugin implements FlutterPlugin {
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
         mBinding = binding;
+        mPreferences = binding.getApplicationContext().getSharedPreferences("config", Context.MODE_PRIVATE);
         MethodChannel mMethodChannel = new MethodChannel(binding.getBinaryMessenger(), CHANNEL);
         mMethodChannel.setMethodCallHandler(this::onMethodCall);
-        EventChannel mOperateEventChannel = new EventChannel(binding.getBinaryMessenger(), CHANNEL_MEDIA_OPERATE);
-        mOperateEventChannel.setStreamHandler(new EventChannel.StreamHandler() {
-            @Override
-            public void onListen(Object arguments, EventChannel.EventSink events) {
-                mMediaSessionCallback.setEventSink(events);
-            }
-
-            @Override
-            public void onCancel(Object arguments) {
-
-            }
-        });
-        NotificationReceiver.setOnActionReceiveListener(this::onMediaActionReceive);
-    }
-
-    private void onMediaActionReceive(String action) {
-        switch (action) {
-            case NotificationActions.ACTION_NEXT:
-            case NotificationActions.ACTION_PREVIOUS:
-            case NotificationActions.ACTION_PLAY_PAUSE:
-            case NotificationActions.ACTION_PLAY:
-            case NotificationActions.ACTION_PAUSE:
-            case NotificationActions.ACTION_LOVER:
-            case NotificationActions.ACTION_SHOW:
-                mMediaSessionCallback.onAction(action);
-                break;
-        }
     }
 
     @Override
@@ -290,14 +223,11 @@ public class MessagePlugin implements FlutterPlugin {
             isServiceBound = false;
         }
         if(binding.equals(mBinding)) mBinding = null;
-        NotificationReceiver.setOnActionReceiveListener(null);
     }
 
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName className, IBinder service) {
-            NotificationService.NotificationBinder binder = (NotificationService.NotificationBinder) service;
-            binder.getService().setMediaSessionCallback(mMediaSessionCallback);
             isServiceBound = true;
         }
 

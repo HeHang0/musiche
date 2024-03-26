@@ -14,6 +14,7 @@ class AndroidChannel {
   static const _methodLyricOptions = "lyric-options";
   static const _methodLyricLine = "lyric-line";
   static const _methodStatusBarTheme = "status-bar-theme";
+  static const _methodSaveTheme = "save-theme";
   static const _methodMediaAudioAll = "media-audio-all";
   static const _methodMediaThumbnail = "media-thumbnail";
   static final MethodChannel? _methodChannel = Platform.isAndroid ? const MethodChannel(_channel) : null;
@@ -34,7 +35,7 @@ class AndroidChannel {
       'album': metadata.album,
       'artist': metadata.artist,
       'title': metadata.title,
-      'artwork': metadata.artUri?.path ?? "",
+      'artwork': metadata.artUri?.toString() ?? "",
       'lover': lover,
       'playing': playing,
       'position': position,
@@ -52,7 +53,9 @@ class AndroidChannel {
       'playing': playing,
       'position': position,
     };
-    _methodChannel?.invokeMethod(_methodMediaPosition, params);
+    try{
+      _methodChannel?.invokeMethod(_methodMediaPosition, params);
+    }catch(e){ }
   }
 
   static Future<void> setLyricOptions(Map<String, dynamic> lyricOptions)async {
@@ -66,11 +69,21 @@ class AndroidChannel {
     _methodChannel?.invokeMethod(_methodLyricLine, params);
   }
 
-  static Future<void> setStatusBarTheme(bool dark) async {
+  static Future<void> setStatusBarTheme(bool dark, bool auto, bool saved) async {
     final Map<String, dynamic> params = <String, dynamic>{
       'dark': dark,
+      'auto': auto,
+      'saved': saved
     };
     _methodChannel?.invokeMethod(_methodStatusBarTheme, params);
+  }
+
+  static Future<void> saveTheme(bool dark, bool auto) async {
+    final Map<String, dynamic> params = <String, dynamic>{
+      'dark': dark,
+      'auto': auto
+    };
+    _methodChannel?.invokeMethod(_methodSaveTheme, params);
   }
 
   static Future<List<Map<String, dynamic>>> getAllAudio() async {

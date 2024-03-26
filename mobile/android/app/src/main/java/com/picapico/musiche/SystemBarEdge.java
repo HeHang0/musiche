@@ -1,13 +1,19 @@
 package com.picapico.musiche;
 
+import android.app.UiModeManager;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Build;
+import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 
 import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AppCompatDelegate;
 
 public class SystemBarEdge {
     @RequiresApi(api = Build.VERSION_CODES.R)
@@ -158,5 +164,31 @@ public class SystemBarEdge {
         }else {
             setEdgeToEdgeApiBase(window);
         }
+    }
+
+    public static void setDarkMode(Context context, boolean dark, boolean auto){
+        int mode = AppCompatDelegate.MODE_NIGHT_NO;
+        if(auto){
+            mode = AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
+        }else if(dark){
+            mode = AppCompatDelegate.MODE_NIGHT_YES;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            setDarkMode31(context, mode);
+        }else {
+            AppCompatDelegate.setDefaultNightMode(mode);
+        }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.S)
+    public static void setDarkMode31(Context context, int mode){
+        switch (mode){
+            case AppCompatDelegate.MODE_NIGHT_NO:
+            case AppCompatDelegate.MODE_NIGHT_YES:
+                break;
+            default: mode = UiModeManager.MODE_NIGHT_AUTO;break;
+        }
+        UiModeManager uiModeManager = (UiModeManager) context.getSystemService(Context.UI_MODE_SERVICE);
+        uiModeManager.setApplicationNightMode(mode);
     }
 }

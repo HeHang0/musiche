@@ -21,6 +21,7 @@ class WebSocketHandler extends Handler with TrayListener, WindowListener impleme
     audioPlay.onPlayerStateChanged.listen(_onPlayerStateChanged);
     audioPlay.onPositionChanged.listen(_onPositionChanged);
     audioPlay.onDurationChanged.listen(_onDurationChanged);
+    audioPlay.onLoverChanged.listen(_onLoverChanged);
     if(Platform.isAndroid){
       EventChannel eventChannel = const EventChannel(_channelMediaOperate);
       eventChannel.receiveBroadcastStream().listen(_onMediaOperate);
@@ -179,6 +180,10 @@ class WebSocketHandler extends Handler with TrayListener, WindowListener impleme
   _onDurationChanged(Duration? duration) async {
     if(duration == null) return;
     await _sendStatus(duration: duration);
+  }
+
+  _onLoverChanged(MusicItem music) async {
+    sendMessage('{"type": "lover"}');
   }
 
   _sendStatus({Duration? position, Duration? duration}) async {

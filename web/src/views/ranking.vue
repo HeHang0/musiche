@@ -171,11 +171,13 @@ onUnmounted(unWatch);
 @media (max-width: 800px) {
   .music-ranking {
     &-header {
-      flex-direction: column;
-      align-items: flex-start;
+      flex-wrap: wrap;
       .el-radio-group {
         margin-left: 0;
         margin-bottom: 5px;
+      }
+      .el-button {
+        height: 27px;
       }
     }
   }

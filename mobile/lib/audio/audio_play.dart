@@ -16,7 +16,9 @@ enum LoopType {
 }
 class AudioPlay extends BaseAudioHandler {
   late final AudioPlayer _audioPlayer;
+  late final StreamController<MusicItem> _onLoverChanged;
   Stream<PlayerState> get onPlayerStateChanged => _audioPlayer.playerStateStream;
+  Stream<MusicItem> get onLoverChanged => _onLoverChanged.stream;
   Stream<Duration?> get onDurationChanged => _audioPlayer.durationStream;
   Stream<Duration> get onPositionChanged => _audioPlayer.positionStream;
   bool get playing => _audioPlayer.playing;
@@ -24,7 +26,6 @@ class AudioPlay extends BaseAudioHandler {
   int get volume => _volume;
   Future<Duration?> Function() get currentPosition => () => Future(() => _audioPlayer.position);
   Future<Duration?> Function() get duration => () => Future(() => _audioPlayer.duration);
-  // MediaMetadata? metadata;
   int _lastIndex = 0;
   LoopType _loopType = LoopType.loop;
   Quality _quality = Quality.pq;
@@ -32,13 +33,16 @@ class AudioPlay extends BaseAudioHandler {
   int _volume = 100;
   AudioPlay(){
     _audioPlayer = AudioPlayer();
+    _onLoverChanged = StreamController<MusicItem>();
     _initAudioService();
     onDurationChanged.listen(_onDurationChanged);
     onPositionChanged.listen(_onPositionChanged);
     onPlayerStateChanged.listen(_onPlayerStateChanged);
-    FlutterVolumeController.addListener((volume) {
-      _volume = (100 * volume).toInt();
-    });
+    FlutterVolumeController.addListener(_onVolumeChanged);
+  }
+
+  void _onVolumeChanged(double volume){
+    _volume = (100 * volume).toInt();
   }
 
   Future<void> _initAudioService() async {
@@ -49,6 +53,7 @@ class AudioPlay extends BaseAudioHandler {
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.picapico.musiche.channel.audio',
         androidNotificationChannelName: 'Musiche playback',
+        androidNotificationIcon: 'drawable/logo'
       ),
     );
   }
@@ -103,11 +108,12 @@ class AudioPlay extends BaseAudioHandler {
   Future<void> play() async {
     playCurrent();
   }
-  // @override
-  // Future<void> pause() async {}
   @override
   Future<void> stop() async {
-    pause();
+    if(_musicPlayRequest?.music == null) return;
+    _musicPlayRequest!.music!.lover = !_musicPlayRequest!.music!.lover;
+    _setMediaControls();
+    _onLoverChanged.sink.add(_musicPlayRequest!.music!);
   }
   @override
   Future<void> seek(Duration position) async {
@@ -146,32 +152,52 @@ class AudioPlay extends BaseAudioHandler {
 
   _onPlayerStateChanged(PlayerState state) async {
     setMediaMeta();
-    if(stopped) skipToNext();
+    if(_audioPlayer.playerState.processingState == ProcessingState.completed || _audioPlayer.playerState.processingState == ProcessingState.idle) {
+      skipToNext();
+    }
   }
 
+  bool _firstLoadPosition = false;
   Future<void> _onPositionChanged(Duration position) async {
     if(kIsWeb) return;
-    if(Platform.isAndroid) {
-      AndroidChannel.setMediaPosition(playing, position.inMilliseconds);
-    } else{
-      playbackState.add(PlaybackState(
-        controls: [
-          MediaControl.skipToPrevious,
-          playing ? MediaControl.pause : MediaControl.play,
-          MediaControl.skipToNext,
-        ],
-        systemActions: const {
-          MediaAction.seek
-        },
-        androidCompactActionIndices: const [0, 1, 2],
-        processingState:  AudioProcessingState.ready,
-        playing: _audioPlayer.playing,
-        updatePosition: _audioPlayer.position,
-        bufferedPosition: _audioPlayer.bufferedPosition,
-        speed: 1.0,
-        queueIndex: 0,
-      ));
-    }
+    _setMediaControls();
+  }
+
+  void _setMediaControls(){
+    playbackState.add(PlaybackState(
+      controls: [
+        const MediaControl(
+          androidIcon: 'drawable/last',
+          label: 'Previous',
+          action: MediaAction.skipToPrevious,
+        ),
+        MediaControl(
+          androidIcon: playing ? 'drawable/pause' : 'drawable/play',
+          label: playing ? 'Pause' : 'Play',
+          action: playing ? MediaAction.pause : MediaAction.play,
+        ),
+        const MediaControl(
+          androidIcon: 'drawable/next',
+          label: 'Next',
+          action: MediaAction.skipToNext,
+        ),
+        MediaControl(
+          androidIcon: (_musicPlayRequest?.music?.lover ?? false) ? 'drawable/lover_on' : 'drawable/lover_off',
+          label: 'Lover',
+          action: MediaAction.stop,
+        )
+      ],
+      systemActions: const {
+        MediaAction.seek
+      },
+      androidCompactActionIndices: const [0, 1, 3],
+      processingState:  AudioProcessingState.ready,
+      playing: _audioPlayer.playing,
+      updatePosition: _audioPlayer.position,
+      bufferedPosition: _audioPlayer.bufferedPosition,
+      speed: 1.0,
+      queueIndex: 0,
+    ));
   }
 
   Future<void> _onDurationChanged(Duration? duration) async {
@@ -194,11 +220,7 @@ class AudioPlay extends BaseAudioHandler {
         duration: duration,
         artUri: Uri.parse(music.image)
     );
-    if(Platform.isAndroid) {
-      AndroidChannel.setMediaMetadata(item, music.lover, playing, _audioPlayer.position.inMilliseconds, duration.inMilliseconds);
-    } else {
-      mediaItem.add(item);
-    }
+    mediaItem.add(item);
   }
 
   @override

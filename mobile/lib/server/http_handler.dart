@@ -296,6 +296,8 @@ class HttpHandler extends Handler implements IHandler {
     }
     var androidInfo = await OSVersion.androidInfo;
     var sdkInt = androidInfo?.version.sdkInt ?? 0;
+    final saved = (request.uri.queryParameters["saved"] ?? "0") == "1";
+    final auto = (request.uri.queryParameters["auto"] ?? "0") == "1";
     if(!Platform.isAndroid || (sdkInt >= 23 && sdkInt < 34)){
       SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -307,13 +309,14 @@ class HttpHandler extends Handler implements IHandler {
         systemNavigationBarIconBrightness: brightness,
         systemNavigationBarDividerColor: Colors.transparent,
       ));
-      final saved = (request.uri.queryParameters["saved"] ?? "0") == "1";
       if(Platform.isMacOS && saved){
-        final auto = (request.uri.queryParameters["auto"] ?? "0") == "1";
         MacOSChannel.theme(themeString != "1", auto);
       }
-    }else {
-      if(Platform.isAndroid) AndroidChannel.setStatusBarTheme(themeString != "1");
+    }else if(Platform.isAndroid) {
+       AndroidChannel.setStatusBarTheme(themeString != "1", auto, saved);
+    }
+    if(Platform.isAndroid && saved) {
+      AndroidChannel.saveTheme(themeString != "1", auto);
     }
   }
 

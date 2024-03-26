@@ -21,7 +21,7 @@ class WebViewApp extends StatefulWidget {
 class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
   static const String _tag = "MusicWebView";
   final GlobalKey webViewKey = GlobalKey();
-  static final String _url = kDebugMode ? "http://192.168.3.165:5173" : "http://127.0.0.1:${ServerManager.port}/index.html";
+  static final String _url = kDebugMode ? "http://127.0.0.1:5173" : "http://127.0.0.1:${ServerManager.port}/index.html";
   InAppWebViewController? webViewController;
   InAppWebViewSettings settings = InAppWebViewSettings(
       isInspectable: kDebugMode,
@@ -34,8 +34,6 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
       supportZoom: false,
       scrollBarStyle: ScrollBarStyle.SCROLLBARS_OUTSIDE_OVERLAY
   );
-  double _opacity = 0;
-  Timer? _delayShow;
   @override
   void initState() {
     super.initState();
@@ -83,15 +81,6 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
     }
   }
 
-  void _showWebView(){
-    if(_opacity >= 1) return;
-    _setSafeArea();
-    Logger.i(_tag, "set webview opacity 1");
-    setState(() {
-      _opacity = 1;
-    });
-  }
-
   void _setSafeArea(){
     if (kIsWeb) return;
     EdgeInsets safePadding = MediaQuery.of(context).padding;
@@ -129,14 +118,12 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
   }
 
   void _onLoadStart(controller, url) {
-    _delayShow?.cancel();
     Logger.i(_tag, "on load start");
   }
 
   void _onLoadStop(controller, url) async {
-    _delayShow?.cancel();
-    _delayShow = Timer(const Duration(milliseconds: 233), _showWebView);
     Logger.i(_tag, "on load stop");
+    _setSafeArea();
   }
 
   Future<PermissionResponse?> _onPermissionRequest(controller, request) async {
@@ -153,14 +140,6 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
   _onProgressChanged(controller, progress) {
   }
   _onConsoleMessage(controller, ConsoleMessage consoleMessage) {
-    if("musiche loaded" == consoleMessage.message){// &&
-      if(_opacity < 1){
-        _delayShow?.cancel();
-        _delayShow = Timer(const Duration(milliseconds: 1000), _showWebView);
-      }else {
-        _setSafeArea();
-      }
-    }
     Logger.i(_tag, "console message: ${consoleMessage.message}");
   }
 
@@ -169,12 +148,9 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
     return PopScope(
         canPop: false,
         onPopInvoked : _onBackClick,
-        child: Opacity(
-          opacity: _opacity,
-          child: InAppWebView(
+        child: InAppWebView(
             key: webViewKey,
-            initialUrlRequest:
-            URLRequest(url: WebUri(_url)),
+            initialUrlRequest: URLRequest(url: WebUri(_url)),
             initialSettings: settings,
             onWebViewCreated: _onWebViewCreated,
             shouldOverrideUrlLoading: _shouldOverrideUrlLoading,
@@ -185,7 +161,6 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
             onConsoleMessage: _onConsoleMessage,
             onPermissionRequest: _onPermissionRequest,
             onReceivedServerTrustAuthRequest: _onReceivedServerTrustAuthRequest
-          ),
         )
     );
   }
