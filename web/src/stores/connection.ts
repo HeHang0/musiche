@@ -27,13 +27,6 @@ export class MusicConnection {
   constructor() {
     this.init();
     this.registerShortcut();
-    watch(() => this.setting.autoAppTheme, this.autoAppThemeChange.bind(this));
-  }
-
-  autoAppThemeChange() {
-    if (this.setting.autoAppTheme) {
-      this.sendWsMessage('/dark');
-    }
   }
 
   async init() {
@@ -55,16 +48,15 @@ export class MusicConnection {
     this.config.storage && storage.setRemoteMode(true);
     this.config.lyric && LyricManager.setRemoteMode(true);
     this.config.file && local.setRemoteMode(true);
-    await this.play.initValue(this.config);
-    await this.setting.initValue(this.config);
+    const storages = await storage.getAll();
+    await this.play.initValue(this.config, storages);
+    await this.setting.initValue(this.config, storages);
     await import('../style/main.css');
-    if (!isMobile) import('default-passive-events');
     document.documentElement.style.opacity = '1';
     console.log('musiche loaded');
     this.webSocketClient = http.wsClient(
       this.wsMessage.bind(this),
-      this.wsClose.bind(this),
-      this.autoAppThemeChange.bind(this)
+      this.wsClose.bind(this)
     );
     if (this.setting.pageValue.savePlayProgress) {
       try {
@@ -206,9 +198,6 @@ export class MusicConnection {
             this.play.addMyLove([this.play.music], exist);
           }
           break;
-        case 'dark':
-          this.setting.updateDarkMode(Boolean(result.data));
-          break;
       }
     } catch {}
   }
@@ -216,8 +205,7 @@ export class MusicConnection {
     setTimeout(() => {
       this.webSocketClient = http.wsClient(
         this.wsMessage.bind(this),
-        this.wsClose.bind(this),
-        this.autoAppThemeChange.bind(this)
+        this.wsClose.bind(this)
       );
     }, 1000);
   }

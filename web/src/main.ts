@@ -1,5 +1,6 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
+import 'default-passive-events';
 
 import 'element-plus/theme-chalk/dark/css-vars.css';
 import 'element-plus/theme-chalk/el-message-box.css';

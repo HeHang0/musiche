@@ -250,7 +250,7 @@ export const useSettingStore = defineStore('setting', {
       if (this.autoAppTheme) {
         darkModeMediaQuery.addEventListener('change', this.handleThemeChange);
         if (isAndroid && this.config.remote) {
-          this.setAppTheme(appTheme);
+          this.setAppTheme(appTheme, !noSave);
         } else {
           this.handleThemeChange();
         }
@@ -268,13 +268,7 @@ export const useSettingStore = defineStore('setting', {
     handleThemeChange() {
       this.setAppTheme({ id: darkModeMediaQuery.matches ? 'dark pure' : '' });
     },
-    updateDarkMode(dark: boolean) {
-      if (!this.autoAppTheme) return;
-      const id = dark ? 'dark' : '';
-      if (this.appTheme.id == id) return;
-      this.setAppTheme({ id: id });
-    },
-    setAppTheme(appTheme?: AppTheme) {
+    setAppTheme(appTheme?: AppTheme, saved = true) {
       let preferredColorScheme = 0;
       const dark = appTheme?.id.includes('dark');
       if (!this.autoAppTheme || !isWindows || !this.config.remote) {
@@ -289,17 +283,18 @@ export const useSettingStore = defineStore('setting', {
       this.appTheme.image =
         this.appTheme.id == this.customTheme.id ? this.customTheme.image : '';
       document.documentElement.className = this.appTheme.id;
-      storage.setValue(StorageKey.AppTheme, {
-        id: this.appTheme.id,
-        name: this.appTheme.name
-      });
+      saved &&
+        storage.setValue(StorageKey.AppTheme, {
+          id: this.appTheme.id,
+          name: this.appTheme.name
+        });
       if (themeColor) {
         themeColor.content = dark ? '#13131a' : '#f7f7f7';
         if (appTheme?.id.includes('pure')) themeColor.content = 'black';
       }
       updateTheme(preferredColorScheme, this.autoAppTheme, true);
     },
-    setCustomTheme(appTheme?: AppTheme) {
+    setCustomTheme(appTheme?: AppTheme, saved = true) {
       this.customTheme.id = appTheme?.id || 'custom ';
       this.customTheme.image = appTheme?.image || '';
       this.customTheme.name = '自定义';
@@ -310,7 +305,7 @@ export const useSettingStore = defineStore('setting', {
         var blob = dataURLtoBlob(this.customTheme.image);
         if (blob) this.customTheme.objectURL = URL.createObjectURL(blob);
       }
-      storage.setValue(StorageKey.CustomTheme, this.customTheme);
+      saved && storage.setValue(StorageKey.CustomTheme, this.customTheme);
     },
     setLyricOptions() {
       LyricManager.setLyricOptions({
@@ -570,32 +565,16 @@ export const useSettingStore = defineStore('setting', {
         }
       }
     },
-    async initValue(remoteConfig: Config) {
+    async initValue(remoteConfig: Config, storages: Record<string, any>) {
       this.setRemoteConfig(remoteConfig);
-      const storages = await storage.getAll();
-      this.setCustomTheme(
-        storages[StorageKey.CustomTheme] ||
-          (await storage.getValue(StorageKey.CustomTheme))
-      );
-      this.autoAppTheme = Boolean(
-        storages[StorageKey.AutoAppTheme] ||
-          (await storage.getValue(StorageKey.AutoAppTheme))
-      );
+      this.setCustomTheme(storages[StorageKey.CustomTheme], false);
+      this.autoAppTheme = Boolean(storages[StorageKey.AutoAppTheme]);
       if (this.autoAppTheme) {
-        this.autoAppThemeChanged(
-          true,
-          storages[StorageKey.AppTheme] ||
-            (await storage.getValue(StorageKey.AppTheme))
-        );
+        this.autoAppThemeChanged(true, storages[StorageKey.AppTheme]);
       } else {
-        this.setAppTheme(
-          storages[StorageKey.AppTheme] ||
-            (await storage.getValue(StorageKey.AppTheme))
-        );
+        this.setAppTheme(storages[StorageKey.AppTheme], false);
       }
-      const settingCache: any =
-        storages[StorageKey.Setting] ||
-        (await storage.getValue(StorageKey.Setting));
+      const settingCache: any = storages[StorageKey.Setting];
       const ignoreKeys = [
         'lyric',
         'shortcut',
@@ -603,7 +582,7 @@ export const useSettingStore = defineStore('setting', {
         'globalShortcut',
         'globalShortcutText'
       ];
-      if (settingCache) {
+      settingCache &&
         Object.keys(settingCache).map(key => {
           if (
             settingCache[key] != null &&
@@ -652,10 +631,8 @@ export const useSettingStore = defineStore('setting', {
             });
           }
         });
-      }
       const localDirectories: DirectoryInfo[] =
-        storages[StorageKey.LocalDirectories] ||
-        (await storage.getValue(StorageKey.LocalDirectories));
+        storages[StorageKey.LocalDirectories] || [];
       if (Array.isArray(localDirectories)) {
         this.localDirectories.splice(0, 0, ...localDirectories);
       }
@@ -663,27 +640,19 @@ export const useSettingStore = defineStore('setting', {
       this.setGpuAcceleration(this.pageValue.gpuAcceleration, true);
       this.setFont(this.pageValue.font, this.pageValue.fontBold, true);
       this.setDisableAnimation(this.pageValue.disableAnimation, true);
-      musicOperate('/fonts')
-        .then(fonts => {
-          if (Array.isArray(fonts) && fonts.length > 0) {
-            this.fonts = [];
-            this.fonts.push(...fonts);
-          }
-        })
-        .finally(() => {
-          this.registerGlobalShortCutAll();
-          this.registerGlobalShortCutMedia();
-        });
-      this.setPlayQuality(
-        storages[StorageKey.PlayQuality] ||
-          (await storage.getValue(StorageKey.PlayQuality)) ||
-          'SQ',
-        true
-      );
+      musicOperate('/fonts').then(fonts => {
+        if (Array.isArray(fonts) && fonts.length > 0) {
+          this.fonts = [];
+          this.fonts.push(...fonts);
+        }
+      });
+      if (this.config.shortcut) {
+        this.registerGlobalShortCutAll();
+        this.registerGlobalShortCutMedia();
+      }
+      this.setPlayQuality(storages[StorageKey.PlayQuality] || 'SQ', true);
       this.setDownloadQuality(
-        storages[StorageKey.DownloadQuality] ||
-          (await storage.getValue(StorageKey.DownloadQuality)) ||
-          'ZQ',
+        storages[StorageKey.DownloadQuality] || 'ZQ',
         true
       );
       LyricManager.setLyricOptions({
@@ -692,9 +661,7 @@ export const useSettingStore = defineStore('setting', {
           ? this.pageValue.lyric.effectColor
           : ''
       });
-      const userInfoCache: any =
-        storages[StorageKey.UserInfo] ||
-        (await storage.getValue(StorageKey.UserInfo));
+      const userInfoCache: any = storages[StorageKey.UserInfo];
       if (userInfoCache) {
         const keys = Object.keys(userInfoCache);
         for (let i = 0; i < keys.length; i++) {

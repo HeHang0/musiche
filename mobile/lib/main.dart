@@ -25,7 +25,6 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    ServerManager.changeTheme(MediaQuery.of(context).platformBrightness == Brightness.dark);
     return MaterialApp(//WebViewApp(//)
       home: !kIsWeb && Platform.isMacOS ? null : const WebViewApp(),
       // theme: ThemeData(colorScheme: const ColorScheme.light()),

@@ -6,7 +6,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:musiche/utils/android_channel.dart';
+import 'package:musiche/log/logger.dart';
 
 import 'music_item.dart';
 import 'music_play_request.dart';
@@ -15,6 +15,7 @@ enum LoopType {
   loop, random, order, single
 }
 class AudioPlay extends BaseAudioHandler {
+  static const String _tag = "AudioPlay";
   late final AudioPlayer _audioPlayer;
   late final StreamController<MusicItem> _onLoverChanged;
   Stream<PlayerState> get onPlayerStateChanged => _audioPlayer.playerStateStream;
@@ -100,6 +101,7 @@ class AudioPlay extends BaseAudioHandler {
       playUrl(url);
     } else {
       _musicPlayRequest?.playlist.remove(music);
+      Logger.i(_tag, "music cannot get url");
       skipToNext();
     }
   }
@@ -119,8 +121,13 @@ class AudioPlay extends BaseAudioHandler {
   Future<void> seek(Duration position) async {
     _audioPlayer.seek(position);
   }
+  Timer? _autoPlayDelay;
   @override
   Future<void> skipToNext() async {
+    _autoPlayDelay?.cancel();
+    _autoPlayDelay = Timer(const Duration(milliseconds: 50), _next);
+  }
+  void _next(){
     if((_musicPlayRequest?.playlist.length ?? 0) == 0 || _loopType == LoopType.single){
       playCurrent();
       return;
@@ -149,15 +156,14 @@ class AudioPlay extends BaseAudioHandler {
   Future<void> skipToPrevious() async {
     playIndex(_lastIndex);
   }
-
   _onPlayerStateChanged(PlayerState state) async {
     setMediaMeta();
-    if(_audioPlayer.playerState.processingState == ProcessingState.completed || _audioPlayer.playerState.processingState == ProcessingState.idle) {
+    if(_audioPlayer.playerState.processingState == ProcessingState.completed) {
+      Logger.i(_tag, "onPlayerStateChanged completed");
       skipToNext();
     }
   }
 
-  bool _firstLoadPosition = false;
   Future<void> _onPositionChanged(Duration position) async {
     if(kIsWeb) return;
     _setMediaControls();

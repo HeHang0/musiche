@@ -268,7 +268,7 @@ export const usePlayStore = defineStore('play', {
       });
       storage.setValue(StorageKey.MyPlaylists, this.myPlaylists);
     },
-    add(musics: Music[], noSet?: boolean) {
+    add(musics: Music[], noSet?: boolean, saved = true, update = true) {
       if (!musics || !Array.isArray(musics)) return;
       const lastLength = this.musicList.length;
       musics.map(music => {
@@ -277,12 +277,13 @@ export const usePlayStore = defineStore('play', {
         );
         if (index < 0) this.musicList.push(music);
       });
-      lastLength != this.musicList.length &&
+      saved &&
+        lastLength != this.musicList.length &&
         storage.setValue(StorageKey.CurrentMusicList, this.musicList);
       if (!noSet && !this.music.id && this.musicList.length > 0) {
         this.setCurrentMusic(this.musicList[0]);
       }
-      this.updateRemoteList();
+      update && this.updateRemoteList();
     },
     async updateRemoteList() {
       if (!this.config.list) return;
@@ -455,14 +456,18 @@ export const usePlayStore = defineStore('play', {
       this.checkingStatus = false;
       this.setStatus(res.data);
     },
-    async changeVolume(value: number) {
+    async changeVolume(value: number, saved = true) {
       if (value == null || isNaN(value) || value < 0 || value > 100) return;
+      if (!saved) {
+        this.playStatus.volume = value;
+        return;
+      }
       this.checkingStatus = true;
       this.playStatus.disableUpdateVolume = false;
       var res = await musicOperate('/volume', value.toString());
       this.checkingStatus = false;
       this.setStatus(res.data);
-      storage.setValue(StorageKey.Volume, this.playStatus.volume);
+      saved && storage.setValue(StorageKey.Volume, this.playStatus.volume);
     },
     async mute() {
       if (this.playStatus.volume === 0) {
@@ -608,55 +613,22 @@ export const usePlayStore = defineStore('play', {
         }
       }
     },
-    async initValue(remoteConfig: Config) {
-      const storages = await storage.getAll();
+    async initValue(remoteConfig: Config, storages: Record<string, any>) {
       this.setRemoteConfig(remoteConfig);
-      this.add(
-        storages[StorageKey.CurrentMusicList] ||
-          (await storage.getValue(StorageKey.CurrentMusicList)),
-        true
-      );
+      this.add(storages[StorageKey.CurrentMusicList], true, false, false);
       this.setCurrentMusic(
-        storages[StorageKey.CurrentMusic] ||
-          (await storage.getValue(StorageKey.CurrentMusic)) ||
-          this.musicList[0],
+        storages[StorageKey.CurrentMusic] || this.musicList[0],
         true
       );
-      this.addMyLove(
-        storages[StorageKey.MyLoves] ||
-          (await storage.getValue(StorageKey.MyLoves))
-      );
-      this.addMyFavorite(
-        storages[StorageKey.MyFavorites] ||
-          (await storage.getValue(StorageKey.MyFavorites))
-      );
-      this.addMyPlaylists(
-        storages[StorageKey.MyPlaylists] ||
-          (await storage.getValue(StorageKey.MyPlaylists))
-      );
-      this.addHistory(
-        storages[StorageKey.CurrentMusicHistory] ||
-          (await storage.getValue(StorageKey.CurrentMusicHistory)),
-        false,
-        true
-      );
-      this.sortType =
-        storages[StorageKey.SortType] ||
-        (await storage.getValue(StorageKey.SortType)) ||
-        SortType.Loop;
-      this.playerMode =
-        storages[StorageKey.PlayerMode] ||
-        (await storage.getValue(StorageKey.PlayerMode)) ||
-        'default';
-      this.playStatus.volumeCache =
-        storages[StorageKey.VolumeCache] ||
-        (await storage.getValue(StorageKey.VolumeCache));
+      this.addMyLove(storages[StorageKey.MyLoves]);
+      this.addMyFavorite(storages[StorageKey.MyFavorites]);
+      this.addMyPlaylists(storages[StorageKey.MyPlaylists]);
+      this.addHistory(storages[StorageKey.CurrentMusicHistory], false, true);
+      this.sortType = storages[StorageKey.SortType] || SortType.Loop;
+      this.playerMode = storages[StorageKey.PlayerMode] || 'default';
+      this.playStatus.volumeCache = storages[StorageKey.VolumeCache] || 0;
       await this.updateRemoteList();
-      !this.config.remote &&
-        this.changeVolume(
-          storages[StorageKey.Volume] ||
-            (await storage.getValue(StorageKey.Volume))
-        );
+      this.changeVolume(storages[StorageKey.Volume] || 0, false);
       musicOperate('/loop', this.sortType.toString());
       this.setTitle();
       (window as any).isPlayDetailShow = () => this.playDetailShow;

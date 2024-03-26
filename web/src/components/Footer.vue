@@ -173,7 +173,7 @@ const play = usePlayStore();
               @touchstart="play.playStatus.disableUpdateVolume = true"
               @change="play.changeVolume"
               vertical
-              height="70px"
+              height="150px"
               :show-tooltip="false"
               style="width: 30px" />
           </el-popover>
@@ -446,7 +446,6 @@ const play = usePlayStore();
 <style lang="less">
 .music-footer-volume-popover {
   transform: translateY(10px);
-
   &::before,
   &::after {
     content: ' ';
@@ -460,10 +459,12 @@ const play = usePlayStore();
 
   &::before {
     background-color: var(--music-background);
+    border-radius: var(--el-popover-border-radius);
   }
 
   &::after {
     background-color: var(--music-footer-background);
+    border-radius: var(--el-popover-border-radius);
   }
 
   .el-popper__arrow {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -8,6 +9,7 @@ import 'package:musiche/log/logger.dart';
 import 'package:musiche/server/file_handler.dart';
 import 'package:musiche/server/server_manager.dart';
 import 'package:musiche/utils/android_channel.dart';
+import 'package:musiche/utils/dark_mode_script.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 
@@ -34,11 +36,16 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
       supportZoom: false,
       scrollBarStyle: ScrollBarStyle.SCROLLBARS_OUTSIDE_OVERLAY
   );
+  UnmodifiableListView<UserScript>? userScripts;
   @override
   void initState() {
     super.initState();
     if (!kIsWeb && Platform.isAndroid) {
       InAppWebViewController.setWebContentsDebuggingEnabled(kDebugMode);
+      bool dark = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
+      userScripts = UnmodifiableListView<UserScript>([
+        UserScript(source: DarkModeScript.getScript(dark), injectionTime: UserScriptInjectionTime.AT_DOCUMENT_END)
+      ]);
     }
     WidgetsBinding.instance.addObserver(this);
   }
@@ -52,7 +59,8 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
   @override
   void didChangePlatformBrightness() {
     super.didChangePlatformBrightness();
-    ServerManager.changeTheme(MediaQuery.of(context).platformBrightness == Brightness.dark);
+    bool dark = MediaQuery.of(context).platformBrightness == Brightness.dark;
+    webViewController?.evaluateJavascript(source: 'window.customDarkModeMediaQueryList && window.customDarkModeMediaQueryList.updateMatches(${!dark ? 'true' : 'false'})');
   }
 
   @override
@@ -160,7 +168,8 @@ class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
             onProgressChanged: _onProgressChanged,
             onConsoleMessage: _onConsoleMessage,
             onPermissionRequest: _onPermissionRequest,
-            onReceivedServerTrustAuthRequest: _onReceivedServerTrustAuthRequest
+            onReceivedServerTrustAuthRequest: _onReceivedServerTrustAuthRequest,
+            initialUserScripts: userScripts,
         )
     );
   }

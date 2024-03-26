@@ -47,8 +47,4 @@ class ServerManager {
       }
     });
   }
-
-  static void changeTheme(bool isDark) {
-    _websocketHandler?.changeTheme(isDark);
-  }
 }

@@ -16,7 +16,6 @@ class WebSocketHandler extends Handler with TrayListener, WindowListener impleme
   static const String _tag = "MusicheWebSocketHandler";
   final Set<WebSocket> webSockets = <WebSocket>{};
   static const String _channelMediaOperate = "media-operate";
-  static bool _dark = false;
   WebSocketHandler(super.audioPlay) {
     audioPlay.onPlayerStateChanged.listen(_onPlayerStateChanged);
     audioPlay.onPositionChanged.listen(_onPositionChanged);
@@ -136,11 +135,6 @@ class WebSocketHandler extends Handler with TrayListener, WindowListener impleme
     trayManager.popUpContextMenu();
   }
 
-  void changeTheme(bool isDark) {
-    _dark = isDark;
-    sendMessage('{"type": "dark", "data": $isDark}');
-  }
-
   _onMediaOperate(dynamic action){
     if(action is String) {
       switch(action){
@@ -198,12 +192,6 @@ class WebSocketHandler extends Handler with TrayListener, WindowListener impleme
       webSockets.add(webSocket);
       webSocket.listen((dynamic data) {
         Logger.i(_tag, 'WebSocket received: $data');
-        if(data is! String) return;
-        switch(data.trim()){
-          case "/dark":
-            sendMessage('{"type": "dark", "data": $_dark}');
-            break;
-        }
       }, onDone: () {
         webSockets.remove(webSocket);
       });

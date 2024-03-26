@@ -41,7 +41,9 @@ function changeMusicType(type: MusicType) {
 onUnmounted(unWatch);
 </script>
 <template>
-  <el-header class="music-header">
+  <el-header
+    class="music-header"
+    :style="setting.currentMusicTypeShow ? '' : '--header-height:40px'">
     <div class="music-header-content">
       <el-button
         v-if="canBack"
@@ -81,7 +83,8 @@ onUnmounted(unWatch);
 </template>
 <style lang="less" scoped>
 .music-header {
-  height: calc(80px + var(--sat));
+  --header-height: 80px;
+  height: calc(var(--header-height) + var(--sat));
   transition: padding 0.5s;
   --el-header-height: 80px;
   --el-header-padding: 0;
