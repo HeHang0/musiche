@@ -18,15 +18,11 @@ async function unregisterOldServiceWorker(workerName: string) {
 export async function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     try {
-      let routerPrefix = localStorage.getItem('musiche-router-prefix') || '';
-      if (routerPrefix) routerPrefix = '/' + routerPrefix;
       const workerName =
         (window as any).serviceWorkerJS || 'worker.js?' + Date.now();
       await unregisterOldServiceWorker(workerName);
       if (!import.meta.env.DEV) {
-        swRegistration = await navigator.serviceWorker.register(
-          routerPrefix + '/' + workerName
-        );
+        swRegistration = await navigator.serviceWorker.register(workerName);
         console.log(
           'Service Worker registered with scope:',
           swRegistration.scope

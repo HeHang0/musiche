@@ -10,7 +10,9 @@
   "scripts": {
     "start": "vite --host",
     "build": "run-p type-check build-only",
+    "build:nc": "run-p build-only",
     "build:zip": "cross-env BUILD_ZIP=1 run-p type-check build-only",
+    "build:musiche": "cross-env ROUTER_PREFIX=musiche run-p type-check build-only",
     "preview": "vite preview",
     "build-only": "vite build",
     "type-check": "vue-tsc --noEmit"

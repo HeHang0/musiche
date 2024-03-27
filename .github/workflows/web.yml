@@ -110,6 +110,9 @@ jobs:
           cd ..\mobile
           Copy-Item ..\web\dist assets -Force -Recurse
           flutter build apk --release
+          cd ..\web
+          Remove-Item dist -Force -Recurse -ErrorAction SilentlyContinue
+          yarn build:musiche
           cd ..
           copy windows\bin\Release\net472\Musiche.exe web\dist\Musiche.exe -ErrorAction SilentlyContinue
           copy windows\bin\Publish\net6.0-windows\Musiche.exe web\dist\Musiche.net6.exe -ErrorAction SilentlyContinue

@@ -96,9 +96,7 @@ const routers: RouteRecordRaw[] = [
 ];
 routers.push({ path: '/:catchAll(.*)', redirect: '/recommend' });
 const router = createRouter({
-  history: createWebHistory(
-    localStorage.getItem('musiche-router-prefix') || undefined
-  ),
+  history: createWebHistory(`${import.meta.env.BASE_URL}` || undefined),
   routes: routers
 });
 

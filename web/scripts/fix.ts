@@ -48,57 +48,19 @@ function fixWorkerJS(): string {
     const workerName = `worker-${hash}.js`;
     const workerNamePath = path.resolve(distPath, workerName);
     fs.renameSync(workerPath, workerNamePath);
-    return `window.serviceWorkerJS = "${workerName}";`;
+    let routerPrefix = process.env.ROUTER_PREFIX
+      ? `/${process.env.ROUTER_PREFIX}`
+      : '';
+    return `window.serviceWorkerJS = "${routerPrefix}/${workerName}";`;
   }
   return '';
 }
 
 function transformIndexHtmlHandler(html: string) {
   const workerJS = fixWorkerJS();
-  let indexJS = '';
-  const matchIndexJS =
-    /[\s]*<script.+?src="\.*([\S]+index[\S]+\.js)"[^>]*>[\s]*<\/script>.*[\n]*/;
-  if (matchIndexJS.test(html)) {
-    indexJS = `
-      const indexScript = document.createElement('script');
-      indexScript.type = 'module';
-      indexScript.crossorigin = "anonymous";
-      indexScript.src = routerPrefix + '${matchIndexJS.exec(html)[1]}';
-      document.head.appendChild(indexScript);`;
-    html = html.replace(matchIndexJS, '');
-  }
-  let indexCSS = '';
-  const matchIndexCSS =
-    /[\s]*<link[\s]+rel="stylesheet"[\s]*[\S]*[\s]*href="\.*([\S]+index[\S]+\.css)"[^>]*>.*[\n]*/;
-  if (matchIndexCSS.test(html)) {
-    indexCSS = `
-      const indexStyle = document.createElement('link');
-      indexStyle.rel = 'stylesheet';
-      indexStyle.href = routerPrefix + '${matchIndexCSS.exec(html)[1]}';
-      document.head.appendChild(indexStyle);`;
-    html = html.replace(matchIndexCSS, '');
-  }
   html = html.replace(
     '</head>',
-    `
-    <script id="musiche-script-fix">
-      let routerPrefix = localStorage.getItem('musiche-router-prefix') || '';
-      if (routerPrefix) routerPrefix = '/' + routerPrefix;
-      const iconLink = document.querySelector('link[rel="icon"]');
-      if(iconLink) iconLink.href = routerPrefix + '/logo-circle.png';
-      const manifestLink = document.querySelector('link[rel="manifest"]');
-      if(manifestLink) manifestLink.href = location.origin + routerPrefix + '/manifest.json';
-      ${workerJS}
-      ${indexCSS}${indexJS}
-      window.addEventListener('load', () => {
-        const googleLink = document.createElement('link');
-        googleLink.href = 'https://fonts.googleapis.com/css2?family=Noto+Sans+SC&display=swap';
-        googleLink.rel = 'stylesheet';
-        googleLink.type = 'text/css';
-        document.head.appendChild(googleLink);
-      })
-      document.getElementById('musiche-script-fix').remove();
-    </script>
+    `  <script>${workerJS}</script>
   </head>`
   );
   return html;

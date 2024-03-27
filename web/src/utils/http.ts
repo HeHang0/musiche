@@ -1,7 +1,6 @@
 import { AudioPlayer } from './audio';
 import { ProxyRequestData } from './type';
-const musicRouterPrefix = localStorage.getItem('musiche-router-prefix');
-const history = musicRouterPrefix ? '/' + musicRouterPrefix : '';
+const history = `${import.meta.env.BASE_URL}`;
 
 export const httpAddress = import.meta.env.DEV
   ? '127.0.0.1:54621'
