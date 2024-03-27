@@ -1,4 +1,3 @@
-import { watch } from 'vue';
 import * as http from '../utils/http';
 import { StorageKey, storage } from '../utils/storage';
 import { Config, ShortcutKey, ShortcutType } from '../utils/type';
@@ -7,7 +6,6 @@ import { useSettingStore } from './setting';
 import { registerServiceWorker } from '../sw/register';
 import { LyricManager } from '../utils/lyric';
 import * as local from '../utils/api/local';
-import { isMobile } from '../utils/utils';
 
 export class MusicConnection {
   webSocketClient?: http.CommunicationClient;
