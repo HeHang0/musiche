@@ -96,7 +96,10 @@ const routers: RouteRecordRaw[] = [
 ];
 routers.push({ path: '/:catchAll(.*)', redirect: '/recommend' });
 const router = createRouter({
-  history: createWebHistory(`${import.meta.env.BASE_URL}` || undefined),
+  history: createWebHistory(
+    `${import.meta.env.BASE_URL != '/' ? import.meta.env.BASE_URL : ''}` ||
+      undefined
+  ),
   routes: routers
 });
 
