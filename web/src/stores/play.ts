@@ -287,21 +287,21 @@ export const usePlayStore = defineStore('play', {
     },
     async updateRemoteList() {
       if (!this.config.list) return;
-      await musicOperate(
-        '/updatelist',
-        JSON.stringify({
-          music: this.music,
-          playlist: this.musicList.map(m => ({
-            ...m,
-            cookie: api.getCookie(m.type),
-            url: '',
-            lover: !!this.myLover[m.type + m.id]
-          }))
-        }),
-        {
-          'content-type': 'application/json'
-        }
+      const data: any = {
+        music: this.music,
+        playlist: this.musicList.map(m => ({
+          ...m,
+          cookie: api.getCookie(m.type),
+          url: '',
+          lover: !!this.myLover[m.type + m.id]
+        }))
+      };
+      data.music = data.playlist.find(
+        (m: Music) => m.type == this.music.type && m.id == this.music.id
       );
+      await musicOperate('/updatelist', JSON.stringify(data), {
+        'content-type': 'application/json'
+      });
     },
     async play(music?: Music, musicList?: Music[]) {
       if (this.preparePlay) {

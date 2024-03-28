@@ -101,7 +101,6 @@ jobs:
           cd web
           yarn
           yarn build:zip
-          echo '<html><head><script>if(!localStorage.getItem("musiche-proxy-address"))localStorage.setItem("musiche-proxy-address","https://music.picapico.top/proxy");localStorage.setItem("musiche-router-prefix","musiche");let pathname=location.pathname.substring(9);let redirect=pathname?`${(location.search?"&":"?")}redirect=${pathname}`:"";location.href="/musiche"+location.search+redirect;</script></head></html>' > dist/404.html
           cd ..\windows
           echo "<Weavers><Costura/></Weavers>" > FodyWeavers.xml
           mv ..\web\web.zip Resources\web.zip
@@ -113,6 +112,7 @@ jobs:
           cd ..\web
           Remove-Item dist -Force -Recurse -ErrorAction SilentlyContinue
           yarn build:musiche
+          echo '<html><head><script>if(!localStorage.getItem("musiche-proxy-address"))localStorage.setItem("musiche-proxy-address","https://music.picapico.top/proxy");let pathname=location.pathname.substring(9);let redirect=pathname?`${(location.search?"&":"?")}redirect=${pathname}`:"";location.href="/musiche"+location.search+redirect;</script></head></html>' > dist\404.html
           cd ..
           copy windows\bin\Release\net472\Musiche.exe web\dist\Musiche.exe -ErrorAction SilentlyContinue
           copy windows\bin\Publish\net6.0-windows\Musiche.exe web\dist\Musiche.net6.exe -ErrorAction SilentlyContinue
