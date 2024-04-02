@@ -490,6 +490,7 @@ export const usePlayStore = defineStore('play', {
       }
       if (music) {
         this.setCurrentMusic(music, noSave);
+        lyricManager.updateLyric(this.music);
         this.setTitle();
         return;
       }
