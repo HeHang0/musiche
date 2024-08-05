@@ -7,6 +7,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -194,6 +195,10 @@ namespace Musiche
                 //Content = webview2;
                 //Hide();
                 webview2.CoreWebView2DOMContentLoaded += Webview2_CoreWebView2DOMContentLoaded;
+                if(Environment.GetCommandLineArgs().Any(m => "--dev".Equals(m.ToLower())))
+                {
+                    webview2.EnableDevMode();
+                }
             }
             else
             {

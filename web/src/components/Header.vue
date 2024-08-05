@@ -43,7 +43,9 @@ onUnmounted(unWatch);
 <template>
   <el-header
     class="music-header"
-    :style="setting.currentMusicTypeShow ? '' : '--header-height:40px'">
+    :style="
+      setting.currentMusicTypeShow || isWindows ? '' : '--header-height:40px'
+    ">
     <div class="music-header-content">
       <el-button
         v-if="canBack"

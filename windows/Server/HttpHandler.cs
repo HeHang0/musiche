@@ -143,7 +143,11 @@ namespace Musiche.Server
         [Router("/file/select")]
         public async Task SelectFile(HttpListenerContext ctx)
         {
-            string[] files = await fileAccessor.ShowSelectedDirectory();
+            string[] files = new string[] { };
+            _window.Dispatcher.Invoke(() =>
+            {
+                files = fileAccessor.ShowSelectedDirectory().Result;
+            });
             Dictionary<string, object> result = new Dictionary<string, object>()
             {
                 { "data", files }

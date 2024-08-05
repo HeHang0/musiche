@@ -119,6 +119,14 @@ namespace Musiche.Webview2
             Logger.Logger.Info("webview2 核心初始化================================");
         }
 
+        public void EnableDevMode()
+        {
+            if(webview2 != null)
+            {
+                webview2.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            }
+        }
+
         private void CoreWebView2_DOMContentLoaded(object sender, CoreWebView2DOMContentLoadedEventArgs e)
         {
             CoreWebView2DOMContentLoaded?.Invoke(sender, e);

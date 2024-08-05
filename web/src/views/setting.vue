@@ -32,6 +32,7 @@ import { LogoCircleImage } from '../utils/logo';
 import { ThemeColorManager } from '../utils/color';
 import DroidImage from '../assets/images/droid.svg';
 import AppleImage from '../components/apple.vue';
+import GithubImage from '../components/github.vue';
 import { getServiceWorkerRegistration } from '../sw/register';
 import { isIOS } from '@vueuse/core';
 
@@ -994,6 +995,23 @@ onUnmounted(unWatch);
               点击更新
             </span>
             <div class="music-setting-about-download">
+              <a
+                v-if="!setting.config.remote"
+                class="music-setting-about-card"
+                href="https://github.com/hehang0/musiche"
+                target="_blank">
+                <div
+                  class="logo-app"
+                  style="
+                    --logo-app-color: var(--music-footer-background);
+                    color: var(--music-text-color);
+                  ">
+                  <el-icon size="44" style="padding: 5px"
+                    ><GithubImage
+                  /></el-icon>
+                </div>
+                <p>Github</p>
+              </a>
               <a
                 class="music-setting-about-card"
                 href="https://hehang0.github.io/musiche/Musiche.exe"
