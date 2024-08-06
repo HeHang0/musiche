@@ -107,7 +107,9 @@ const play = usePlayStore();
             title="播放">
             播
           </span>
-          <span class="music-icon" @click="play.next" title="下一首"> 后 </span>
+          <span class="music-icon" @click="play.next()" title="下一首">
+            后
+          </span>
           <span
             class="music-icon"
             @click="play.showDesktopLyric(!play.desktopLyricShow)"
