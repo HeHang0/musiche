@@ -1,0 +1,84 @@
+﻿<ui:FluentWindow x:Class="ProxyServer.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:tray="http://schemas.lepo.co/wpfui/2022/xaml/tray"
+        xmlns:local="clr-namespace:ProxyServer"
+        mc:Ignorable="d"
+        Title="ProxyServer" Height="320" MinHeight="200" Width="500" MaxWidth="500" MinWidth="500"
+        ui:Design.Background="{DynamicResource ApplicationBackgroundBrush}"
+        ui:Design.Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+        ExtendsContentIntoTitleBar="True"
+        WindowCornerPreference="Round"
+        WindowStartupLocation="CenterScreen">
+    <ui:FluentWindow.Resources>
+        <Style TargetType="ui:Button" BasedOn="{StaticResource DefaultUiButtonStyle}">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="PressedForeground" Value="White" />
+        </Style>
+    </ui:FluentWindow.Resources>
+    <Grid x:Name="WinBackground">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="40" />
+            <RowDefinition Height="40" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="45" />
+        </Grid.RowDefinitions>
+        <Border x:Name="DragHelper" Visibility="Collapsed" Background="#01000000" Height="48"/>
+        <ui:TitleBar x:Name="TitleBar" Title="ProxyServer" CanMaximize="False" ShowMaximize="False" ShowMinimize="False">
+            <ui:TitleBar.Icon>
+                <ui:ImageIcon x:Name="TitleBarIcon"/>
+            </ui:TitleBar.Icon>
+        </ui:TitleBar>
+        <Grid Grid.Row="1" Width="400">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ui:TextBox x:Name="HttpAddressTextBox" MaxLines="1" IsReadOnly="True" Height="30" Margin="0 5" PlaceholderText="http://localhost:" Padding="10 0" VerticalContentAlignment="Center"/>
+            <ui:TextBox x:Name="HttpPortTextBox" Grid.Column="1" MaxLines="1" MaxLength="5" Width="80" Height="30" Margin="5 5"  Padding="5 0"
+                        VerticalContentAlignment="Center" ClearButtonEnabled="False" InputMethod.IsInputMethodEnabled="False"
+                        PlaceholderText="端口" PreviewTextInput="OnPortPreviewTextInput" TextChanged="OnHttpPortChanged"/>
+            <ui:Button x:Name="StartServerButton" Grid.Column="2" Appearance="Primary" Width="80" Height="30"
+                       Content="启动" Click="StartServer"/>
+        </Grid>
+        <StackPanel Grid.Row="2" Width="400" Orientation="Horizontal">
+            <ui:TextBox x:Name="ProxyAddressTextBox" Width="315" MaxLines="1" Height="30" Margin="0 5"
+                    PlaceholderText="请输入代理地址" TextChanged="OnProxyAddressChanged"
+                    Padding="10 0" VerticalContentAlignment="Center" ClearButtonEnabled="False"/>
+            <ui:ToggleSwitch x:Name="ProxyAddressSwitch" Margin="5 0 0 0" Checked="OnProxyAddressSwitchChanged" Unchecked="OnProxyAddressSwitchChanged" OffContent="停用" OnContent="启用"/>
+        </StackPanel>
+        <StackPanel Grid.Row="3" Width="400">
+            <Label Content="缓存策略" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <StackPanel Width="400" Orientation="Horizontal">
+                <Label Content="JSON" Width="80" Height="30" HorizontalAlignment="Left" Padding="0" VerticalContentAlignment="Center"/>
+                <ComboBox x:Name="JsonStrategy" Height="30" Width="310" VerticalContentAlignment="Center" Margin="10,0,0,0" Padding="10 0" SelectionChanged="OnStrategySelectionChanged"/>
+            </StackPanel>
+            <StackPanel Width="400" Orientation="Horizontal" >
+                <Label Content="图片" Width="80" Height="30" HorizontalAlignment="Left" Padding="0" VerticalContentAlignment="Center"/>
+                <ComboBox x:Name="ImageStrategy" Height="30" Width="310" VerticalContentAlignment="Center" Margin="10,0,0,0" Padding="10 0" SelectionChanged="OnStrategySelectionChanged"/>
+            </StackPanel>
+            <StackPanel Width="400" Orientation="Horizontal" >
+                <Label Content="文件" Width="80" Height="30" HorizontalAlignment="Left" Padding="0" VerticalContentAlignment="Center"/>
+                <ComboBox x:Name="FileStrategy" Height="30" Width="310" VerticalContentAlignment="Center" Margin="10,0,0,0" Padding="10 0" SelectionChanged="OnStrategySelectionChanged"/>
+            </StackPanel>
+            <StackPanel Width="400" Orientation="Horizontal" >
+                <Label Content="其他" Width="80" Height="30" HorizontalAlignment="Left" Padding="0" VerticalContentAlignment="Center"/>
+                <ComboBox x:Name="OtherStrategy" Height="30" Width="310" VerticalContentAlignment="Center" Margin="10,0,0,0" Padding="10 0" SelectionChanged="OnStrategySelectionChanged"/>
+            </StackPanel>
+        </StackPanel>
+        <ui:Button Grid.Row="4" Appearance="Danger"  Height="30" Width="400" Margin="0 5 0 10"
+                       Content="退出" Click="Exit" HorizontalAlignment="Center" />
+        <tray:NotifyIcon
+            x:Name="TrayIcon"
+            Grid.Row="0"
+            FocusOnLeftClick="True"
+            MenuOnRightClick="True"
+            TooltipText="Wpf.Ui.Demo.Simple">
+        </tray:NotifyIcon>
+    </Grid>
+</ui:FluentWindow>

@@ -13,6 +13,7 @@ import { useSettingStore } from './stores/setting';
 import { LogoImage } from './utils/logo';
 import { fixPwaForIOS } from './utils/utils';
 import { webView2Services } from './utils/files';
+import { proxyAddress, parseHttpProxyAddress } from './utils/http';
 const play = usePlayStore();
 const setting = useSettingStore();
 document.addEventListener(
@@ -20,8 +21,15 @@ document.addEventListener(
   function (event: ErrorEvent) {
     const target = event.target as any;
     if (target.tagName !== 'IMG' && target.ignoreError) return;
-    if (target.src?.startsWith('http://')) {
+    if (
+      target.src?.startsWith('http://') &&
+      !target.src?.includes(proxyAddress)
+    ) {
       target.src = target.src.replace('http://', 'https://');
+      return;
+    }
+    if (!target.src?.includes(proxyAddress)) {
+      target.src = parseHttpProxyAddress(target.src);
       return;
     }
     target.ignoreError = true;

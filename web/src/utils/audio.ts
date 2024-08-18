@@ -7,7 +7,11 @@ export class AudioPlayer {
   fadeIn: boolean = false;
   fadeInVolume?: number;
   lastProgress?: number;
-  constructor() {
+  useHuaweiCloud: boolean = false;
+  proxyAddress: string;
+  constructor(useHuaweiCloud: boolean, proxyAddress: string) {
+    this.useHuaweiCloud = useHuaweiCloud;
+    this.proxyAddress = proxyAddress;
     this.audio = new Audio();
     this.audio.addEventListener('play', this.audioPlay.bind(this));
     this.audio.addEventListener(
@@ -80,7 +84,12 @@ export class AudioPlayer {
 
   async play(url?: string) {
     if (url && this.audio.src != url) {
-      this.audio.src = url;
+      if (this.useHuaweiCloud) {
+        const audioUrl = this.proxyAddress + '?url=' + encodeURIComponent(url);
+        this.audio.src = audioUrl;
+      } else {
+        this.audio.src = url;
+      }
     }
     if (!this.audio.src) {
       return this.status();

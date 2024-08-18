@@ -8,7 +8,12 @@ import Login from '../components/Login.vue';
 
 import { useSettingStore } from '../stores/setting';
 import { usePlayStore } from '../stores/play';
-import { httpAddress, musicOperate } from '../utils/http';
+import {
+  httpAddress,
+  musicOperate,
+  proxyAddress,
+  useHuaweiCloud
+} from '../utils/http';
 import { musicTypeInfo, musicTypeInfoAll } from '../utils/platform';
 import {
   AppTheme,
@@ -150,6 +155,7 @@ const defaultFonts = isWindows
       'Brush Script MT',
       'Lucida Handwriting'
     ];
+let defaultProxyAddress = ref(proxyAddress);
 const setting = useSettingStore();
 const play = usePlayStore();
 const currentVersion = ref('');
@@ -354,6 +360,16 @@ function onRemoteClientChanged(client: RemoteClient) {
   );
 }
 
+function onProxyAddressChanged(value: string) {
+  if (!value || value.startsWith(location.origin)) {
+    localStorage.removeItem('musiche-proxy-address');
+    return;
+  }
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    localStorage.setItem('musiche-proxy-address', value);
+  }
+}
+
 function setAppTheme(theme: AppTheme) {
   if (
     theme.id?.startsWith('custom') &&
@@ -544,7 +560,6 @@ onUnmounted(unWatch);
           <td id="music-header-general">常规</td>
           <td class="music-setting-general">
             <span>字体选择</span>
-
             <el-select
               placeholder="默认"
               v-model="setting.pageValue.font"
@@ -604,6 +619,13 @@ onUnmounted(unWatch);
                 (减少资源占用，提升性能)
               </span>
             </el-checkbox>
+          </td>
+          <td class="music-setting-general" style="padding: 10px 0 0 0">
+            <span>代理</span>
+            <el-input
+              v-model="defaultProxyAddress"
+              @change="onProxyAddressChanged"
+              style="padding: 10px 50px 0 0" />
           </td>
         </tr>
         <tr>
@@ -826,6 +848,7 @@ onUnmounted(unWatch);
               <el-radio-group
                 class="music-setting-quality-item"
                 v-model="setting.playQuality"
+                :disabled="useHuaweiCloud"
                 @change="setting.setPlayQuality">
                 <el-radio v-for="item in musicQualities" :value="item.quality">
                   {{ item.title }}
@@ -837,6 +860,7 @@ onUnmounted(unWatch);
               <el-radio-group
                 class="music-setting-quality-item"
                 v-model="setting.downloadQuality"
+                :disabled="useHuaweiCloud"
                 @change="setting.setDownloadQuality">
                 <el-radio v-for="item in musicQualities" :value="item.quality">
                   {{ item.title }}

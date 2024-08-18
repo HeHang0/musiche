@@ -7,8 +7,9 @@ const history = `${
 export const httpAddress = import.meta.env.DEV
   ? '127.0.0.1:54621'
   : location.host;
-let proxyAddress =
+export const proxyAddress =
   localStorage.getItem('musiche-proxy-address') || `//${httpAddress}/proxy`;
+export const useHuaweiCloud = proxyAddress.includes('huawei');
 let useLocalAudio = true;
 var localAudio: AudioPlayer | null = null;
 
@@ -88,7 +89,9 @@ export async function musicOperate(
   } else if (useLocalAudio && url !== '/config') {
     const route = url.substring(1);
     try {
-      if (!localAudio) localAudio = new AudioPlayer();
+      if (!localAudio) {
+        localAudio = new AudioPlayer(useHuaweiCloud, proxyAddress);
+      }
       return localAudio?.process(route, data);
     } catch {
       return {};

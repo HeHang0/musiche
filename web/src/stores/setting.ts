@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia';
 import { ElMessage } from 'element-plus';
-import { httpAddress, musicOperate, updateTheme } from '../utils/http';
+import {
+  httpAddress,
+  musicOperate,
+  updateTheme,
+  useHuaweiCloud
+} from '../utils/http';
 import {
   CloseType,
   ShortcutType,
@@ -681,6 +686,10 @@ export const useSettingStore = defineStore('setting', {
       if (this.settingLoadedResolves.length > 0) {
         this.settingLoadedResolves.forEach(resolve => resolve());
         clearArray(this.settingLoadedResolves);
+      }
+      if (useHuaweiCloud) {
+        this.playQuality = 'PQ';
+        this.downloadQuality = 'PQ';
       }
     },
     async waitLoaded() {
