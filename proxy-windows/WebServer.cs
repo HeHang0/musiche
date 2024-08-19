@@ -6,7 +6,9 @@ using System.IO;
 using System.IO.Pipes;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Runtime.InteropServices.ComTypes;
+using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,6 +21,12 @@ namespace ProxyServer
         private readonly HttpListener listener = new HttpListener();
         private string _proxyAddress = string.Empty;
         private bool _huaweiCloud = false;
+        private static readonly bool _runningAsAdministrator = false;
+
+        static WebServer()
+        {
+            _runningAsAdministrator = IsRunningAsAdministrator();
+        }
 
         public void Start(int port, string proxyAddress)
         {
@@ -26,7 +34,15 @@ namespace ProxyServer
             _huaweiCloud = _proxyAddress.ToLower().Contains("huawei");
             if (listener.IsListening) return;
             listener.Prefixes.Clear();
-            listener.Prefixes.Add($"http://+:{port}/");
+            if(_runningAsAdministrator)
+            {
+                listener.Prefixes.Add($"http://+:{port}/");
+            }
+            else
+            {
+                listener.Prefixes.Add($"http://localhost:{port}/");
+                listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+            }
             listener.Start();
 
             Thread thread = new Thread(new ThreadStart(AcceptConnection))
@@ -41,6 +57,40 @@ namespace ProxyServer
         public void Stop()
         {
             listener.Stop();
+        }
+
+        private static bool IsRunningAsAdministrator()
+        {
+            var identity = WindowsIdentity.GetCurrent();
+            var principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+
+        public static string ListeningIP => _runningAsAdministrator ? GetIP() : "127.0.0.1";
+
+        private static string GetIP()
+        {
+            // 获取所有网络接口信息
+            NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
+
+            foreach (NetworkInterface ni in networkInterfaces)
+            {
+                // 检查接口状态是否为“已连接”
+                if (ni.OperationalStatus == OperationalStatus.Up)
+                {
+                    // 获取 IP 地址信息
+                    IPInterfaceProperties ipProps = ni.GetIPProperties();
+                    foreach (UnicastIPAddressInformation ip in ipProps.UnicastAddresses)
+                    {
+                        // 检查是否为 IPv4 地址
+                        if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        {
+                            return ip.Address.ToString();
+                        }
+                    }
+                }
+            }
+            return "localhost";
         }
 
         private void AcceptConnection()
@@ -165,7 +215,7 @@ namespace ProxyServer
             byte[] data = Convert.FromBase64String(huawei.Body);
             await WriteResponse(ctx, data);
             huawei.Headers.TryGetValue("content-range", out string contentRange);
-            if(huawei.StatusCode >= 200 && huawei.StatusCode < 300 &&
+            if(huawei.StatusCode > 200 && huawei.StatusCode < 300 &&
                 (string.IsNullOrWhiteSpace(contentRange) || contentRange.ToLower().StartsWith("bytes 0-")))
             {
                 CacheConfig.Save(cacheName, huawei.StatusCode, huawei.Headers, data);

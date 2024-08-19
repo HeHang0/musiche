@@ -10,7 +10,7 @@ import CloudMusicImage from '../assets/images/cloud-music.webp';
 import QQMusicImage from '../assets/images/qq-music.png';
 import MiguMusicImage from '../assets/images/migu-music.webp';
 import { useSettingStore } from '../stores/setting';
-import { isMobile, messageOption } from '../utils/utils';
+import { isMobile, isWindows, messageOption } from '../utils/utils';
 import { ElMessage } from 'element-plus';
 interface Props {
   list: Music[];
@@ -70,7 +70,7 @@ async function downloadMusic(music?: Music) {
   if (!music && !selectedMusic) return;
   music = music || selectedMusic!;
   const url = await api.downloadUrl(music);
-  if (url && !setting.config.remote) {
+  if (url && (!setting.config.remote || isWindows)) {
     const downloadLink = document.createElement('a');
     downloadLink.href = url;
     downloadLink.download = `${music.name} - ${music.singer}.mp3`;

@@ -1,7 +1,9 @@
 ﻿using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Security.Policy;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -115,8 +117,26 @@ namespace Musiche.Webview2
             SaveWindowStatus();
             webview2.CoreWebView2.ContainsFullScreenElementChanged += CoreWebView2_ContainsFullScreenElementChanged;
             webview2.CoreWebView2.DOMContentLoaded += CoreWebView2_DOMContentLoaded;
+            webview2.CoreWebView2.NewWindowRequested += CoreWebView2_NewWindowRequested;
             CoreWebView2InitializationCompleted?.Invoke(sender, e);
             Logger.Logger.Info("webview2 核心初始化================================");
+        }
+
+        private void CoreWebView2_NewWindowRequested(object sender, CoreWebView2NewWindowRequestedEventArgs e)
+        {
+            e.Handled = true;
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = e.Uri,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+            }
+            catch (Exception)
+            {
+            }
         }
 
         public void EnableDevMode()

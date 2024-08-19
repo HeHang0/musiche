@@ -11,8 +11,8 @@ import { usePlayStore } from '../stores/play';
 import {
   httpAddress,
   musicOperate,
-  proxyAddress,
-  useHuaweiCloud
+  getProxyAddress,
+  isHuaweiCloud
 } from '../utils/http';
 import { musicTypeInfo, musicTypeInfoAll } from '../utils/platform';
 import {
@@ -155,7 +155,8 @@ const defaultFonts = isWindows
       'Brush Script MT',
       'Lucida Handwriting'
     ];
-let defaultProxyAddress = ref(proxyAddress);
+const defaultProxyAddress = ref(getProxyAddress());
+const useHuaweiCloud = ref(isHuaweiCloud());
 const setting = useSettingStore();
 const play = usePlayStore();
 const currentVersion = ref('');
@@ -431,6 +432,10 @@ onMounted(() => {
   setScrolling();
   scrollToElementId(currentId.value, false, false);
   scrollToElementId('title-' + currentId.value, false, false);
+  setting.waitLoaded().then(() => {
+    defaultProxyAddress.value = getProxyAddress();
+    useHuaweiCloud.value = isHuaweiCloud();
+  });
 });
 onUnmounted(unWatch);
 </script>
@@ -1020,7 +1025,6 @@ onUnmounted(unWatch);
             </span>
             <div class="music-setting-about-download">
               <a
-                v-if="!setting.config.remote"
                 class="music-setting-about-card"
                 href="https://github.com/hehang0/musiche"
                 target="_blank">

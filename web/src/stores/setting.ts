@@ -4,7 +4,7 @@ import {
   httpAddress,
   musicOperate,
   updateTheme,
-  useHuaweiCloud
+  isHuaweiCloud
 } from '../utils/http';
 import {
   CloseType,
@@ -687,7 +687,7 @@ export const useSettingStore = defineStore('setting', {
         this.settingLoadedResolves.forEach(resolve => resolve());
         clearArray(this.settingLoadedResolves);
       }
-      if (useHuaweiCloud) {
+      if (isHuaweiCloud()) {
         this.playQuality = 'PQ';
         this.downloadQuality = 'PQ';
       }

@@ -3,23 +3,15 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Linq;
 using System.Net.NetworkInformation;
-using System.Runtime;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -48,7 +40,7 @@ namespace ProxyServer
             HttpPortTextBox.Text = _settings.HttpPort.ToString();
             ProxyAddressTextBox.Text = _settings.ProxyAddress;
             ProxyAddressSwitch.IsChecked = _settings.ProxyAddressEnable;
-            HttpAddressTextBox.Text = $"http://{GetIP()}:";
+            HttpAddressTextBox.Text = $"http://{WebServer.ListeningIP}:";
         }
 
         private void InitStrategy()
@@ -146,31 +138,6 @@ namespace ProxyServer
                     break;
             }
             _settings.Save();
-        }
-
-        private string GetIP()
-        {
-            // 获取所有网络接口信息
-            NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
-
-            foreach (NetworkInterface ni in networkInterfaces)
-            {
-                // 检查接口状态是否为“已连接”
-                if (ni.OperationalStatus == OperationalStatus.Up)
-                {
-                    // 获取 IP 地址信息
-                    IPInterfaceProperties ipProps = ni.GetIPProperties();
-                    foreach (UnicastIPAddressInformation ip in ipProps.UnicastAddresses)
-                    {
-                        // 检查是否为 IPv4 地址
-                        if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                        {
-                            return ip.Address.ToString();
-                        }
-                    }
-                }
-            }
-            return "localhost";
         }
 
         private void Exit(object sender, RoutedEventArgs e)

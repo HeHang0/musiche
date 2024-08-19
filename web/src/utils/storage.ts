@@ -22,7 +22,8 @@ export enum StorageKey {
   LocalDirectories = 'local-directories',
   PlayQuality = 'play-quality',
   DownloadQuality = 'download-quality',
-  LyricOptions = 'lyric-options'
+  LyricOptions = 'lyric-options',
+  ProxyAddress = 'proxy-address'
 }
 
 function setRemoteMode(remote: boolean) {

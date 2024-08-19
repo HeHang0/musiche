@@ -7,9 +7,9 @@ const history = `${
 export const httpAddress = import.meta.env.DEV
   ? '127.0.0.1:54621'
   : location.host;
-export const proxyAddress =
+let proxyAddress =
   localStorage.getItem('musiche-proxy-address') || `//${httpAddress}/proxy`;
-export const useHuaweiCloud = proxyAddress.includes('huawei');
+let useHuaweiCloud = proxyAddress.includes('huawei');
 let useLocalAudio = true;
 var localAudio: AudioPlayer | null = null;
 
@@ -18,6 +18,17 @@ export function setRemoteMode(remote: boolean) {
   if (remote) {
     document.addEventListener('visibilitychange', onVisibilityChange);
   }
+}
+export function setProxyAddress(address: string) {
+  proxyAddress = address || `//${httpAddress}/proxy`;
+  useHuaweiCloud = proxyAddress.includes('huawei');
+  if (localAudio && useHuaweiCloud) localAudio.setProxyAddress(proxyAddress);
+}
+export function getProxyAddress() {
+  return proxyAddress;
+}
+export function isHuaweiCloud() {
+  return useHuaweiCloud;
 }
 export function httpProxy(prd: ProxyRequestData): Promise<Response> {
   prd.method = prd.method || 'GET';
@@ -90,7 +101,8 @@ export async function musicOperate(
     const route = url.substring(1);
     try {
       if (!localAudio) {
-        localAudio = new AudioPlayer(useHuaweiCloud, proxyAddress);
+        localAudio = new AudioPlayer();
+        if (useHuaweiCloud) localAudio.setProxyAddress(proxyAddress);
       }
       return localAudio?.process(route, data);
     } catch {

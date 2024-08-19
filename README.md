@@ -59,8 +59,9 @@ Musiche是一款跨平台音乐播放器，无论你使用的是Windows、macOS�
 ### 下载
 
 + [PC版](https://hehang0.github.io/musiche/Musiche.exe)
-+ [PC版(.NET6)](https://hehang0.github.io/musiche/Musiche.exe)
++ [PC版(.NET6)](https://hehang0.github.io/musiche/Musiche.net6.exe)
 + [MacOS版](https://hehang0.github.io/musiche/Musiche.dmg)
 + [Android版](https://hehang0.github.io/musiche/Musiche.apk)
 + [IOS版](https://hehang0.github.io/musiche/Musiche.ipa)
 + [在线版](https://hehang0.github.io/musiche/index.html)
++ [代理客户端](https://hehang0.github.io/musiche/ProxyServer.exe)

@@ -47,6 +47,8 @@ export class MusicConnection {
     this.config.lyric && LyricManager.setRemoteMode(true);
     this.config.file && local.setRemoteMode(true);
     const storages = await storage.getAll();
+    storages[StorageKey.ProxyAddress] &&
+      http.setProxyAddress(storages[StorageKey.ProxyAddress]);
     await this.play.initValue(this.config, storages);
     await this.setting.initValue(this.config, storages);
     await import('../style/main.css');
