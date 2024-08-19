@@ -165,7 +165,7 @@ namespace ProxyServer
             byte[] data = Convert.FromBase64String(huawei.Body);
             await WriteResponse(ctx, data);
             huawei.Headers.TryGetValue("content-range", out string contentRange);
-            if(huawei.StatusCode > 200 && huawei.StatusCode < 300 &&
+            if(huawei.StatusCode >= 200 && huawei.StatusCode < 300 &&
                 (string.IsNullOrWhiteSpace(contentRange) || contentRange.ToLower().StartsWith("bytes 0-")))
             {
                 CacheConfig.Save(cacheName, huawei.StatusCode, huawei.Headers, data);
