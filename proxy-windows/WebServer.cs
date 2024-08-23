@@ -244,7 +244,6 @@ namespace ProxyServer
             SetHeaders(ctx.Response, resHeaders);
             ctx.Response.StatusCode = (int)response.StatusCode;
             ctx.Response.ContentType = response.ContentType;
-            await WriteResponse(ctx, response.GetResponseStream(), response.ContentLength);
 
             try
             {
@@ -258,7 +257,7 @@ namespace ProxyServer
                     {
                         byte[] buffer = new byte[4096];
                         int bytesRead;
-                        while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) > 0)
+                        while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
                         {
                             ctx.Response.OutputStream.Write(buffer, 0, bytesRead);
                             fileStream.Write(buffer, 0, bytesRead);
