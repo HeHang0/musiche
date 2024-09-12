@@ -95,7 +95,7 @@ namespace Musiche.Server
         [Router("/file/read")]
         public async Task ReadFile(HttpListenerContext ctx)
         {
-            string path = ctx.Request.QueryString.Get("path");
+            string path = ctx.Request.QueryGet("path");
             string data = await fileAccessor.ReadFile(path);
             Dictionary<string, object> result = new Dictionary<string, object>()
             {
@@ -107,7 +107,7 @@ namespace Musiche.Server
         [Router("/file/write")]
         public async Task WriteFile(HttpListenerContext ctx)
         {
-            string path = ctx.Request.QueryString.Get("path");
+            string path = ctx.Request.QueryGet("path");
             await fileAccessor.WriteFile(path, ctx.Request.DataAsString());
             Dictionary<string, object> result = new Dictionary<string, object>()
             {
@@ -119,7 +119,7 @@ namespace Musiche.Server
         [Router("/file/delete")]
         public async Task DeleteFile(HttpListenerContext ctx)
         {
-            string path = ctx.Request.QueryString.Get("path");
+            string path = ctx.Request.QueryGet("path");
             await fileAccessor.DeleteFile(path);
             Dictionary<string, object> result = new Dictionary<string, object>()
             {
@@ -131,7 +131,7 @@ namespace Musiche.Server
         [Router("/file/exists")]
         public async Task ExistsFile(HttpListenerContext ctx)
         {
-            string path = ctx.Request.QueryString.Get("path");
+            string path = ctx.Request.QueryGet("path");
             bool exists = await fileAccessor.FileExists(path);
             Dictionary<string, object> result = new Dictionary<string, object>()
             {
@@ -169,8 +169,8 @@ namespace Musiche.Server
         [Router("/file/list/all")]
         public async Task ListAllFile(HttpListenerContext ctx)
         {
-            string path = ctx.Request.QueryString.Get("path");
-            bool recursive = ctx.Request.QueryString.Get("recursive") != "0";
+            string path = ctx.Request.QueryGet("path");
+            bool recursive = ctx.Request.QueryGet("recursive") != "0";
             string[] files = await fileAccessor.ListAllFiles(path, recursive);
             Dictionary<string, object> result = new Dictionary<string, object>()
             {
@@ -182,8 +182,8 @@ namespace Musiche.Server
         [Router("/file/list/audio")]
         public async Task ListAudioFile(HttpListenerContext ctx)
         {
-            string path = ctx.Request.QueryString.Get("path");
-            bool recursive = ctx.Request.QueryString.Get("recursive") != "0";
+            string path = ctx.Request.QueryGet("path");
+            bool recursive = ctx.Request.QueryGet("recursive") != "0";
             string data = await fileAccessor.ListAllAudios(path, recursive);
             Dictionary<string, object> result = new Dictionary<string, object>()
             {
@@ -201,7 +201,7 @@ namespace Musiche.Server
         [Router("/storage")]
         public async Task Storage(HttpListenerContext ctx)
         {
-            string key = ctx.Request.QueryString.Get("key");
+            string key = ctx.Request.QueryGet("key");
             if (string.IsNullOrWhiteSpace(key))
             {
                 await SendString(ctx, "", "text/json");
@@ -262,7 +262,7 @@ namespace Musiche.Server
         [Router("/delayExit")]
         public async Task SetDelayExit(HttpListenerContext ctx)
         {
-            string queryShutdown = ctx.Request.QueryString.Get("shutdown");
+            string queryShutdown = ctx.Request.QueryGet("shutdown");
             bool shutdown = queryShutdown == "true" || queryShutdown == "1";
             int.TryParse(ctx.Request.DataAsString(), out int delayMinute);
             _window.Dispatcher.Invoke(() =>

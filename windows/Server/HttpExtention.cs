@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -16,6 +17,22 @@ namespace Musiche.Server
                     return reader.ReadToEnd();
                 }
             }
+        }
+        public static string QueryGet(this HttpListenerRequest request, string name)
+        {
+            string[] queryGroup = request.Url.Query.TrimStart('?').Split('&');
+            for (int i = 0; i < queryGroup.Length; i++)
+            {
+                if (queryGroup[i].ToLower().StartsWith(name.ToLower() + "="))
+                {
+                    string[] kv = queryGroup[i].Split('=');
+                    if(kv.Length == 2)
+                    {
+                        return Uri.UnescapeDataString(kv[1]).Trim();
+                    }
+                }
+            }
+            return string.Empty;
         }
 
         public static void SetHeaders(this HttpWebRequest request, Dictionary<string, string> headers)
