@@ -445,97 +445,97 @@ onUnmounted(unWatch);
       <div class="music-setting-header-title">设置</div>
       <div class="music-setting-header-sub">
         <span
-          id="title-music-header-"
+          id="title-music-header-account"
           :class="
             currentId === 'music-header-account'
               ? 'music-setting-header-active'
               : ''
           "
-          @click="replace('#music-header-account')">
-          账号
-        </span>
+          @click="replace('#music-header-account')"
+          >账号</span
+        >
         <span
-          id="title-music-header-"
+          id="title-music-header-general"
           :class="
             currentId === 'music-header-general'
               ? 'music-setting-header-active'
               : ''
           "
-          @click="replace('#music-header-general')">
-          常规
-        </span>
+          @click="replace('#music-header-general')"
+          >常规</span
+        >
         <span
-          id="title-music-header-"
+          id="title-music-header-theme"
           :class="
             currentId === 'music-header-theme'
               ? 'music-setting-header-active'
               : ''
           "
-          @click="replace('#music-header-theme')">
-          主题
-        </span>
+          @click="replace('#music-header-theme')"
+          >主题</span
+        >
         <span
           v-if="isWindows && setting.config.remote"
-          id="title-music-header-"
+          id="title-music-header-system"
           :class="
             currentId === 'music-header-system'
               ? 'music-setting-header-active'
               : ''
           "
-          @click="replace('#music-header-system')">
-          系统
-        </span>
+          @click="replace('#music-header-system')"
+          >系统</span
+        >
         <span
-          id="title-music-header-"
+          id="title-music-header-play"
           :class="
             currentId === 'music-header-play'
               ? 'music-setting-header-active'
               : ''
           "
-          @click="replace('#music-header-play')">
-          播放
-        </span>
+          @click="replace('#music-header-play')"
+          >播放</span
+        >
         <span
           v-if="!isMobile"
-          id="title-music-header-"
+          id="title-music-header-shortcut"
           :class="
             currentId === 'music-header-shortcut'
               ? 'music-setting-header-active'
               : ''
           "
-          @click="replace('#music-header-shortcut')">
-          快捷键
-        </span>
+          @click="replace('#music-header-shortcut')"
+          >快捷键</span
+        >
         <span
-          id="title-music-header-"
+          id="title-music-header-quality"
           :class="
             currentId === 'music-header-quality'
               ? 'music-setting-header-active'
               : ''
           "
-          @click="replace('#music-header-quality')">
-          音质与下载
-        </span>
+          @click="replace('#music-header-quality')"
+          >音质与下载</span
+        >
         <span
-          id="title-music-header-"
+          id="title-music-header-lyric"
           :class="
             currentId === 'music-header-lyric'
               ? 'music-setting-header-active'
               : ''
           "
-          @click="replace('#music-header-lyric')">
-          桌面歌词
-        </span>
+          @click="replace('#music-header-lyric')"
+          >桌面歌词</span
+        >
         <span
-          id="title-music-header-"
+          id="title-music-header-about"
           :class="
             currentId === 'music-header-about'
               ? 'music-setting-header-active'
               : ''
           "
-          @click="replace('#music-header-about')">
-          关于
-        </span>
+          @click="replace('#music-header-about')"
+          >关于</span
+        >
       </div>
     </div>
     <el-scrollbar class="music-setting-body">

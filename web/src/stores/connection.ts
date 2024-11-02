@@ -6,6 +6,8 @@ import { useSettingStore } from './setting';
 import { registerServiceWorker } from '../sw/register';
 import { LyricManager } from '../utils/lyric';
 import * as local from '../utils/api/local';
+import { ElMessage } from 'element-plus';
+import { messageOption } from '../utils/utils';
 
 export class MusicConnection {
   webSocketClient?: http.CommunicationClient;
@@ -175,6 +177,19 @@ export class MusicConnection {
         case 'pause':
           this.play.pause();
           break;
+        case 'remove':
+          const musicIndex = this.play.musicList.findIndex(
+            m => m.id == result.data.id && m.type == result.data.type
+          );
+          if (musicIndex >= 0) {
+            ElMessage(
+              messageOption(
+                `当前音乐[${this.play.musicList[musicIndex].name}]无法播放`
+              )
+            );
+            this.play.musicList.splice(musicIndex, 1);
+          }
+          break;
         case 'next':
           this.play.next(result.data);
           break;
@@ -192,10 +207,17 @@ export class MusicConnection {
             this.play.playDetailShow = true;
           break;
         case 'lover':
-          if (this.play.music.type && this.play.music.type) {
-            let exist =
-              this.play.myLover[this.play.music.type + this.play.music.id];
-            this.play.addMyLove([this.play.music], exist);
+          if (
+            (this.play.music.type && this.play.music.id) ||
+            (result.data.type && result.data.id)
+          ) {
+            const type = result.data.type || this.play.music.type;
+            const id = result.data.id || this.play.music.id;
+            let exist = this.play.myLover[type + id];
+            const music = this.play.musicList.find(
+              m => m.id == id && m.type == type
+            );
+            this.play.addMyLove([music || this.play.music], exist);
           }
           break;
       }

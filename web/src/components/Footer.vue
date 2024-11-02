@@ -155,7 +155,7 @@ const play = usePlayStore();
             </span>
           </template>
         </el-popover>
-        <template v-if="!isMobile || play.config.remote">
+        <template v-if="!isMobile || !play.config.remote">
           <el-popover
             placement="top"
             :width="30"

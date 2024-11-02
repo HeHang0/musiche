@@ -1,0 +1,68 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\hehang\\.ohos\\config\\default_harmoryos_44T8-MmosA-hRHmlg6jT-8yn62ufDy7pR-u_iCXuJQE=.cer",
+          "storePassword": "0000001ADEADCE6400A14F991CB0FD7EF0E76A1BAC1D25DD250C5D08B8E1B15753230C397ED5BD95E7AF",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001A12B6EB4472DAC91BD4557EC6D2E77598D3EE998CE7B88E40094860C9F4E89DD6568FA4704FD5",
+          "profile": "C:\\Users\\hehang\\.ohos\\config\\default_harmoryos_44T8-MmosA-hRHmlg6jT-8yn62ufDy7pR-u_iCXuJQE=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\hehang\\.ohos\\config\\default_harmoryos_44T8-MmosA-hRHmlg6jT-8yn62ufDy7pR-u_iCXuJQE=.p12"
+        }
+      },
+      {
+        "name": "release",
+        "type": "HarmonyOS",
+        "material": {
+          "storePassword": "00000018EB28F913C3C77D3E4A2171F6630F529216B13AB3AB4470D2E1BA339BC96088884708F9E0",
+          "certpath": "F:/Programing/CSharp_test/Musiche/harmoryos/sign.cer",
+          "keyAlias": "musiche",
+          "keyPassword": "000000189AC913224F4451B067A7F08F8F5F7A19FBE9CCCB9B4218602F65DDED8C4ED3F203105C90",
+          "profile": "F:/Programing/CSharp_test/Musiche/harmoryos/sign.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "F:/Programing/CSharp_test/Musiche/harmoryos/sign.p12"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "compatibleSdkVersion": "5.0.0(12)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug",
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}

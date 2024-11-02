@@ -227,6 +227,7 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
   width: calc(205px + var(--safe-area-left));
   background-color: var(--music-side-background);
   padding-left: var(--safe-area-left);
+  padding-bottom: calc(var(--sab) / 1.5);
   color: var(--music-side-text-color);
   transition: width 0.3s ease-in-out;
   .music-icon {

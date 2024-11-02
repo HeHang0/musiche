@@ -52,6 +52,7 @@ async function prepareRouter(key: string, type: MusicType) {
 }
 async function getPlaylist(clear: boolean = true) {
   if (loading.value) return;
+  await setting.waitLoaded();
   const type = currentRoute.value.params.type?.toString() as MusicType;
   const key = currentRoute.value.meta.key!.toString();
   if (await prepareRouter(key, type)) {
@@ -64,7 +65,6 @@ async function getPlaylist(clear: boolean = true) {
   loading.value = true;
   let result = null;
   if (key === 'yours') {
-    await setting.waitLoaded();
     result = await api.yours(setting.currentMusicType, playlist.value.length);
   } else {
     result = await api.recommend(

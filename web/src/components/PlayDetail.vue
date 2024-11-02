@@ -170,7 +170,7 @@ watch(() => play.playDetailShow, setTheme);
             >下</el-button
           >
           <el-button
-            v-if="canFullScreen"
+            v-if="canFullScreen && !isMobile"
             class="music-button-pure music-icon"
             style="transform: rotateY(180deg)"
             @click="requestFullscreen">

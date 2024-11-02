@@ -174,6 +174,8 @@ class HttpHandler extends Handler implements IHandler {
         return "image/png";
       case "jpg":
         return "image/jpeg";
+      case "svg":
+        return "image/svg+xml";
       case "webp":
         return "image/webp";
       case "webm":

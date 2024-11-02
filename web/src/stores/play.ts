@@ -340,6 +340,16 @@ export const usePlayStore = defineStore('play', {
         }
         this.setCurrentMusic(music);
       }
+      if (this.config.list && this.config.remote) {
+        this.checkingStatus = true;
+        await this.updateRemoteList();
+        const res = await musicOperate('/play');
+        this.checkingStatus = false;
+        this.setStatus(res.data);
+        this.preparePlay = false;
+        lyricManager.updateLyric(this.music);
+        return;
+      }
       await api.musicDetail(music);
       this.music.audition = music.audition;
       if (!music.url) {

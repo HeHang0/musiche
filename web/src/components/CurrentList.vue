@@ -86,7 +86,7 @@ function onOpen() {
     height: 60px;
     display: flex;
     align-items: center;
-    padding: 0 20px;
+    padding: 0 calc(var(--sar) + 20px) 0 calc(var(--sal) + 20px);
     justify-content: space-between;
     background-color: var(--music-sub-background);
     &-title {
@@ -102,6 +102,9 @@ function onOpen() {
   &-content {
     height: calc(100% - 60px);
     background-color: var(--music-sub-background);
+    .music-list {
+      padding: 0 var(--sar) var(--sab) var(--sal);
+    }
   }
 }
 </style>
@@ -117,10 +120,11 @@ function onOpen() {
   // transform: translateY(-50%);
   @media (orientation: portrait) {
     width: 100% !important;
-    height: calc(100% - 80px - calc(var(--sab) / 1.5)) !important;
+    height: 50% !important;
+    min-height: 60% !important;
     margin-top: 0;
-    top: 0;
-    border-radius: 0 0 var(--music-border-radius) var(--music-border-radius);
+    bottom: 0;
+    border-radius: var(--music-border-radius) var(--music-border-radius) 0 0;
   }
   @media (max-height: 600px) and (orientation: landscape) {
     height: calc(100% - 80px - calc(var(--sab) / 1.5)) !important;

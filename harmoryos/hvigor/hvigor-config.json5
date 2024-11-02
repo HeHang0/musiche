@@ -1,0 +1,32 @@
+{
+  "modelVersion": "5.0.0",
+  "dependencies": {
+  },
+  "execution": {
+    // "analyze": "normal",                     /* Define the build analyze mode. Value: [ "normal" | "advanced" | false ]. Default: "normal" */
+    // "daemon": true,                          /* Enable daemon compilation. Value: [ true | false ]. Default: true */
+    // "incremental": true,                     /* Enable incremental compilation. Value: [ true | false ]. Default: true */
+    // "parallel": true,                        /* Enable parallel compilation. Value: [ true | false ]. Default: true */
+    // "typeCheck": false,                      /* Enable typeCheck. Value: [ true | false ]. Default: false */
+  },
+  "logging": {
+    // "level": "info"                          /* Define the log level. Value: [ "debug" | "info" | "warn" | "error" ]. Default: "info" */
+  },
+  "debugging": {
+    // "stacktrace": false                      /* Disable stacktrace compilation. Value: [ true | false ]. Default: false */
+  },
+  "properties": {
+    // 配置为0，表示不启用内存缓存配置，默认为4，数值越低，内存中缓存数据越少
+    "hvigor.pool.cache.capacity": 0,
+    // 默认配置为cpu核数-1， 包含ohos.arkCompile.maxSize4，值越小，占用内存越少
+    "hvigor.pool.maxSize" : 5,
+    // 默认配置值为5, 值越小，占用内存越少
+    "ohos.arkCompile.maxSize": 3,
+    // 默认配置值为true, 表示开启内存缓存，占用内存较多，配置为false,关闭内存缓存，占用内存较少
+    "hvigor.enableMemoryCache": false
+  },
+  "nodeOptions": {
+     "maxOldSpaceSize": 8192                  /* Enable nodeOptions maxOldSpaceSize compilation. Unit M. Used for the daemon process. Default: 8192*/
+    // "exposeGC": true                         /* Enable to trigger garbage collection explicitly. Default: true*/
+  }
+}
