@@ -1,4 +1,3 @@
-import { MessageParams } from 'element-plus';
 import { isIOS } from '@vueuse/core';
 import { LyricLine, MusicFileInfo } from './type';
 
@@ -406,7 +405,7 @@ export function dataURLtoBlob(dataUrl: string) {
   return new Blob([u8arr], { type: mime });
 }
 
-export function messageOption(message: string, html?: boolean): MessageParams {
+export function messageOption(message: string, html?: boolean): any {
   return {
     message: message,
     center: true,

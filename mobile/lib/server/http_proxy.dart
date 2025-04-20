@@ -26,7 +26,7 @@ class HttpProxy {
       response.headers.forEach((name, values) {
         resHeaders[name] = values;
         if (data.setCookieRename && name.toLowerCase() == "set-cookie"){
-          resHeaders["Set-Cookie-Renamed"] = values;
+          resHeaders["Set-Cookie-Renamed"] = [values.map((s) => s.replaceAll(',', '')).join(',')];
         }
       });
       result = ProxyResponseData(

@@ -69,7 +69,12 @@ async function searchMusic(clear: boolean = true) {
         playlist: {
           id: 'lover',
           name: '我喜爱的音乐',
-          image: play.myLoves.length > 0 ? play.myLoves[0].image : '',
+          image:
+            play.myLoves.length > 0
+              ? play.myLoves[0].largeImage ||
+                play.myLoves[0].mediumImage ||
+                play.myLoves[0].image
+              : '',
           type: 'lover' as any
         }
       };

@@ -773,8 +773,9 @@ export async function loginStatus(key: string): Promise<{
       url: ret.result.redirectURL + '?token=' + ret.result.token,
       method: 'GET',
       setCookieRename: true,
+      allowAutoRedirect: false,
       headers: {
-        Cookie: res.headers.get('Set-Cookie-Renamed') || ''
+        Cookie: formatCookies(lastCookie)
       }
     });
     if (res.ok) {
