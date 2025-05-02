@@ -25,7 +25,7 @@ namespace Musiche.NotifyIcon
 
         private void OnMouseClick(object sender, MouseEventArgs e)
         {
-            if(e.Button == MouseButtons.Left)
+            if (e.Button == MouseButtons.Left)
             {
                 LeftClick?.Invoke(this, e);
             }

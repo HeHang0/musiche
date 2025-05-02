@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Musiche.Utils
 {
@@ -87,7 +83,7 @@ namespace Musiche.Utils
                 accent.AccentState = AccentState.ACCENT_ENABLE_ACRYLICBLURBEHIND;
                 accent.GradientColor = dark ? 0x00010101 : 0x80FEFEFE;
             }
-            else if(OSVersion.IsWindows7OrLess)
+            else if (OSVersion.IsWindows7OrLess)
             {
                 accent.AccentState = AccentState.ACCENT_ENABLE_BLURBEHIND;
             }

@@ -26,7 +26,7 @@ namespace Musiche.Server
                 if (queryGroup[i].ToLower().StartsWith(name.ToLower() + "="))
                 {
                     string[] kv = queryGroup[i].Split('=');
-                    if(kv.Length == 2)
+                    if (kv.Length == 2)
                     {
                         return Uri.UnescapeDataString(kv[1]).Trim();
                     }

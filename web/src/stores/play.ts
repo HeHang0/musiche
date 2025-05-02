@@ -309,7 +309,14 @@ export const usePlayStore = defineStore('play', {
       }
       this.playStatus.loading = true;
       this.preparePlay = true;
-      if (!music && musicList && musicList[0]) music = musicList[0];
+      if (!music && musicList && musicList[0]) {
+        music =
+          musicList[
+            this.sortType == SortType.Random
+              ? getRandomInt(0, musicList.length)
+              : 0
+          ];
+      }
       if (!music && this.playStatus.stopped) music = this.music;
       if (
         !music ||

@@ -9,7 +9,7 @@ namespace Musiche.Server
         protected readonly AudioPlay _audioPlay;
         protected readonly MediaMetaManager _mediaMetaManager;
         protected readonly MainWindow _window;
-        public Handler(MainWindow window, AudioPlay audioPlay, MediaMetaManager mediaMetaManager):this(window, audioPlay)
+        public Handler(MainWindow window, AudioPlay audioPlay, MediaMetaManager mediaMetaManager) : this(window, audioPlay)
         {
             _mediaMetaManager = mediaMetaManager;
         }

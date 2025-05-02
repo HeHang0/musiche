@@ -7,7 +7,6 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Markup;
 
 namespace Musiche.Server
 {
@@ -244,7 +243,8 @@ namespace Musiche.Server
                 {
                     _mediaMetaManager.SetMediaMeta(data, _audioPlay.Playing);
                 });
-            }catch  (Exception) { }
+            }
+            catch (Exception) { }
             await SendString(ctx, "");
         }
 
@@ -418,7 +418,7 @@ namespace Musiche.Server
         public async Task MusicImage(HttpListenerContext ctx)
         {
             var filePath = ctx.Request.QueryString["path"];
-            if(string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
             {
                 await SendString(ctx, string.Empty, statusCode: HttpStatusCode.NotFound);
                 return;

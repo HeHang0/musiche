@@ -48,6 +48,7 @@ namespace Musiche
             httpHandler = new HttpHandler(this, audioPlay, mediaMetaManager);
             StateChanged += MainWindow_StateChanged;
             Closing += MainWindow_Closing;
+            Activated += MainWindow_Activated;
             SourceInitialized += MainWindow_SourceInitialized;
             audioPlay.PlatStateChanged += AudioPlay_PlatStateChanged;
             audioPlay.AudioInitialized += AudioPlay_AudioInitialized;
@@ -60,11 +61,23 @@ namespace Musiche
             positionTimer.Interval = TimeSpan.FromMilliseconds(500);
             positionTimer.Tick += UpdateAudioPosition;
             positionTimer.Stop();
-            if(MediaMetaManager.Supported)
+            if (MediaMetaManager.Supported)
             {
                 mediaMetaManager.AudioStatusChanged += OnAudioStatusChanged;
             }
             InitNamedPipeServerStream();
+        }
+
+        private void MainWindow_Activated(object sender, EventArgs e)
+        {
+            if (Visibility == Visibility.Hidden)
+            {
+                Show();
+            }
+            if (WindowState == WindowState.Minimized)
+            {
+                WindowState = WindowState.Normal;
+            }
         }
 
         private async void InitNamedPipeServerStream()
@@ -108,10 +121,11 @@ namespace Musiche
             lyricWindow?.AudioPlayStateChanged(playing);
             if (playing) positionTimer?.Start();
             else positionTimer?.Stop();
-            if(state == NAudio.Wave.PlaybackState.Stopped)
+            if (state == NAudio.Wave.PlaybackState.Stopped)
             {
                 webSocketHandler.SendMessage("{\"type\": \"next\",\"data\": \"true\"}");
-            }else
+            }
+            else
             {
                 UpdateAudioPosition(this, null);
             }
@@ -195,7 +209,7 @@ namespace Musiche
                 //Content = webview2;
                 //Hide();
                 webview2.CoreWebView2DOMContentLoaded += Webview2_CoreWebView2DOMContentLoaded;
-                if(Environment.GetCommandLineArgs().Any(m => "--dev".Equals(m.ToLower())))
+                if (Environment.GetCommandLineArgs().Any(m => "--dev".Equals(m.ToLower())))
                 {
                     webview2.EnableDevMode();
                 }
@@ -258,7 +272,7 @@ namespace Musiche
 
         public void ShowApp(object sender, EventArgs e)
         {
-            if(sender is System.Windows.Forms.ToolStripMenuItem)
+            if (sender is System.Windows.Forms.ToolStripMenuItem)
             {
                 webSocketHandler.SendMessage("{\"type\": \"show\"}");
             }
@@ -339,7 +353,7 @@ namespace Musiche
             lyricWindow = null;
         }
 
-        internal void SetLyricLine(string line, double duration=0)
+        internal void SetLyricLine(string line, double duration = 0)
         {
             lyricWindow?.SetLine(line, duration);
         }

@@ -33,7 +33,8 @@ namespace Musiche.Utils
             try
             {
                 System.IO.File.WriteAllBytes(IconFontPath, Properties.Resources.iconfont);
-            }catch (Exception) { }
+            }
+            catch (Exception) { }
         }
 
         public static void CreateDirectoryIFNotExists(string path)

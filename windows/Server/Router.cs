@@ -13,15 +13,15 @@ namespace Musiche.Server
         public static Dictionary<string, Func<HttpListenerContext, Task>> ReadHttpRouter(object obj)
         {
             Dictionary<string, Func<HttpListenerContext, Task>> routers = new Dictionary<string, Func<HttpListenerContext, Task>>();
-            if(obj == null) return routers;
+            if (obj == null) return routers;
             Type type = obj.GetType();
             MethodInfo[] methods = type.GetMethods();
             foreach (MethodInfo method in methods)
             {
-                if(!IsParameterRoute(method, typeof(HttpListenerContext))) continue;
+                if (!IsParameterRoute(method, typeof(HttpListenerContext))) continue;
                 RouterAttribute[] attributes = (RouterAttribute[])method.GetCustomAttributes(typeof(RouterAttribute), false);
-                var func = method.IsStatic ? 
-                    (Func<HttpListenerContext, Task>)Delegate.CreateDelegate(typeof(Func<HttpListenerContext, Task>), method) : 
+                var func = method.IsStatic ?
+                    (Func<HttpListenerContext, Task>)Delegate.CreateDelegate(typeof(Func<HttpListenerContext, Task>), method) :
                     (Func<HttpListenerContext, Task>)Delegate.CreateDelegate(typeof(Func<HttpListenerContext, Task>), obj, method);
                 foreach (RouterAttribute attribute in attributes)
                 {

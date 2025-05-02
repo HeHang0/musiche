@@ -39,7 +39,7 @@ namespace Musiche.Audio
             return _pictureType;
         }
 
-        public static AudioTag ReadTag(string audioFile, bool picture=false)
+        public static AudioTag ReadTag(string audioFile, bool picture = false)
         {
             AudioTag audioTag = new AudioTag(audioFile);
             try

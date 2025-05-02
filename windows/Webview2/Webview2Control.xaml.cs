@@ -3,7 +3,6 @@ using Microsoft.Web.WebView2.Wpf;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Security.Policy;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -67,15 +66,15 @@ namespace Musiche.Webview2
 
         public void SetTheme(CoreWebView2PreferredColorScheme preferredColorScheme)
         {
-            if(webview2.CoreWebView2 != null)
+            if (webview2.CoreWebView2 != null)
             {
                 webview2.CoreWebView2.Profile.PreferredColorScheme = preferredColorScheme;
             }
         }
 
-        public void SaveConfig(bool clear=false)
+        public void SaveConfig(bool clear = false)
         {
-            if(clear) webview2.CoreWebView2.Profile.ClearBrowsingDataAsync();
+            if (clear) webview2.CoreWebView2.Profile.ClearBrowsingDataAsync();
         }
 
         private void Webview2Control_Loaded(object sender, RoutedEventArgs e)
@@ -141,7 +140,7 @@ namespace Musiche.Webview2
 
         public void EnableDevMode()
         {
-            if(webview2 != null)
+            if (webview2 != null)
             {
                 webview2.CoreWebView2.Settings.AreDevToolsEnabled = false;
             }

@@ -55,20 +55,21 @@ namespace Musiche
                     label.Foreground = dark ? Brushes.White : Brushes.Black;
                 }
             }
-            if(LockLabel.Effect is DropShadowEffect effect)
+            if (LockLabel.Effect is DropShadowEffect effect)
                 effect.Color = dark ? Colors.Black : Colors.White;
         }
 
         private void SetStatus()
         {
-            if(!File.Exists(statusSavePath))
+            if (!File.Exists(statusSavePath))
             {
                 WindowStartupLocation = WindowStartupLocation.CenterScreen;
                 return;
-            }else
+            }
+            else
             {
                 Utils.WindowStatus windowStatus = Utils.WindowStatus.Parse(System.IO.File.ReadAllText(statusSavePath));
-                if(windowStatus.Width > 0) Width = Math.Max(windowStatus.Width, MinWidth);
+                if (windowStatus.Width > 0) Width = Math.Max(windowStatus.Width, MinWidth);
                 if (windowStatus.Height > 0) Height = Math.Max(windowStatus.Height, MinHeight);
                 if (windowStatus.X > 0) Left = Math.Min(windowStatus.X, SystemParameters.PrimaryScreenWidth - Width);
                 if (windowStatus.Y > 0) Top = Math.Min(windowStatus.Y, SystemParameters.PrimaryScreenHeight - Height);
@@ -92,10 +93,10 @@ namespace Musiche
         private void SetIcons()
         {
             var uri = new Uri(Path.GetDirectoryName(Utils.File.IconFontPath));
-            FontFamily fontFamily = new FontFamily(uri.AbsoluteUri+"/#iconfont");
+            FontFamily fontFamily = new FontFamily(uri.AbsoluteUri + "/#iconfont");
             foreach (object item in IconPannel.Children)
             {
-                if(item is Label label)
+                if (item is Label label)
                 {
                     label.FontFamily = fontFamily;
                 }
@@ -131,7 +132,8 @@ namespace Musiche
             Color effectColor = Colors.Transparent;
             if (!string.IsNullOrWhiteSpace(options.EffectColor))
             {
-                try {
+                try
+                {
                     effectColor = (Color)ColorConverter.ConvertFromString(options.EffectColor);
                 }
                 catch (Exception)
@@ -151,9 +153,9 @@ namespace Musiche
                 }
             }
             Lyric.Foreground = fontColor;
-            if(options.FontSize > 0) Lyric.FontSize = options.FontSize;
+            if (options.FontSize > 0) Lyric.FontSize = options.FontSize;
             Lyric.FontWeight = options.FontBold ? FontWeights.Bold : FontWeights.Normal;
-            
+
             if (string.IsNullOrWhiteSpace(options.FontFamily))
             {
                 Lyric.FontFamily = defaultFontfamily;
@@ -169,14 +171,14 @@ namespace Musiche
                     Lyric.FontFamily = defaultFontfamily;
                 }
             }
-            if(options.Topmost != Topmost)
+            if (options.Topmost != Topmost)
             {
                 Topmost = options.Topmost;
             }
         }
 
         private double scrollStep = 0;
-        public void SetLine(string line, double duration=0)
+        public void SetLine(string line, double duration = 0)
         {
             LyricScroll.ScrollToHorizontalOffset(0);
             Lyric.Content = line;
@@ -195,8 +197,8 @@ namespace Musiche
         private void TimerSetScroll(object sender, EventArgs e)
         {
             if (scrollStep <= 0) return;
-            LyricScroll.ScrollToHorizontalOffset(LyricScroll.HorizontalOffset+scrollStep);
-            if(LyricScroll.ExtentWidth - LyricScroll.ActualWidth <= 
+            LyricScroll.ScrollToHorizontalOffset(LyricScroll.HorizontalOffset + scrollStep);
+            if (LyricScroll.ExtentWidth - LyricScroll.ActualWidth <=
                 LyricScroll.HorizontalOffset && sender is DispatcherTimer timer)
             {
                 timer.Stop();
@@ -233,9 +235,9 @@ namespace Musiche
 
         private void SizeWindow(object sender, MouseButtonEventArgs e)
         {
-            if (windowResize == null || 
-                !(sender is Rectangle rectangle) || 
-                !(rectangle.Tag is string directionText) || 
+            if (windowResize == null ||
+                !(sender is Rectangle rectangle) ||
+                !(rectangle.Tag is string directionText) ||
                 !int.TryParse(directionText, out int direction))
             {
                 return;
@@ -263,7 +265,7 @@ namespace Musiche
             SetLocked(label.Content?.ToString() == "锁");
         }
 
-        public void SetLocked(bool isLock, bool isInitial=false)
+        public void SetLocked(bool isLock, bool isInitial = false)
         {
             locked = isLock;
             LockLabel.Content = locked ? "解" : "锁";

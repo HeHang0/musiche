@@ -25,12 +25,12 @@ namespace Musiche.Server
             await SendStatus(webSocket);
         }
 
-        public async Task SendStatus(WebSocket webSocket=null)
+        public async Task SendStatus(WebSocket webSocket = null)
         {
             var status = await GetStatus();
             status.Add("type", "status");
             string text = JsonConvert.SerializeObject(status);
-            if(webSocket == null)
+            if (webSocket == null)
             {
                 SendMessage(text);
             }

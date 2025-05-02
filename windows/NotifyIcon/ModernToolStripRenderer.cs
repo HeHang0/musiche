@@ -1,7 +1,5 @@
-﻿using System;
-using System.Drawing;
+﻿using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace Musiche.NotifyIcon
@@ -124,7 +122,7 @@ namespace Musiche.NotifyIcon
         {
             if (e.Item.Tag != null)
             {
-                e.Graphics.DrawString(e.Item.Tag.ToString(), iconFont, new SolidBrush(e.Item.ForeColor), e.ImageRectangle.X + 5, e.ImageRectangle.Y+2);
+                e.Graphics.DrawString(e.Item.Tag.ToString(), iconFont, new SolidBrush(e.Item.ForeColor), e.ImageRectangle.X + 5, e.ImageRectangle.Y + 2);
             }
             else if (e.Image != null)
             {
