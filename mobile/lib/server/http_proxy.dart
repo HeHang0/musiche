@@ -1,7 +1,4 @@
-import 'dart:convert';
 import 'dart:io';
-
-import 'package:flutter/cupertino.dart';
 
 import '../log/logger.dart';
 import 'proxy_request_data.dart';
@@ -13,6 +10,7 @@ class HttpProxy {
     var httpClient = HttpClient();
     ProxyResponseData result;
     try {
+      httpClient.autoUncompress = false;
       var request = await httpClient.openUrl(data.method, Uri.parse(data.url));
       request.followRedirects = data.allowAutoRedirect;
       request.headers.removeAll("accept-encoding");

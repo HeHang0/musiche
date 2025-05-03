@@ -1,8 +1,6 @@
 
 import 'dart:convert';
 
-import 'package:flutter/cupertino.dart';
-
 import '../log/logger.dart';
 
 class LyricOptions {

@@ -5,7 +5,7 @@ import { Search } from '@element-plus/icons-vue';
 
 import { useSettingStore } from '../stores/setting';
 import { MusicType } from '../utils/type';
-import { isWindows } from '../utils/utils';
+import { isMobile, isWindows } from '../utils/utils';
 import { webView2Services } from '../utils/files';
 
 import MusicTypeEle from './MusicType.vue';
@@ -44,7 +44,7 @@ onUnmounted(unWatch);
   <el-header
     class="music-header"
     :style="
-      setting.currentMusicTypeShow || isWindows ? '' : '--header-height:40px'
+      setting.currentMusicTypeShow || !isMobile ? '' : '--header-height:40px'
     ">
     <div class="music-header-content">
       <el-button

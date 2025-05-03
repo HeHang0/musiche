@@ -10,6 +10,7 @@ import 'package:musiche/log/logger.dart';
 import 'package:musiche/server/handler_interface.dart';
 import 'package:musiche/server/proxy_request_data.dart';
 import 'package:musiche/server/proxy_response_data.dart';
+import 'package:musiche/server/tray_manager.dart';
 import 'package:musiche/utils/android_channel.dart';
 import 'package:musiche/utils/macos_channel.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -26,7 +27,8 @@ class HttpHandler extends Handler implements IHandler {
   static const String _tag = 'MusicheHttpHandler';
   Map<String, RouterCall> routers = <String, RouterCall>{};
   final SharedPreferences? sharedPreferences;
-  HttpHandler(super.audioPlay, this.sharedPreferences){
+  final TrayManager _trayManager;
+  HttpHandler(super.audioPlay, this._trayManager, this.sharedPreferences){
     routers.addEntries([
       MapEntry("*", _handleIndex),
       MapEntry("config", _handleConfig),
@@ -373,10 +375,13 @@ class HttpHandler extends Handler implements IHandler {
     if(kIsWeb || (!Platform.isAndroid && !Platform.isMacOS)) return;
     Map<String, dynamic> lyricOptions = jsonDecode(await _readBody(request));
     try {
-      var androidInfo = await OSVersion.androidInfo;
       if(Platform.isMacOS){
         MacOSChannel.setLyricOptions(lyricOptions);
-      } else if((androidInfo?.version.sdkInt ?? 0) >= 23){
+        _trayManager.updateTrayList();
+        return;
+      }
+      var androidInfo = await OSVersion.androidInfo;
+      if((androidInfo?.version.sdkInt ?? 0) >= 23){
         var status = await Permission.systemAlertWindow.status;
         bool show = lyricOptions.containsKey("show") &&
             lyricOptions["show"] is bool && lyricOptions["show"];
@@ -429,9 +434,9 @@ class HttpHandler extends Handler implements IHandler {
       _setHeader(request.response, proxyResData.headers);
       request.response.headers.chunkedTransferEncoding = false;
       request.response.statusCode = proxyResData.statusCode;
-      // if (proxyResData.contentLength > 0) {
-      //   request.response.contentLength = proxyResData.contentLength;
-      // }
+      if (proxyResData.contentLength > 0) {
+        request.response.contentLength = proxyResData.contentLength;
+      }
       if (proxyResData.stream != null) {
         await request.response.addStream(proxyResData.stream!);
       }else if(proxyResData.data.isNotEmpty) {
@@ -487,7 +492,7 @@ class HttpHandler extends Handler implements IHandler {
             // case "cookies":
             case "connection":
             // case "contentencoding":
-            // case "contentlength":
+            case "contentlength":
             // case "transferencoding":
             case "accesscontrolalloworigin":
             case "accesscontrolallowheaders":

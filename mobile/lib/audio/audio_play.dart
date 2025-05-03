@@ -75,6 +75,10 @@ class AudioPlay extends BaseAudioHandler {
   }
 
   void setMusicPlayRequest(MusicPlayRequest request){
+    if(request.music?.id != _musicPlayRequest?.music?.id ||
+        request.music?.type != _musicPlayRequest?.music?.type){
+      _audioPlayer.stop();
+    }
     _musicPlayRequest = request;
   }
 

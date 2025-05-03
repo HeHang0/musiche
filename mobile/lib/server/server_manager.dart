@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:musiche/log/logger.dart';
+import 'package:musiche/server/tray_manager.dart';
 import 'package:musiche/server/websocket_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,6 +17,7 @@ class ServerManager {
   static int get port => _port;
   static HttpServer? _server;
   static WebSocketHandler? _websocketHandler;
+  static TrayManager? _trayManager;
 
   static Future<void> startServer() async {
     if(_server != null) return;
@@ -27,8 +29,9 @@ class ServerManager {
     }catch(e){
       Logger.e(_tag, "init shared preferences error", error: e);
     }
-    HttpHandler httpHandler = HttpHandler(audioPlay, sharedPreferences);
     _websocketHandler = WebSocketHandler(audioPlay);
+    _trayManager = TrayManager(_websocketHandler!);
+    HttpHandler httpHandler = HttpHandler(audioPlay, _trayManager!, sharedPreferences);
     _port = kDebugMode ? 54621 : await Network.findAvailablePort();
     InternetAddress address = kDebugMode ? InternetAddress.anyIPv4 : InternetAddress('127.0.0.1');
     Logger.i(_tag, "start server: $address:$_port");

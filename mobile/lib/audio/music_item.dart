@@ -86,7 +86,7 @@ class MusicItem {
         "module": 'vkey.GetVkeyServer',
         "method": 'CgiGetVkey',
         "param": {
-          "guid": timestampInSeconds,
+          "guid": "${timestampInSeconds}",
           "songmid": [id],
           "songtype": [0],
           "uin": '',
@@ -96,17 +96,17 @@ class MusicItem {
         }
       }
     });
-    final response = await http.post(Uri.parse(_cloudMusicAPI), headers: {
-      "Content-Type": "application/json",
+    final response = await http.post(Uri.parse("https://u.y.qq.com/cgi-bin/musicu.fcg"), headers: {
       "Referer": "https://y.qq.com",
       "User-Agent": _userAgent,
       "Cookie": cookie
     }, body: data);
     try{
-      dynamic result = jsonDecode(response.body);
+      var body = utf8.decode(response.bodyBytes);
+      dynamic result = jsonDecode(body);
       dynamic data = result["req_0"]["data"];
       String pUrl = data["midurlinfo"][0]["purl"];
-      List<String> sip = data["sip"];
+      List<dynamic> sip = data["sip"];
       String urlPrefix = "https://dl.stream.qqmusic.qq.com/";
       for(int i=0;i<sip.length;i++){
         if(sip[i].isNotEmpty){

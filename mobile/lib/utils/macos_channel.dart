@@ -14,6 +14,7 @@ class MacOSChannel {
   static const _methodLyricOptions = "lyric-options";
   static const _methodLyricLine = "lyric-line";
   static final MethodChannel? _methodChannel = Platform.isMacOS ? const MethodChannel(_channel) : null;
+  static bool isLyricShow = false;
 
   static Future<void> open(String url) async {
     await _methodChannel?.invokeMethod(_methodOpen, {
@@ -40,6 +41,7 @@ class MacOSChannel {
   static Future<void> setLyricOptions(Map<String, dynamic> lyricOptions) async {
     if(!lyricOptions.containsKey('show')) lyricOptions['show'] = false;
     if(!lyricOptions.containsKey('title')) lyricOptions['title'] = '';
+    isLyricShow = lyricOptions['show'];
     await _methodChannel?.invokeMethod(_methodLyricOptions, lyricOptions);
   }
 

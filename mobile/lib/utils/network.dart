@@ -1,10 +1,9 @@
 import 'dart:io';
 
-import 'package:flutter/cupertino.dart';
 import 'package:musiche/log/logger.dart';
 
 class Network {
-  static final String _tag = "MusicheNetwork";
+  static const String _tag = "MusicheNetwork";
   static Future<int> findAvailablePort({int port = 8080}) async {
     for(;port < 65535;port++) {
       try {
