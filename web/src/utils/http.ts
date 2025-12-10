@@ -30,9 +30,18 @@ export function getProxyAddress() {
 export function isHuaweiCloud() {
   return useHuaweiCloud;
 }
-export function httpProxy(prd: ProxyRequestData): Promise<Response> {
+const textDecoder = new TextDecoder();
+export function decodeBase64(text: string) {
+  const decodedData = atob(text);
+  const uint8Array = new Uint8Array(decodedData.length);
+  for (let i = 0; i < decodedData.length; i++) {
+    uint8Array[i] = decodedData.charCodeAt(i);
+  }
+  return uint8Array;
+}
+export async function httpProxy(prd: ProxyRequestData): Promise<Response> {
   prd.method = prd.method || 'GET';
-  return fetch(proxyAddress, {
+  const res = fetch(proxyAddress, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -40,6 +49,17 @@ export function httpProxy(prd: ProxyRequestData): Promise<Response> {
     body: JSON.stringify(prd),
     redirect: prd.allowAutoRedirect === false ? 'manual' : undefined
   });
+  const ret = await res;
+  if (useHuaweiCloud) {
+    let text = await ret.text();
+    const data = JSON.parse(text);
+    const uint8Array = decodeBase64(data.body);
+    ret.text = () => Promise.resolve(textDecoder.decode(uint8Array));
+    ret.json = () =>
+      Promise.resolve(JSON.parse(textDecoder.decode(uint8Array)));
+    ret.arrayBuffer = () => Promise.resolve(uint8Array.buffer);
+  }
+  return Promise.resolve(ret);
 }
 
 export function parseHttpProxyAddress(url: string): string {

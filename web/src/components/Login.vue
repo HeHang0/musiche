@@ -51,7 +51,8 @@ async function checkQRCode(key: string) {
       qrCodeTimeout = setTimeout(checkQRCode.bind(null, key), 1000);
       return;
   }
-  props.qrcode && setQrCodeImage();
+  console.log('login error', data);
+  props.qrcode && setTimeout(setQrCodeImage, 1000);
 }
 
 async function setQrCodeImage() {
@@ -65,6 +66,7 @@ async function setQrCodeImage() {
   }
   loading.value = true;
   const uniKey = await api.qrCodeKey(props.type);
+  console.log('login key', uniKey);
   if (!uniKey) {
     uniKeyTimeout = setTimeout(setQrCodeImage, 1000);
   } else {

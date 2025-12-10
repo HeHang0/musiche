@@ -41,11 +41,11 @@ export function getHash(text: Buffer | string, length = 8): string {
 
 function fixWorkerJS(): string {
   const distPath = path.resolve('dist');
-  const workerPath = path.resolve(distPath, 'worker.js');
+  const workerPath = path.resolve(distPath, 'musiche.worker.js');
   if (fs.existsSync(workerPath)) {
     const workerJS = fs.readFileSync(workerPath, { encoding: 'utf8' });
     const hash = getHash(workerJS);
-    const workerName = `worker-${hash}.js`;
+    const workerName = `musiche.worker-${hash}.js`;
     const workerNamePath = path.resolve(distPath, workerName);
     fs.renameSync(workerPath, workerNamePath);
     let routerPrefix = process.env.ROUTER_PREFIX

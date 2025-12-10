@@ -24,7 +24,8 @@ document.addEventListener(
     const proxyAddress = getProxyAddress();
     if (
       target.src?.startsWith('http://') &&
-      !target.src?.includes(proxyAddress)
+      !target.src?.startsWith(location.origin) &&
+      !target.src?.startsWith(proxyAddress)
     ) {
       target.src = target.src.replace('http://', 'https://');
       return;
