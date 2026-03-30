@@ -3,7 +3,7 @@ import { LyricLine, MusicFileInfo } from './type';
 
 export const isInStandaloneMode = Boolean(
   ('standalone' in window.navigator && window.navigator.standalone) ||
-    window.matchMedia('(display-mode: standalone)').matches
+  window.matchMedia('(display-mode: standalone)').matches
 );
 // export const isIOS = !!(
 //   navigator.userAgent.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/) ||
@@ -280,6 +280,23 @@ export function formatCookies(
   return Object.keys(cookies)
     .map(m => `${m}=${cookies[m]}`)
     .join('; ');
+}
+
+export function parseCookieText(cookies: string): Record<string, string> {
+  if (!cookies) return {};
+  const cookieGroups = cookies.split(';').map(m =>
+    m
+      .trim()
+      .split('=')
+      .map(n => n.trim())
+  );
+  const result: Record<string, string> = {};
+  cookieGroups.forEach(group => {
+    if (group.length === 2) {
+      result[group[0]] = group[1];
+    }
+  });
+  return result;
 }
 
 export function queryStringify(data: Record<string, any>) {

@@ -58,6 +58,7 @@ enum CloudMusicAPI {
   DownloadUrl = 'http://music.163.com/weapi/song/enhance/player/url?csrf_token=',
   SongDetail = 'https://music.163.com/weapi/v3/song/detail',
   QRCodeUniKey = 'https://music.163.com/weapi/login/qrcode/unikey?csrf_token=',
+  LoginSwitch = 'https://music.163.com/weapi/w/user/login/type/switch?csrf_token=',
   LoginStatus = 'https://music.163.com/weapi/login/qrcode/client/login?csrf_token=',
   UserInfo = 'https://music.163.com/weapi/w/nuser/account/get?csrf_token='
 }
@@ -67,6 +68,7 @@ interface RequestOption {
   setCookieRename?: boolean;
   musicU?: string;
   csrfToken?: string;
+  headers?: Record<string, any>;
 }
 
 async function httpRequest(
@@ -77,7 +79,19 @@ async function httpRequest(
   const musicU = options?.musicU || cloudCookie['MUSIC_U'] || '';
   if (!options) options = {};
   if (!options.data) options.data = {};
+  // if (!options.data.header) {
+  //   options.data.header = {};
+  // }
+  // options.data.header = {
+  //   ...options.data.header,
+  //   appver: '',
+  //   osver: '',
+  //   deviceId: 'pyncm!',
+  //   os: 'pc',
+  //   requestId: new Date().getTime().toString()
+  // };
   options.data.csrf_token = csrfToken;
+  // const params = await encryptParams(api, options.data, 'e82ckenh8dichen8');
   var param = await aesEncrypt(
     JSON.stringify(options.data),
     '0CoJUm6Qyw8W8jud'
@@ -93,11 +107,12 @@ async function httpRequest(
     data: paramData,
     setCookieRename: options.setCookieRename,
     headers: {
-      Cookie: 'os=ios;MUSIC_U=' + musicU,
+      Cookie: 'os=ios;MUSIC_U=' + musicU + ';__csrf=' + csrfToken,
       Referer: 'https://music.163.com',
       ContentType: 'application/x-www-form-urlencoded',
       UserAgent:
-        'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1'
+        'Mozilla/5.0 (iPad; CPU OS 11_0 like Mac OS X) AppleWebKit/604.1.34 (KHTML, like Gecko) Version/11.0 Mobile/15A5341f Safari/604.1',
+      ...(options.headers || {})
     }
   });
   if (options.setCookieRename) {
@@ -222,14 +237,15 @@ export async function yours(offset: number): Promise<{
   const list: Playlist[] = [];
   const dailyPlaylist = await daily();
   if (dailyPlaylist) list.push(dailyPlaylist);
-  const ret = await httpRequest(CloudMusicAPI.Yours, {
+  const csrf = cloudCookie['__csrf'] || '';
+  const ret = await httpRequest(CloudMusicAPI.Yours + csrf, {
     data: {
-      uid: cloudCookie['uid'] || '',
-      wordwrap: 7,
-      limit: 50,
-      offset: offset,
-      lasttime: 0,
-      total: true
+      uid: (cloudCookie['uid'] || '').toString(),
+      wordwrap: '7',
+      offset: offset.toString(),
+      total: 'true',
+      limit: '36',
+      csrf_token: csrf
     }
   });
   ret.playlist.map((m: any) => {
@@ -575,14 +591,25 @@ export async function qrCodeKey(): Promise<{
 } | null> {
   const ret = await httpRequest(CloudMusicAPI.QRCodeUniKey, {
     data: {
-      type: 1
+      type: 1,
+      noCheckToken: true
+    },
+    headers: {
+      'x-os': 'web',
+      'x-loginmethod': 'QrCode',
+      'x-channelsource': 'undefined',
+      'nm-gcore-status': '1'
     }
   });
+  // const retSwitch = await httpRequest(CloudMusicAPI.LoginSwitch, {
+  //   data: { bizType: '' }
+  // });
+  // console.log('switch', await retSwitch);
   if (ret && ret.unikey) {
     return {
       key: ret.unikey,
       url: await qrcodeGenerate(
-        'http://music.163.com/login?codekey=' + ret.unikey
+        'https://music.163.com/login?codekey=' + ret.unikey
       )
     };
   }
@@ -596,7 +623,15 @@ export async function loginStatus(key: string): Promise<{
   const res = await httpRequest(CloudMusicAPI.LoginStatus, {
     data: {
       key: key,
-      type: 1
+      type: 1,
+      noCheckToken: true,
+      secureCaptcha: undefined
+    },
+    headers: {
+      'x-loginmethod': 'QrCode',
+      'x-channelsource': 'undefined',
+      'x-login-chain-id':
+        'v1_YD-V5IaTnucxoBEUkERBEbEydHEc2TFK9nJ_web_login_' + Date.now()
     },
     setCookieRename: true
   });

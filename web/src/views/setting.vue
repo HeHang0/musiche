@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { ElMessageBox } from 'element-plus';
-import { Ref, h, onMounted, onUnmounted, ref, watch } from 'vue';
+import { Ref, h, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { WarningFilled, PictureFilled } from '@element-plus/icons-vue';
 
@@ -30,6 +30,7 @@ import {
   isMobile,
   isSafari,
   isWindows,
+  parseCookieText,
   scrollToElementId
 } from '../utils/utils';
 
@@ -165,6 +166,18 @@ const delayMinute = ref(0);
 const delaySecond = ref(0);
 const delayExit = ref(false);
 const delayShutdown = ref(false);
+const cookieInput: Record<MusicType, string> = reactive({
+  cloud: '',
+  qq: '',
+  migu: '',
+  local: ''
+});
+const cookieInputVisible: Record<MusicType, boolean> = reactive({
+  cloud: false,
+  qq: false,
+  migu: false,
+  local: false
+});
 const themes = ref([
   {
     id: '',
@@ -226,6 +239,40 @@ function installPWA() {
     });
   } else {
     installPrompt && installPrompt.prompt();
+  }
+}
+
+async function onCookieInputChanged(type: MusicType) {
+  const cookieText = cookieInput[type].trim();
+  if (!cookieText) {
+    return;
+  }
+  switch (type) {
+    case 'cloud':
+      const cookieObj = parseCookieText(cookieText);
+      const cloudCookie =
+        (setting.userInfo.cloud.cookie as Record<string, string>) || {};
+      cloudCookie['__csrf'] = cookieObj['__csrf'] || '';
+      cloudCookie['MUSIC_U'] = cookieObj['MUSIC_U'] || '';
+      cloudCookie['uid'] = cookieObj['uid'] || '';
+      setting.userInfo.cloud.cookie = {
+        ...((setting.userInfo.cloud.cookie as Record<string, string>) || {}),
+        ...cloudCookie
+      };
+      break;
+    default:
+      setting.userInfo[type].cookie = cookieText;
+      break;
+  }
+  await setting.setUserInfo(type);
+  if (setting.userInfo[type].id) {
+    cookieInputVisible[type] = false;
+    cookieInput[type] = '';
+    if (type === 'cloud') {
+      (setting.userInfo.cloud.cookie as Record<string, string>)['uid'] =
+        setting.userInfo[type].id;
+    }
+    setting.saveUserInfo();
   }
 }
 
@@ -544,7 +591,11 @@ onUnmounted(unWatch);
           <td id="music-header-account">账号</td>
           <td class="music-setting-account">
             <div v-for="info in musicTypeInfoAll">
-              <img :src="info.image" />
+              <img
+                :src="info.image"
+                @dblclick="
+                  cookieInputVisible[info.type] = !cookieInputVisible[info.type]
+                " />
               <img
                 v-if="setting.userInfo[info.type].image"
                 :src="setting.userInfo[info.type].image" />
@@ -558,6 +609,11 @@ onUnmounted(unWatch);
                 @click="login(info.type)">
                 登录
               </span>
+              <el-input
+                v-model="cookieInput[info.type]"
+                v-if="cookieInputVisible[info.type]"
+                @change="onCookieInputChanged(info.type)"
+                style="flex: 1; margin: 0 20px" />
             </div>
           </td>
         </tr>
@@ -1101,6 +1157,18 @@ onUnmounted(unWatch);
                 <p>IOS版</p>
               </a>
               <a
+                class="music-setting-about-card"
+                href="https://hehang0.github.io/musiche/Musiche.hap"
+                target="_blank">
+                <div class="logo-app logo-app-harmonyos">
+                  <div>H</div>
+                  <div>M</div>
+                  <div>O</div>
+                  <div>S</div>
+                </div>
+                <p>鸿蒙版</p>
+              </a>
+              <a
                 v-if="
                   !isInStandaloneMode &&
                   installPromptShow &&
@@ -1491,6 +1559,18 @@ onUnmounted(unWatch);
         font-weight: bold;
         font-family: 'Arial';
         background-color: var(--logo-app-color);
+        &-harmonyos {
+          background-color: #2187ff;
+          flex-wrap: wrap;
+          & > div {
+            width: 25px;
+            height: 25px;
+          }
+          & > div:nth-child(3),
+          & > div:nth-child(4) {
+            line-height: 24px;
+          }
+        }
         &-microsoft {
           flex-wrap: wrap;
           justify-content: space-around;
