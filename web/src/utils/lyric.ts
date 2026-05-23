@@ -234,12 +234,10 @@ export class LyricManager {
         fontStyle.push(fontFamily);
       } else {
         if (!defaultFont) {
-          defaultFont =
-            window
-              .getComputedStyle(document.body)
-              .fontFamily.split(',')
-              .at(0)
-              ?.trim() || 'arial';
+          const [fontFamily = 'arial'] = window
+            .getComputedStyle(document.body)
+            .fontFamily.split(',');
+          defaultFont = fontFamily.trim() || 'arial';
         }
         fontStyle.push(defaultFont);
       }

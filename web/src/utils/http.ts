@@ -41,25 +41,36 @@ export function decodeBase64(text: string) {
 }
 export async function httpProxy(prd: ProxyRequestData): Promise<Response> {
   prd.method = prd.method || 'GET';
-  const res = fetch(proxyAddress, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(prd),
-    redirect: prd.allowAutoRedirect === false ? 'manual' : undefined
-  });
-  const ret = await res;
-  if (useHuaweiCloud) {
-    let text = await ret.text();
-    const data = JSON.parse(text);
-    const uint8Array = decodeBase64(data.body);
-    ret.text = () => Promise.resolve(textDecoder.decode(uint8Array));
-    ret.json = () =>
-      Promise.resolve(JSON.parse(textDecoder.decode(uint8Array)));
-    ret.arrayBuffer = () => Promise.resolve(uint8Array.buffer);
+  try {
+    const res = fetch(proxyAddress, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(prd),
+      redirect: prd.allowAutoRedirect === false ? 'manual' : undefined
+    });
+    const ret = await res;
+    if (useHuaweiCloud) {
+      let text = await ret.text();
+      const data = JSON.parse(text);
+      const uint8Array = decodeBase64(data.body);
+      ret.text = () => Promise.resolve(textDecoder.decode(uint8Array));
+      ret.json = () =>
+        Promise.resolve(JSON.parse(textDecoder.decode(uint8Array)));
+      ret.arrayBuffer = () => Promise.resolve(uint8Array.buffer);
+    }
+    return Promise.resolve(ret);
+  } catch {
+    return Promise.resolve({
+      json: () => Promise.resolve(null),
+      text: () => Promise.resolve(''),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      ok: false,
+      status: 0,
+      statusText: 'Network Error'
+    } as Response);
   }
-  return Promise.resolve(ret);
 }
 
 export function parseHttpProxyAddress(url: string): string {
@@ -144,9 +155,11 @@ export async function musicOperate(
   }
 }
 
+type CommunicationData = Parameters<WebSocket['send']>[0];
+
 export interface CommunicationClient {
   readyState: number;
-  send: (data: string | ArrayBufferLike | Blob | ArrayBufferView) => void;
+  send: (data: CommunicationData) => void;
 }
 
 export function wsClient(
@@ -158,7 +171,7 @@ export function wsClient(
     localAudio?.setOnMessage(onMessage);
     return {
       readyState: 3,
-      send: (_data: string | Blob | ArrayBufferView | ArrayBufferLike) => {}
+      send: (_data: CommunicationData) => {}
     };
   }
   // 创建 WebSocket 对象并指定服务器地址
@@ -200,6 +213,6 @@ export function wsClient(
     get readyState() {
       return socket.readyState;
     },
-    send: socket.send.bind(socket)
+    send: (data: CommunicationData) => socket.send(data)
   };
 }

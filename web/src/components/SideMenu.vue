@@ -61,8 +61,8 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
               item.key === 'yours'
                 ? Boolean(
                     setting.userInfo.cloud.id ||
-                      setting.userInfo.qq.id ||
-                      setting.userInfo.migu.id
+                    setting.userInfo.qq.id ||
+                    setting.userInfo.migu.id
                   )
                 : true
             "
@@ -82,7 +82,7 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
         <el-divider></el-divider>
         <el-sub-menu index="favorite">
           <template #title>
-            <el-menu-item>
+            <el-menu-item index="favorite-item">
               <span class="music-icon">藏</span>
               <span>收藏的歌单({{ play.myFavorites.length }})</span>
             </el-menu-item>
@@ -100,7 +100,7 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
         <el-divider></el-divider>
         <el-sub-menu index="created">
           <template #title>
-            <el-menu-item>
+            <el-menu-item index="created-item">
               <span class="music-icon">编</span>
               <span>创建的歌单({{ play.myPlaylists.length }})</span>
             </el-menu-item>

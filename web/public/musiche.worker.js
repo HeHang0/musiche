@@ -16,7 +16,7 @@ self.addEventListener('install', event => {
 let proxyAddress = '';
 let useHuaweiCloud = false;
 
-function getHuaweiCloudResponse(response) {
+async function getHuaweiCloudResponse(response) {
   const data = await response.json();
   const decodedData = atob(data.body);
   const uint8Array = new Uint8Array(decodedData.length);
@@ -58,7 +58,7 @@ async function cacheThenNetwork(request) {
   try {
     response = await fetch(request);
     if (useHuaweiCloud && response.ok && requestUrl.startsWith(proxyAddress)) {
-      response = getHuaweiCloudResponse(response)
+      response = await getHuaweiCloudResponse(response);
     }
   } catch (error) {
     if (
@@ -70,7 +70,7 @@ async function cacheThenNetwork(request) {
         proxyAddress + '?url=' + encodeURIComponent(requestUrl)
       );
       if (useHuaweiCloud && response.ok) {
-        response = getHuaweiCloudResponse(response)
+        response = await getHuaweiCloudResponse(response);
       }
     }
   }

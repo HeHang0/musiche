@@ -144,9 +144,9 @@ onUnmounted(unWatch);
           v-if="playlistInfoShow && !loading"
           :src="
             playlistInfo?.image ||
-            playlistInfo?.musicList?.at(0)?.largeImage ||
-            playlistInfo?.musicList?.at(0)?.mediumImage ||
-            playlistInfo?.musicList?.at(0)?.image ||
+            playlistInfo?.musicList?.[0]?.largeImage ||
+            playlistInfo?.musicList?.[0]?.mediumImage ||
+            playlistInfo?.musicList?.[0]?.image ||
             LogoImage
           " />
 

@@ -1,6 +1,5 @@
-import ColorThief from 'colorthief';
+import { getColor } from 'colorthief';
 import { parseHttpProxyAddress } from './http';
-const colorThief = new ColorThief();
 export interface ThemeColor {
   red: number;
   green: number;
@@ -59,7 +58,7 @@ export class ThemeColorManager {
     });
     let color = [0, 0, 0];
     try {
-      color = await colorThief.getColor(image);
+      color = (await getColor(image))?.array() || color;
     } catch (error) {
       console.log('color thief error', imgUrl, error);
     }

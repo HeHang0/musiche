@@ -191,7 +191,7 @@ const play = usePlayStore();
             @mousedown="play.playStatus.disableUpdateVolume = true"
             @touchstart="play.playStatus.disableUpdateVolume = true"
             @change="play.changeVolume"
-            :show-tooltip="false"
+            :show-tooltip="!isMobile"
             style="min-width: 80px; width: 25vw; max-width: 150px" />
         </template>
       </div>
