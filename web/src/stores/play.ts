@@ -71,7 +71,8 @@ export const usePlayStore = defineStore('play', {
       },
       checkingStatus: false,
       nextPlay: null as Music | null,
-      preparePlay: false
+      preparePlay: false,
+      volumeDisableTimeout: null as any
     };
   },
   actions: {
@@ -479,12 +480,15 @@ export const usePlayStore = defineStore('play', {
         this.playStatus.volume = value;
         return;
       }
+      clearTimeout(this.volumeDisableTimeout);
       this.checkingStatus = true;
-      this.playStatus.disableUpdateVolume = false;
       var res = await musicOperate('/volume', value.toString());
       this.checkingStatus = false;
       this.setStatus(res.data);
       saved && storage.setValue(StorageKey.Volume, this.playStatus.volume);
+      this.volumeDisableTimeout = setTimeout(() => {
+        this.playStatus.disableUpdateVolume = false;
+      }, 300);
     },
     async mute() {
       if (this.playStatus.volume === 0) {
