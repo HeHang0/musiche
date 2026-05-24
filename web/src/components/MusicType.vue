@@ -40,8 +40,8 @@ function valueChange(v: MusicType) {
 </template>
 <style lang="less" scoped>
 .music-type-icon {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
 }
 .el-radio-group {
@@ -58,13 +58,14 @@ function valueChange(v: MusicType) {
   border: none;
   background-color: transparent;
   border-left: none !important;
+  outline: none;
 }
 :deep(.el-radio-button__inner:hover) {
   color: var(--el-button-text-color, var(--el-text-color-regular));
 }
 :deep(
-    .el-radio-button__original-radio:checked + .el-radio-button__inner:hover
-  ) {
+  .el-radio-button__original-radio:checked + .el-radio-button__inner:hover
+) {
   color: var(--el-radio-button-checked-text-color, var(--el-color-white));
 }
 :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
