@@ -606,11 +606,15 @@ onUnmounted(unWatch);
                   @click="logout(info.type)">
                   {{ setting.userInfo[info.type].name }}
                 </span>
-                <span
-                  v-if="!setting.userInfo[info.type].id"
-                  @click="login(info.type)">
-                  登录
-                </span>
+                <el-tooltip
+                  placement="top"
+                  content="双击图标可手动输入cookie登录">
+                  <span
+                    v-if="!setting.userInfo[info.type].id"
+                    @click="login(info.type)">
+                    登录
+                  </span>
+                </el-tooltip>
                 <el-input
                   v-model="cookieInput[info.type]"
                   v-if="cookieInputVisible[info.type]"

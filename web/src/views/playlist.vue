@@ -188,7 +188,11 @@ onUnmounted(unWatch);
               {{ playlistInfo?.name || '' }}
             </div>
             <el-scrollbar class="music-playlist-header-info-desc">
-              <div v-html="playlistInfo?.description || ''"></div>
+              <div
+                v-html="playlistInfo?.description || ''"
+                :title="
+                  playlistInfo?.description?.replace(/<br \/>/g, '\n') || ''
+                "></div>
             </el-scrollbar>
           </div>
           <el-skeleton animated :loading="loading" :row="4"> </el-skeleton>

@@ -1,4 +1,4 @@
-import { httpProxy, parseHttpProxyAddress } from '../http';
+import { httpProxy as httpProxyOrigin, parseHttpProxyAddress } from '../http';
 import {
   Music,
   Playlist,
@@ -6,7 +6,8 @@ import {
   RankingType,
   UserInfo,
   LoginStatus,
-  MusicQuality
+  MusicQuality,
+  ProxyRequestData
 } from '../type';
 import {
   formatCookies,
@@ -14,6 +15,7 @@ import {
   highlightKeys,
   millisecond2Duration,
   parseCookie,
+  parseCookieText,
   parseCookieWithDomain,
   queryStringify
 } from '../utils';
@@ -24,6 +26,19 @@ import RankingSoarImage from '../../assets/images/ranking-soar.jpg';
 const musicType: MusicType = 'qq';
 
 var qqCookie: string = '';
+
+async function httpProxy(prd: ProxyRequestData): Promise<Response> {
+  prd.setCookieRename = true;
+  const res = await httpProxyOrigin(prd);
+  const newCookie =
+    parseCookie(res.headers.get('Set-Cookie-Renamed') || '') || {};
+  const miguCookieObj = parseCookieText(qqCookie);
+  qqCookie = formatCookies({
+    ...miguCookieObj,
+    ...newCookie
+  });
+  return Promise.resolve(res);
+}
 
 function parseAlbumImage(music: any) {
   const albumPMId =
@@ -701,30 +716,29 @@ function decodeBase64(e: string) {
   for (
     var t, n, r, i, o, c, s = '', l = 0, u = e.replace(/[^A-Za-z0-9+/=]/g, '');
     l < e.length;
-
   )
-    (t =
+    ((t =
       (base64Header.indexOf(u.charAt(l++)) << 2) |
       ((i = base64Header.indexOf(u.charAt(l++))) >> 4)),
       (n = ((15 & i) << 4) | ((o = base64Header.indexOf(u.charAt(l++))) >> 2)),
       (r = ((3 & o) << 6) | (c = base64Header.indexOf(u.charAt(l++)))),
       (s += String.fromCharCode(t)),
       64 !== o && (s += String.fromCharCode(n)),
-      64 !== c && (s += String.fromCharCode(r));
+      64 !== c && (s += String.fromCharCode(r)));
   return (s = (function (e) {
     for (var t = '', n = 0, a = 0, r = 0, i = 0; n < e.length; )
       (a = e.charCodeAt(n)) < 128
         ? ((t += String.fromCharCode(a)), n++)
         : a > 191 && a < 224
-        ? ((r = e.charCodeAt(n + 1)),
-          (t += String.fromCharCode(((31 & a) << 6) | (63 & r))),
-          (n += 2))
-        : ((r = e.charCodeAt(n + 1)),
-          (i = e.charCodeAt(n + 2)),
-          (t += String.fromCharCode(
-            ((15 & a) << 12) | ((63 & r) << 6) | (63 & i)
-          )),
-          (n += 3));
+          ? ((r = e.charCodeAt(n + 1)),
+            (t += String.fromCharCode(((31 & a) << 6) | (63 & r))),
+            (n += 2))
+          : ((r = e.charCodeAt(n + 1)),
+            (i = e.charCodeAt(n + 2)),
+            (t += String.fromCharCode(
+              ((15 & a) << 12) | ((63 & r) << 6) | (63 & i)
+            )),
+            (n += 3));
     return t;
   })(s));
 }
