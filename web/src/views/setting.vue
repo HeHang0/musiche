@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import { WarningFilled, PictureFilled } from '@element-plus/icons-vue';
 
 import Login from '../components/Login.vue';
+import AnimalPage from '../components/AnimalPage.vue';
 
 import { useSettingStore } from '../stores/setting';
 import { usePlayStore } from '../stores/play';
@@ -199,6 +200,11 @@ const themes = ref([
     id: 'red',
     name: '红',
     color: 'rgb(255,58,58)'
+  },
+  {
+    id: 'animal-island',
+    name: '动物岛',
+    color: 'linear-gradient(135deg, #fffaf0 0%, #f7f3df 45%, #82d5bb 100%)'
   }
 ] as AppTheme[]);
 let scrolling = false;
@@ -487,494 +493,158 @@ onMounted(() => {
 onUnmounted(unWatch);
 </script>
 <template>
-  <div class="music-setting">
-    <div class="music-setting-header">
-      <div class="music-setting-header-title">设置</div>
-      <div class="music-setting-header-sub">
-        <span
-          id="title-music-header-account"
-          :class="
-            currentId === 'music-header-account'
-              ? 'music-setting-header-active'
-              : ''
-          "
-          @click="replace('#music-header-account')"
-          >账号</span
-        >
-        <span
-          id="title-music-header-general"
-          :class="
-            currentId === 'music-header-general'
-              ? 'music-setting-header-active'
-              : ''
-          "
-          @click="replace('#music-header-general')"
-          >常规</span
-        >
-        <span
-          id="title-music-header-theme"
-          :class="
-            currentId === 'music-header-theme'
-              ? 'music-setting-header-active'
-              : ''
-          "
-          @click="replace('#music-header-theme')"
-          >主题</span
-        >
-        <span
-          v-if="isWindows && setting.config.remote"
-          id="title-music-header-system"
-          :class="
-            currentId === 'music-header-system'
-              ? 'music-setting-header-active'
-              : ''
-          "
-          @click="replace('#music-header-system')"
-          >系统</span
-        >
-        <span
-          id="title-music-header-play"
-          :class="
-            currentId === 'music-header-play'
-              ? 'music-setting-header-active'
-              : ''
-          "
-          @click="replace('#music-header-play')"
-          >播放</span
-        >
-        <span
-          v-if="!isMobile"
-          id="title-music-header-shortcut"
-          :class="
-            currentId === 'music-header-shortcut'
-              ? 'music-setting-header-active'
-              : ''
-          "
-          @click="replace('#music-header-shortcut')"
-          >快捷键</span
-        >
-        <span
-          id="title-music-header-quality"
-          :class="
-            currentId === 'music-header-quality'
-              ? 'music-setting-header-active'
-              : ''
-          "
-          @click="replace('#music-header-quality')"
-          >音质与下载</span
-        >
-        <span
-          id="title-music-header-lyric"
-          :class="
-            currentId === 'music-header-lyric'
-              ? 'music-setting-header-active'
-              : ''
-          "
-          @click="replace('#music-header-lyric')"
-          >桌面歌词</span
-        >
-        <span
-          id="title-music-header-about"
-          :class="
-            currentId === 'music-header-about'
-              ? 'music-setting-header-active'
-              : ''
-          "
-          @click="replace('#music-header-about')"
-          >关于</span
-        >
+  <AnimalPage>
+    <div class="music-setting">
+      <div class="music-setting-header">
+        <div class="music-setting-header-title">设置</div>
+        <div class="music-setting-header-sub">
+          <span
+            id="title-music-header-account"
+            :class="
+              currentId === 'music-header-account'
+                ? 'music-setting-header-active'
+                : ''
+            "
+            @click="replace('#music-header-account')"
+            >账号</span
+          >
+          <span
+            id="title-music-header-general"
+            :class="
+              currentId === 'music-header-general'
+                ? 'music-setting-header-active'
+                : ''
+            "
+            @click="replace('#music-header-general')"
+            >常规</span
+          >
+          <span
+            id="title-music-header-theme"
+            :class="
+              currentId === 'music-header-theme'
+                ? 'music-setting-header-active'
+                : ''
+            "
+            @click="replace('#music-header-theme')"
+            >主题</span
+          >
+          <span
+            v-if="isWindows && setting.config.remote"
+            id="title-music-header-system"
+            :class="
+              currentId === 'music-header-system'
+                ? 'music-setting-header-active'
+                : ''
+            "
+            @click="replace('#music-header-system')"
+            >系统</span
+          >
+          <span
+            id="title-music-header-play"
+            :class="
+              currentId === 'music-header-play'
+                ? 'music-setting-header-active'
+                : ''
+            "
+            @click="replace('#music-header-play')"
+            >播放</span
+          >
+          <span
+            v-if="!isMobile"
+            id="title-music-header-shortcut"
+            :class="
+              currentId === 'music-header-shortcut'
+                ? 'music-setting-header-active'
+                : ''
+            "
+            @click="replace('#music-header-shortcut')"
+            >快捷键</span
+          >
+          <span
+            id="title-music-header-quality"
+            :class="
+              currentId === 'music-header-quality'
+                ? 'music-setting-header-active'
+                : ''
+            "
+            @click="replace('#music-header-quality')"
+            >音质与下载</span
+          >
+          <span
+            id="title-music-header-lyric"
+            :class="
+              currentId === 'music-header-lyric'
+                ? 'music-setting-header-active'
+                : ''
+            "
+            @click="replace('#music-header-lyric')"
+            >桌面歌词</span
+          >
+          <span
+            id="title-music-header-about"
+            :class="
+              currentId === 'music-header-about'
+                ? 'music-setting-header-active'
+                : ''
+            "
+            @click="replace('#music-header-about')"
+            >关于</span
+          >
+        </div>
       </div>
-    </div>
-    <el-scrollbar class="music-setting-body">
-      <table ref="tableEle">
-        <tbody>
-          <tr>
-            <td id="music-header-account">账号</td>
-            <td class="music-setting-account">
-              <div v-for="info in musicTypeInfoAll">
-                <img
-                  :src="info.image"
-                  @dblclick="
-                    cookieInputVisible[info.type] =
-                      !cookieInputVisible[info.type]
-                  " />
-                <img
-                  v-if="setting.userInfo[info.type].image"
-                  :src="setting.userInfo[info.type].image" />
-                <span
-                  v-if="setting.userInfo[info.type].name"
-                  @click="logout(info.type)">
-                  {{ setting.userInfo[info.type].name }}
-                </span>
-                <el-tooltip
-                  placement="top"
-                  content="双击图标可手动输入cookie登录">
+      <el-scrollbar class="music-setting-body">
+        <table ref="tableEle">
+          <tbody>
+            <tr>
+              <td id="music-header-account">账号</td>
+              <td class="music-setting-account">
+                <div v-for="info in musicTypeInfoAll">
+                  <img
+                    :src="info.image"
+                    @dblclick="
+                      cookieInputVisible[info.type] =
+                        !cookieInputVisible[info.type]
+                    " />
+                  <img
+                    v-if="setting.userInfo[info.type].image"
+                    :src="setting.userInfo[info.type].image" />
                   <span
-                    v-if="!setting.userInfo[info.type].id"
-                    @click="login(info.type)">
-                    登录
+                    v-if="setting.userInfo[info.type].name"
+                    @click="logout(info.type)">
+                    {{ setting.userInfo[info.type].name }}
                   </span>
-                </el-tooltip>
-                <el-input
-                  v-model="cookieInput[info.type]"
-                  v-if="cookieInputVisible[info.type]"
-                  @change="onCookieInputChanged(info.type)"
-                  style="flex: 1; margin: 0 20px" />
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td id="music-header-general">常规</td>
-            <td class="music-setting-general">
-              <span>字体选择</span>
-              <el-select
-                placeholder="默认"
-                v-model="setting.pageValue.font"
-                @change="
-                  setting.setFont(
-                    setting.pageValue.font,
-                    setting.pageValue.fontBold
-                  )
-                ">
-                <el-option key="default" label="默认" value="" />
-                <el-option key="auto" label="系统" value="auto" />
-                <el-option
-                  v-for="item in setting.fonts || defaultFonts"
-                  :key="item"
-                  :label="item"
-                  :title="item"
-                  :value="item">
-                  <div
-                    class="text-overflow-1"
-                    style="width: 120px"
-                    :style="{ fontFamily: `${item}` }">
-                    {{ item }}
-                  </div>
-                </el-option>
-              </el-select>
-              <el-checkbox
-                v-model="setting.pageValue.fontBold"
-                v-show="setting.pageValue.font"
-                @change="
-                  setting.setFont(
-                    setting.pageValue.font,
-                    setting.pageValue.fontBold
-                  )
-                "
-                label="字体加粗"
-                size="large" />
-              <el-checkbox
-                v-if="isWindows && setting.config.remote"
-                v-model="setting.pageValue.startup"
-                @change="setting.setStartup"
-                label="开机自动运行"
-                size="large" />
-              <el-checkbox
-                v-if="setting.config.gpu"
-                v-model="setting.pageValue.gpuAcceleration"
-                @change="setting.setGpuAcceleration()"
-                size="large">
-                使用硬件加速模式
-                <span class="music-setting-subtext">（如果可用）</span>
-              </el-checkbox>
-              <el-checkbox
-                v-model="setting.pageValue.disableAnimation"
-                @change="setting.setDisableAnimation"
-                size="large">
-                禁用动画效果
-                <span class="music-setting-subtext">
-                  (减少资源占用，提升性能)
-                </span>
-              </el-checkbox>
-            </td>
-            <td class="music-setting-general" style="padding: 10px 0 0 0">
-              <span>代理</span>
-              <el-input
-                v-model="defaultProxyAddress"
-                @change="onProxyAddressChanged"
-                style="padding: 10px 50px 0 0" />
-            </td>
-          </tr>
-          <tr>
-            <td id="music-header-theme">主题</td>
-            <td class="music-setting-theme">
-              <span>
-                <el-switch
-                  v-model="setting.autoAppTheme"
-                  @change="setting.autoAppThemeChanged()"></el-switch>
-                跟随系统
-              </span>
-              <div
-                class="music-setting-theme-container"
-                v-if="!setting.autoAppTheme">
-                <div
-                  class="music-setting-theme-card"
-                  v-for="theme in themes"
-                  @click="setAppTheme(theme)">
-                  <div
-                    class="music-setting-theme-card-color"
-                    :style="getCardBackground(theme)">
-                    <el-icon v-if="!theme.color && !theme.image"
-                      ><PictureFilled
-                    /></el-icon>
-                    <img :src="LogoCircleImage" />
-                    <el-checkbox
-                      v-if="setting.appTheme.id == theme.id"
-                      checked></el-checkbox>
-                  </div>
-                  <span class="music-setting-theme-card-name">{{
-                    theme.name
-                  }}</span>
+                  <el-tooltip
+                    placement="top"
+                    content="双击图标可手动输入cookie登录">
+                    <span
+                      v-if="!setting.userInfo[info.type].id"
+                      @click="login(info.type)">
+                      登录
+                    </span>
+                  </el-tooltip>
+                  <el-input
+                    v-model="cookieInput[info.type]"
+                    v-if="cookieInputVisible[info.type]"
+                    @change="onCookieInputChanged(info.type)"
+                    style="flex: 1; margin: 0 20px" />
                 </div>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="isWindows && setting.config.remote">
-            <td id="music-header-system">系统</td>
-            <td class="music-setting-system">
-              <el-checkbox
-                v-model="delayExit"
-                @change="delayExitChange"
-                label="开启定时关闭软件"
-                size="large" />
-              <span>
-                <span>剩余关闭时间</span>
-                <span>
-                  <el-select
-                    placeholder="默认"
-                    v-model="delayMinute"
-                    @change="delayExitChange">
-                    <el-option
-                      v-for="(_, index) in new Array(24)"
-                      :key="index"
-                      :label="index"
-                      :value="index">
-                    </el-option>
-                  </el-select>
-                  小时
-                </span>
-                <span>
-                  <el-select
-                    placeholder="默认"
-                    v-model="delaySecond"
-                    @change="delayExitChange">
-                    <el-option
-                      v-for="(_, index) in new Array(60)"
-                      :key="index"
-                      :label="index"
-                      :value="index">
-                    </el-option>
-                  </el-select>
-                  分钟
-                </span>
-              </span>
-              <el-checkbox
-                v-if="!isMobile"
-                v-model="delayShutdown"
-                @change="delayExitChange"
-                :disabled="!delayExit"
-                label="关闭软件同时关机"
-                size="large" />
-              <div class="music-setting-system-center" v-if="!isMobile">
-                <span>关闭主面板</span>
-                <el-radio-group v-model="setting.pageValue.closeType">
-                  <el-radio :value="CloseType.Hide">最小化到系统托盘</el-radio>
-                  <el-radio :value="CloseType.Exit">退出音乐和</el-radio>
-                </el-radio-group>
-                <el-checkbox
-                  v-model="setting.pageValue.closeTypeNoRemind"
-                  @change="setting.setCloseTypeNoRemind"
-                  size="large">
-                  不再提醒
-                </el-checkbox>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td id="music-header-play">播放</td>
-            <td class="music-setting-play">
-              <el-checkbox
-                v-if="setting.config.file"
-                v-model="setting.pageValue.playAtRun"
-                @change="setting.setPlayAtRun"
-                label="程序启动时自动播放"
-                size="large" />
-              <el-checkbox
-                v-if="setting.config.file"
-                v-model="setting.pageValue.savePlayProgress"
-                @change="setting.setSavePlayProgress"
-                label="程序启动时记住上一次播放进度"
-                size="large" />
-              <el-checkbox
-                v-if="setting.config.file"
-                v-model="setting.pageValue.fadeIn"
-                @change="setting.setFadeIn()"
-                label="开启音乐淡入"
-                size="large" />
-              <div>
-                <span>播放列表</span>
-                <el-radio-group
-                  class="radio-group-vertical"
-                  v-model="setting.pageValue.onlyAddMusicListAtDbClick"
-                  @change="setting.setOnlyAddMusicListAtDbClick">
-                  <el-radio :value="false"
-                    >双击播放单曲时，用当前单曲所在列表替换播放列表</el-radio
-                  >
-                  <el-radio :value="true"
-                    >双击播放单曲时，仅把当前单曲添加到播放列表</el-radio
-                  >
-                </el-radio-group>
-              </div>
-              <div
-                class="music-setting-play-remote-clients"
-                v-if="
-                  setting.config.client && setting.remoteClients.length > 0
-                ">
-                <span>多机互联</span>
-                <div>
-                  <div
-                    class="music-setting-play-remote-clients-item"
-                    v-for="client in setting.remoteClients">
-                    <div>
-                      <span class="name">
-                        {{ client.name }}
-                        <span class="local" v-if="client.local">本机</span>
-                      </span>
-                      <span class="origin">{{ client.origin }}</span>
-                    </div>
-                    <el-select
-                      v-model="client.channel"
-                      size="small"
-                      placeholder="禁用"
-                      @change="onRemoteClientChanged(client)">
-                      <el-option label="禁用" :value="-1" />
-                      <el-option label="立体声" :value="0" />
-                      <el-option label="左声道" :value="1" />
-                      <el-option label="右声道" :value="2" />
-                    </el-select>
-                  </div>
-                </div>
-              </div>
-            </td>
-          </tr>
-          <tr v-if="!isMobile">
-            <td id="music-header-shortcut">快捷键</td>
-            <td class="music-setting-shortcut">
-              <div>
-                <div>
-                  <div>功能说明</div>
-                  <div v-for="item in shortcutItems">{{ item.name }}</div>
-                </div>
-                <div>
-                  <div>快捷键</div>
-                  <div v-for="item in shortcutItems">
-                    <el-input
-                      :value="setting.pageValue.shortcutText[item.operate]"
-                      @keyup="setting.registerShortCut(item.operate, $event)" />
-                  </div>
-                </div>
-                <div v-if="isWindows && setting.config.remote">
-                  <div>全局快捷键</div>
-                  <div v-for="item in shortcutItems">
-                    <el-input
-                      :value="
-                        setting.pageValue.globalShortcutText[item.operate]
-                      "
-                      @keyup="
-                        setting.setGlobalShortCut(item.operate, $event)
-                      " />
-                    <el-tooltip
-                      v-if="
-                        setting.pageValue.globalShortcut[item.operate].status
-                      "
-                      :content="
-                        setting.pageValue.globalShortcut[item.operate].status
-                      ">
-                      <WarningFilled class="music-setting-warning" />
-                    </el-tooltip>
-                  </div>
-                </div>
-              </div>
-              <el-checkbox
-                v-if="isWindows && setting.config.remote"
-                v-model="setting.pageValue.globalShortcutUsed"
-                @change="setting.setGlobalShortcutUsed"
-                size="large">
-                启用全局快捷键
-                <span class="music-setting-subtext"> (在后台时也能响应) </span>
-              </el-checkbox>
-              <el-checkbox
-                v-if="isWindows && setting.config.remote"
-                v-model="setting.pageValue.systemMediaShortcutUsed"
-                @change="setting.setSystemMediaShortcutUsed"
-                size="large">
-                使用系统媒体快捷键
-                <span class="music-setting-subtext">
-                  (播放/暂停、上一首、下一首、停止)
-                </span>
-              </el-checkbox>
-            </td>
-          </tr>
-          <tr>
-            <td id="music-header-quality">音质与下载</td>
-            <td class="music-setting-quality">
-              <div class="music-setting-quality-type">
-                <div class="music-setting-quality-title">在线播放音质</div>
-                <el-radio-group
-                  class="music-setting-quality-item"
-                  v-model="setting.playQuality"
-                  :disabled="useHuaweiCloud"
-                  @change="setting.setPlayQuality">
-                  <el-radio
-                    v-for="item in musicQualities"
-                    :value="item.quality">
-                    {{ item.title }}
-                  </el-radio>
-                </el-radio-group>
-              </div>
-              <div class="music-setting-quality-type">
-                <div class="music-setting-quality-title">本地下载音质</div>
-                <el-radio-group
-                  class="music-setting-quality-item"
-                  v-model="setting.downloadQuality"
-                  :disabled="useHuaweiCloud"
-                  @change="setting.setDownloadQuality">
-                  <el-radio
-                    v-for="item in musicQualities"
-                    :value="item.quality">
-                    {{ item.title }}
-                  </el-radio>
-                </el-radio-group>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td id="music-header-lyric">桌面歌词</td>
-            <td class="music-setting-lyric">
-              <div class="music-setting-lyric-item">
-                <el-checkbox
-                  v-model="play.desktopLyricShow"
-                  @change="play.showDesktopLyric(play.desktopLyricShow)"
-                  size="large">
-                  启用桌面歌词
-                </el-checkbox>
-                <el-checkbox
-                  v-if="isWindows && setting.config.remote"
-                  v-model="setting.pageValue.lyric.topmost"
-                  @change="setting.setLyricOptions"
-                  size="large">
-                  启用歌词总在最前
-                </el-checkbox>
-              </div>
-              <div class="music-setting-lyric-item">
-                <span class="music-setting-lyric-item-title"
-                  >字<span style="opacity: 0">占位</span>体</span
-                >
+              </td>
+            </tr>
+            <tr>
+              <td id="music-header-general">常规</td>
+              <td class="music-setting-general">
+                <span>字体选择</span>
                 <el-select
                   placeholder="默认"
-                  v-model="setting.pageValue.lyric.fontFamily"
-                  @change="setting.setLyricOptions">
+                  v-model="setting.pageValue.font"
+                  @change="
+                    setting.setFont(
+                      setting.pageValue.font,
+                      setting.pageValue.fontBold
+                    )
+                  ">
                   <el-option key="default" label="默认" value="" />
+                  <el-option key="auto" label="系统" value="auto" />
                   <el-option
                     v-for="item in setting.fonts || defaultFonts"
                     :key="item"
@@ -989,227 +659,573 @@ onUnmounted(unWatch);
                     </div>
                   </el-option>
                 </el-select>
-              </div>
-              <div class="music-setting-lyric-item">
-                <span class="music-setting-lyric-item-title"
-                  >字<span style="opacity: 0">占位</span>号</span
-                >
-                <el-select
-                  placeholder="默认"
-                  class="short"
-                  v-model="setting.pageValue.lyric.fontSize"
-                  @change="setting.setLyricOptions">
-                  <el-option
-                    v-for="(_item, index) in new Array(53)"
-                    :key="index"
-                    :label="index + 20"
-                    :value="index + 20">
-                    {{ index + 20 }}
-                  </el-option>
-                </el-select>
-              </div>
-              <div class="music-setting-lyric-item">
-                <span class="music-setting-lyric-item-title">字体加粗</span>
                 <el-checkbox
-                  v-model="setting.pageValue.lyric.fontBold"
-                  @change="setting.setLyricOptions"
-                  size="large">
-                </el-checkbox>
-              </div>
-              <div class="music-setting-lyric-item">
-                <span class="music-setting-lyric-item-title">字体描边</span>
+                  v-model="setting.pageValue.fontBold"
+                  v-show="setting.pageValue.font"
+                  @change="
+                    setting.setFont(
+                      setting.pageValue.font,
+                      setting.pageValue.fontBold
+                    )
+                  "
+                  label="字体加粗"
+                  size="large" />
                 <el-checkbox
-                  v-model="setting.pageValue.lyric.effect"
-                  @change="setting.setLyricOptions"
+                  v-if="isWindows && setting.config.remote"
+                  v-model="setting.pageValue.startup"
+                  @change="setting.setStartup"
+                  label="开机自动运行"
+                  size="large" />
+                <el-checkbox
+                  v-if="setting.config.gpu"
+                  v-model="setting.pageValue.gpuAcceleration"
+                  @change="setting.setGpuAcceleration()"
                   size="large">
+                  使用硬件加速模式
+                  <span class="music-setting-subtext">（如果可用）</span>
                 </el-checkbox>
-              </div>
-              <div
-                class="music-setting-lyric-item music-setting-lyric-item-portrait-top">
-                <span class="music-setting-lyric-item-title">配色方案</span>
-                <div class="music-setting-lyric-item-color">
+                <el-checkbox
+                  v-model="setting.pageValue.disableAnimation"
+                  @change="setting.setDisableAnimation"
+                  size="large">
+                  禁用动画效果
+                  <span class="music-setting-subtext">
+                    (减少资源占用，提升性能)
+                  </span>
+                </el-checkbox>
+                <span style="font-weight: bold; margin-top: 10px">代理</span>
+                <el-input
+                  v-model="defaultProxyAddress"
+                  @change="onProxyAddressChanged"
+                  style="padding: 10px 50px 0 0" />
+              </td>
+            </tr>
+            <tr>
+              <td id="music-header-theme">主题</td>
+              <td class="music-setting-theme">
+                <span>
+                  <el-switch
+                    v-model="setting.autoAppTheme"
+                    @change="setting.autoAppThemeChanged()"></el-switch>
+                  跟随系统
+                </span>
+                <div
+                  class="music-setting-theme-container"
+                  v-if="!setting.autoAppTheme">
+                  <div
+                    class="music-setting-theme-card"
+                    v-for="theme in themes"
+                    @click="setAppTheme(theme)">
+                    <div
+                      class="music-setting-theme-card-color"
+                      :style="getCardBackground(theme)">
+                      <el-icon v-if="!theme.color && !theme.image"
+                        ><PictureFilled
+                      /></el-icon>
+                      <img :src="LogoCircleImage" />
+                      <el-checkbox
+                        v-if="setting.appTheme.id == theme.id"
+                        checked></el-checkbox>
+                    </div>
+                    <span class="music-setting-theme-card-name">{{
+                      theme.name
+                    }}</span>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="isWindows && setting.config.remote">
+              <td id="music-header-system">系统</td>
+              <td class="music-setting-system">
+                <el-checkbox
+                  v-model="delayExit"
+                  @change="delayExitChange"
+                  label="开启定时关闭软件"
+                  size="large" />
+                <span>
+                  <span>剩余关闭时间</span>
+                  <span>
+                    <el-select
+                      placeholder="默认"
+                      v-model="delayMinute"
+                      @change="delayExitChange">
+                      <el-option
+                        v-for="(_, index) in new Array(24)"
+                        :key="index"
+                        :label="index"
+                        :value="index">
+                      </el-option>
+                    </el-select>
+                    小时
+                  </span>
+                  <span>
+                    <el-select
+                      placeholder="默认"
+                      v-model="delaySecond"
+                      @change="delayExitChange">
+                      <el-option
+                        v-for="(_, index) in new Array(60)"
+                        :key="index"
+                        :label="index"
+                        :value="index">
+                      </el-option>
+                    </el-select>
+                    分钟
+                  </span>
+                </span>
+                <el-checkbox
+                  v-if="!isMobile"
+                  v-model="delayShutdown"
+                  @change="delayExitChange"
+                  :disabled="!delayExit"
+                  label="关闭软件同时关机"
+                  size="large" />
+                <div class="music-setting-system-center" v-if="!isMobile">
+                  <span>关闭主面板</span>
+                  <el-radio-group v-model="setting.pageValue.closeType">
+                    <el-radio :value="CloseType.Hide"
+                      >最小化到系统托盘</el-radio
+                    >
+                    <el-radio :value="CloseType.Exit">退出音乐和</el-radio>
+                  </el-radio-group>
+                  <el-checkbox
+                    v-model="setting.pageValue.closeTypeNoRemind"
+                    @change="setting.setCloseTypeNoRemind"
+                    size="large">
+                    不再提醒
+                  </el-checkbox>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td id="music-header-play">播放</td>
+              <td class="music-setting-play">
+                <el-checkbox
+                  v-if="setting.config.file"
+                  v-model="setting.pageValue.playAtRun"
+                  @change="setting.setPlayAtRun"
+                  label="程序启动时自动播放"
+                  size="large" />
+                <el-checkbox
+                  v-if="setting.config.file"
+                  v-model="setting.pageValue.savePlayProgress"
+                  @change="setting.setSavePlayProgress"
+                  label="程序启动时记住上一次播放进度"
+                  size="large" />
+                <el-checkbox
+                  v-if="setting.config.file"
+                  v-model="setting.pageValue.fadeIn"
+                  @change="setting.setFadeIn()"
+                  label="开启音乐淡入"
+                  size="large" />
+                <div>
+                  <span>播放列表</span>
+                  <el-radio-group
+                    class="radio-group-vertical"
+                    v-model="setting.pageValue.onlyAddMusicListAtDbClick"
+                    @change="setting.setOnlyAddMusicListAtDbClick">
+                    <el-radio :value="false"
+                      >双击播放单曲时，用当前单曲所在列表替换播放列表</el-radio
+                    >
+                    <el-radio :value="true"
+                      >双击播放单曲时，仅把当前单曲添加到播放列表</el-radio
+                    >
+                  </el-radio-group>
+                </div>
+                <div
+                  class="music-setting-play-remote-clients"
+                  v-if="
+                    setting.config.client && setting.remoteClients.length > 0
+                  ">
+                  <span>多机互联</span>
+                  <div>
+                    <div
+                      class="music-setting-play-remote-clients-item"
+                      v-for="client in setting.remoteClients">
+                      <div>
+                        <span class="name">
+                          {{ client.name }}
+                          <span class="local" v-if="client.local">本机</span>
+                        </span>
+                        <span class="origin">{{ client.origin }}</span>
+                      </div>
+                      <el-select
+                        v-model="client.channel"
+                        size="small"
+                        placeholder="禁用"
+                        @change="onRemoteClientChanged(client)">
+                        <el-option label="禁用" :value="-1" />
+                        <el-option label="立体声" :value="0" />
+                        <el-option label="左声道" :value="1" />
+                        <el-option label="右声道" :value="2" />
+                      </el-select>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="!isMobile">
+              <td id="music-header-shortcut">快捷键</td>
+              <td class="music-setting-shortcut">
+                <div>
+                  <div>
+                    <div>功能说明</div>
+                    <div v-for="item in shortcutItems">{{ item.name }}</div>
+                  </div>
+                  <div>
+                    <div>快捷键</div>
+                    <div v-for="item in shortcutItems">
+                      <el-input
+                        :value="setting.pageValue.shortcutText[item.operate]"
+                        @keyup="
+                          setting.registerShortCut(item.operate, $event)
+                        " />
+                    </div>
+                  </div>
+                  <div v-if="isWindows && setting.config.remote">
+                    <div>全局快捷键</div>
+                    <div v-for="item in shortcutItems">
+                      <el-input
+                        :value="
+                          setting.pageValue.globalShortcutText[item.operate]
+                        "
+                        @keyup="
+                          setting.setGlobalShortCut(item.operate, $event)
+                        " />
+                      <el-tooltip
+                        v-if="
+                          setting.pageValue.globalShortcut[item.operate].status
+                        "
+                        :content="
+                          setting.pageValue.globalShortcut[item.operate].status
+                        ">
+                        <WarningFilled class="music-setting-warning" />
+                      </el-tooltip>
+                    </div>
+                  </div>
+                </div>
+                <el-checkbox
+                  v-if="isWindows && setting.config.remote"
+                  v-model="setting.pageValue.globalShortcutUsed"
+                  @change="setting.setGlobalShortcutUsed"
+                  size="large">
+                  启用全局快捷键
+                  <span class="music-setting-subtext">
+                    (在后台时也能响应)
+                  </span>
+                </el-checkbox>
+                <el-checkbox
+                  v-if="isWindows && setting.config.remote"
+                  v-model="setting.pageValue.systemMediaShortcutUsed"
+                  @change="setting.setSystemMediaShortcutUsed"
+                  size="large">
+                  使用系统媒体快捷键
+                  <span class="music-setting-subtext">
+                    (播放/暂停、上一首、下一首、停止)
+                  </span>
+                </el-checkbox>
+              </td>
+            </tr>
+            <tr>
+              <td id="music-header-quality">音质与下载</td>
+              <td class="music-setting-quality">
+                <div class="music-setting-quality-type">
+                  <div class="music-setting-quality-title">在线播放音质</div>
+                  <el-radio-group
+                    class="music-setting-quality-item"
+                    v-model="setting.playQuality"
+                    :disabled="useHuaweiCloud"
+                    @change="setting.setPlayQuality">
+                    <el-radio
+                      v-for="item in musicQualities"
+                      :value="item.quality">
+                      {{ item.title }}
+                    </el-radio>
+                  </el-radio-group>
+                </div>
+                <div class="music-setting-quality-type">
+                  <div class="music-setting-quality-title">本地下载音质</div>
+                  <el-radio-group
+                    class="music-setting-quality-item"
+                    v-model="setting.downloadQuality"
+                    :disabled="useHuaweiCloud"
+                    @change="setting.setDownloadQuality">
+                    <el-radio
+                      v-for="item in musicQualities"
+                      :value="item.quality">
+                      {{ item.title }}
+                    </el-radio>
+                  </el-radio-group>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td id="music-header-lyric">桌面歌词</td>
+              <td class="music-setting-lyric">
+                <div class="music-setting-lyric-item">
+                  <el-checkbox
+                    v-model="play.desktopLyricShow"
+                    @change="play.showDesktopLyric(play.desktopLyricShow)"
+                    size="large">
+                    启用桌面歌词
+                  </el-checkbox>
+                  <el-checkbox
+                    v-if="isWindows && setting.config.remote"
+                    v-model="setting.pageValue.lyric.topmost"
+                    @change="setting.setLyricOptions"
+                    size="large">
+                    启用歌词总在最前
+                  </el-checkbox>
+                </div>
+                <div class="music-setting-lyric-item">
+                  <span class="music-setting-lyric-item-title"
+                    >字<span style="opacity: 0">占位</span>体</span
+                  >
+                  <el-select
+                    placeholder="默认"
+                    v-model="setting.pageValue.lyric.fontFamily"
+                    @change="setting.setLyricOptions">
+                    <el-option key="default" label="默认" value="" />
+                    <el-option
+                      v-for="item in setting.fonts || defaultFonts"
+                      :key="item"
+                      :label="item"
+                      :title="item"
+                      :value="item">
+                      <div
+                        class="text-overflow-1"
+                        style="width: 120px"
+                        :style="{ fontFamily: `${item}` }">
+                        {{ item }}
+                      </div>
+                    </el-option>
+                  </el-select>
+                </div>
+                <div class="music-setting-lyric-item">
+                  <span class="music-setting-lyric-item-title"
+                    >字<span style="opacity: 0">占位</span>号</span
+                  >
                   <el-select
                     placeholder="默认"
                     class="short"
-                    v-model="setting.pageValue.lyric.fontColor"
-                    @change="
-                      setting.setLyricEffectColor(
-                        lyricColors[setting.pageValue.lyric.fontColor].effect
-                      )
-                    ">
+                    v-model="setting.pageValue.lyric.fontSize"
+                    @change="setting.setLyricOptions">
                     <el-option
-                      v-for="key in Object.keys(lyricColors)"
-                      :key="key"
-                      :label="lyricColors[key].name"
-                      :value="key">
-                      {{ lyricColors[key].name }}
+                      v-for="(_item, index) in new Array(53)"
+                      :key="index"
+                      :label="index + 20"
+                      :value="index + 20">
+                      {{ index + 20 }}
                     </el-option>
                   </el-select>
-                  <span
-                    class="music-setting-lyric-item-fix-color"
-                    :style="'--fix-color:' + setting.pageValue.lyric.fontColor">
-                    字体色
-                  </span>
-                  <span
-                    class="music-setting-lyric-item-fix-color"
-                    :style="
-                      '--fix-color:' + setting.pageValue.lyric.effectColor
-                    ">
-                    描边色
-                  </span>
                 </div>
-              </div>
-              <div
-                class="music-setting-lyric-item music-setting-lyric-item-portrait-top">
-                <span class="music-setting-lyric-item-title"
-                  >预<span style="opacity: 0">占位</span>览</span
-                >
+                <div class="music-setting-lyric-item">
+                  <span class="music-setting-lyric-item-title">字体加粗</span>
+                  <el-checkbox
+                    v-model="setting.pageValue.lyric.fontBold"
+                    @change="setting.setLyricOptions"
+                    size="large">
+                  </el-checkbox>
+                </div>
+                <div class="music-setting-lyric-item">
+                  <span class="music-setting-lyric-item-title">字体描边</span>
+                  <el-checkbox
+                    v-model="setting.pageValue.lyric.effect"
+                    @change="setting.setLyricOptions"
+                    size="large">
+                  </el-checkbox>
+                </div>
                 <div
-                  class="music-setting-lyric-item-preview"
-                  :style="{
-                    fontSize: setting.pageValue.lyric.fontSize + 'px',
-                    fontFamily: setting.pageValue.lyric.fontFamily,
-                    color: setting.pageValue.lyric.fontColor,
-                    textShadow: setting.pageValue.lyric.effect
-                      ? '0 0 1px ' + setting.pageValue.lyric.effectColor
-                      : 'none',
-                    fontWeight: setting.pageValue.lyric.fontBold
-                      ? 'bold'
-                      : 'normal'
-                  }">
-                  音乐和
+                  class="music-setting-lyric-item music-setting-lyric-item-portrait-top">
+                  <span class="music-setting-lyric-item-title">配色方案</span>
+                  <div class="music-setting-lyric-item-color">
+                    <el-select
+                      placeholder="默认"
+                      class="short"
+                      v-model="setting.pageValue.lyric.fontColor"
+                      @change="
+                        setting.setLyricEffectColor(
+                          lyricColors[setting.pageValue.lyric.fontColor].effect
+                        )
+                      ">
+                      <el-option
+                        v-for="key in Object.keys(lyricColors)"
+                        :key="key"
+                        :label="lyricColors[key].name"
+                        :value="key">
+                        {{ lyricColors[key].name }}
+                      </el-option>
+                    </el-select>
+                    <span
+                      class="music-setting-lyric-item-fix-color"
+                      :style="
+                        '--fix-color:' + setting.pageValue.lyric.fontColor
+                      ">
+                      字体色
+                    </span>
+                    <span
+                      class="music-setting-lyric-item-fix-color"
+                      :style="
+                        '--fix-color:' + setting.pageValue.lyric.effectColor
+                      ">
+                      描边色
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td id="music-header-about">关于</td>
-            <td class="music-setting-about">
-              <span> 当前版本 {{ currentVersion }} </span>
-              <span
-                v-if="
-                  (!setting.config.remote || setting.config.file) &&
-                  currentVersion != remoteVersion
-                ">
-                最新版本 {{ remoteVersion }}
-              </span>
-              <span
-                v-if="!setting.config.remote && currentVersion != remoteVersion"
-                class="music-setting-about-update"
-                @click="forceRefreshPage">
-                点击更新
-              </span>
-              <div class="music-setting-about-download">
-                <a
-                  class="music-setting-about-card"
-                  href="https://github.com/hehang0/musiche"
-                  target="_blank">
+                <div
+                  class="music-setting-lyric-item music-setting-lyric-item-portrait-top">
+                  <span class="music-setting-lyric-item-title"
+                    >预<span style="opacity: 0">占位</span>览</span
+                  >
                   <div
-                    class="logo-app"
-                    style="
-                      --logo-app-color: var(--music-footer-background);
-                      color: var(--music-text-color);
-                    ">
-                    <el-icon size="44" style="padding: 5px"
-                      ><GithubImage
-                    /></el-icon>
+                    class="music-setting-lyric-item-preview"
+                    :style="{
+                      fontSize: setting.pageValue.lyric.fontSize + 'px',
+                      fontFamily: setting.pageValue.lyric.fontFamily,
+                      color: setting.pageValue.lyric.fontColor,
+                      textShadow: setting.pageValue.lyric.effect
+                        ? '0 0 1px ' + setting.pageValue.lyric.effectColor
+                        : 'none',
+                      fontWeight: setting.pageValue.lyric.fontBold
+                        ? 'bold'
+                        : 'normal'
+                    }">
+                    音乐和
                   </div>
-                  <p>Github</p>
-                </a>
-                <a
-                  class="music-setting-about-card"
-                  href="https://hehang0.github.io/musiche/Musiche.exe"
-                  target="_blank">
-                  <div class="logo-app logo-app-microsoft">
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                    <div></div>
-                  </div>
-                  <p>PC版</p>
-                </a>
-                <a
-                  class="music-setting-about-card"
-                  href="https://hehang0.github.io/musiche/Musiche.net6.exe"
-                  target="_blank">
-                  <div class="logo-app" style="--logo-app-color: #512bd4">
-                    .NET
-                  </div>
-                  <p>PC版(NET6)</p>
-                </a>
-                <a
-                  class="music-setting-about-card"
-                  href="https://hehang0.github.io/musiche/Musiche.dmg"
-                  target="_blank">
-                  <div
-                    class="logo-app"
-                    style="
-                      --logo-app-color: var(--music-footer-background);
-                      color: white;
-                    ">
-                    <el-icon size="44"><AppleImage /></el-icon>
-                  </div>
-                  <p>MacOS版</p>
-                </a>
-                <a
-                  class="music-setting-about-card"
-                  href="https://hehang0.github.io/musiche/Musiche.apk"
-                  target="_blank">
-                  <div
-                    class="logo-app"
-                    style="--logo-app-color: var(--music-footer-background)">
-                    <img :src="DroidImage" />
-                  </div>
-                  <p>Android版</p>
-                </a>
-                <a
-                  class="music-setting-about-card"
-                  href="https://hehang0.github.io/musiche/Musiche.ipa"
-                  target="_blank">
-                  <div
-                    class="logo-app"
-                    style="
-                      --logo-app-color: var(--music-footer-background);
-                      color: var(--music-text-color);
-                    ">
-                    <el-icon size="44"><AppleImage /></el-icon>
-                  </div>
-                  <p>IOS版</p>
-                </a>
-                <a
-                  class="music-setting-about-card"
-                  href="https://hehang0.github.io/musiche/Musiche.hap"
-                  target="_blank">
-                  <div class="logo-app logo-app-harmonyos">
-                    <div>H</div>
-                    <div>M</div>
-                    <div>O</div>
-                    <div>S</div>
-                  </div>
-                  <p>鸿蒙版</p>
-                </a>
-                <a
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td id="music-header-about">关于</td>
+              <td class="music-setting-about">
+                <span> 当前版本 {{ currentVersion }} </span>
+                <span
                   v-if="
-                    !isInStandaloneMode &&
-                    installPromptShow &&
-                    !setting.config.remote
+                    (!setting.config.remote || setting.config.file) &&
+                    currentVersion != remoteVersion
+                  ">
+                  最新版本 {{ remoteVersion }}
+                </span>
+                <span
+                  v-if="
+                    !setting.config.remote && currentVersion != remoteVersion
                   "
-                  class="music-setting-about-card"
-                  @click.stop="installPWA">
-                  <div
-                    class="logo-app"
-                    style="--logo-app-color: var(--music-primary-color)">
-                    PWA
-                  </div>
-                  <p>WebAPP</p>
-                </a>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </el-scrollbar>
-  </div>
+                  class="music-setting-about-update"
+                  @click="forceRefreshPage">
+                  点击更新
+                </span>
+                <div class="music-setting-about-download">
+                  <a
+                    class="music-setting-about-card"
+                    href="https://github.com/hehang0/musiche"
+                    target="_blank">
+                    <div
+                      class="logo-app"
+                      style="
+                        --logo-app-color: var(--music-footer-background);
+                        color: var(--music-text-color);
+                      ">
+                      <el-icon size="44" style="padding: 5px"
+                        ><GithubImage
+                      /></el-icon>
+                    </div>
+                    <p>Github</p>
+                  </a>
+                  <a
+                    class="music-setting-about-card"
+                    href="https://hehang0.github.io/musiche/Musiche.exe"
+                    target="_blank">
+                    <div class="logo-app logo-app-microsoft">
+                      <div></div>
+                      <div></div>
+                      <div></div>
+                      <div></div>
+                    </div>
+                    <p>PC版</p>
+                  </a>
+                  <a
+                    class="music-setting-about-card"
+                    href="https://hehang0.github.io/musiche/Musiche.net6.exe"
+                    target="_blank">
+                    <div class="logo-app" style="--logo-app-color: #512bd4">
+                      .NET
+                    </div>
+                    <p>PC版(NET6)</p>
+                  </a>
+                  <a
+                    class="music-setting-about-card"
+                    href="https://hehang0.github.io/musiche/Musiche.dmg"
+                    target="_blank">
+                    <div
+                      class="logo-app"
+                      style="
+                        --logo-app-color: var(--music-footer-background);
+                        color: white;
+                      ">
+                      <el-icon size="44"><AppleImage /></el-icon>
+                    </div>
+                    <p>MacOS版</p>
+                  </a>
+                  <a
+                    class="music-setting-about-card"
+                    href="https://hehang0.github.io/musiche/Musiche.apk"
+                    target="_blank">
+                    <div
+                      class="logo-app"
+                      style="--logo-app-color: var(--music-footer-background)">
+                      <img :src="DroidImage" />
+                    </div>
+                    <p>Android版</p>
+                  </a>
+                  <a
+                    class="music-setting-about-card"
+                    href="https://hehang0.github.io/musiche/Musiche.ipa"
+                    target="_blank">
+                    <div
+                      class="logo-app"
+                      style="
+                        --logo-app-color: var(--music-footer-background);
+                        color: var(--music-text-color);
+                      ">
+                      <el-icon size="44"><AppleImage /></el-icon>
+                    </div>
+                    <p>IOS版</p>
+                  </a>
+                  <a
+                    class="music-setting-about-card"
+                    href="https://hehang0.github.io/musiche/Musiche.hap"
+                    target="_blank">
+                    <div class="logo-app logo-app-harmonyos">
+                      <div>H</div>
+                      <div>M</div>
+                      <div>O</div>
+                      <div>S</div>
+                    </div>
+                    <p>鸿蒙版</p>
+                  </a>
+                  <a
+                    v-if="
+                      !isInStandaloneMode &&
+                      installPromptShow &&
+                      !setting.config.remote
+                    "
+                    class="music-setting-about-card"
+                    @click.stop="installPWA">
+                    <div
+                      class="logo-app"
+                      style="--logo-app-color: var(--music-primary-color)">
+                      PWA
+                    </div>
+                    <p>WebAPP</p>
+                  </a>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </el-scrollbar>
+    </div>
+  </AnimalPage>
 </template>
 <style lang="less" scoped>
 .music-setting {

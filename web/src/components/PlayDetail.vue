@@ -57,9 +57,9 @@ function setThemeColor() {
 }
 const canFullScreen = Boolean(
   document.body.requestFullscreen ||
-    (document.body as any).mozRequestFullScreen ||
-    (document.body as any).webkitRequestFullScreen ||
-    (document.body as any).msRequestFullscreen
+  (document.body as any).mozRequestFullScreen ||
+  (document.body as any).webkitRequestFullScreen ||
+  (document.body as any).msRequestFullscreen
 );
 const cancelFullScreen =
   document.exitFullscreen ||
@@ -283,6 +283,9 @@ watch(() => play.playDetailShow, setTheme);
     transition: opacity 0.5s;
     opacity: 1;
   }
+}
+html.animal-island .music-button-pure {
+  color: var(--animal-text-color);
 }
 
 @media (max-height: 650px) and (orientation: landscape) {

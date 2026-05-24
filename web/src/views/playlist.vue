@@ -5,6 +5,7 @@ import * as api from '../utils/api/api';
 import { usePlayStore } from '../stores/play';
 import { Music, MusicType, Playlist } from '../utils/type';
 import MusicList from '../components/MusicList.vue';
+import AnimalPage from '../components/AnimalPage.vue';
 import { LogoImage } from '../utils/logo';
 import DailyImage from '../assets/images/calendar.png';
 import { useSettingStore } from '../stores/setting';
@@ -148,59 +149,116 @@ onUnmounted(unWatch);
 </script>
 
 <template>
-  <div
-    class="music-playlist"
-    :class="playlistInfo ? 'music-playlist-info-show' : ''">
-    <el-scrollbar>
-      <div class="music-playlist-header">
-        <img
-          class="music-playlist-header-image"
-          v-if="playlistInfoShow && !loading"
-          :src="
-            playlistInfo?.image ||
-            playlistInfo?.musicList?.[0]?.largeImage ||
-            playlistInfo?.musicList?.[0]?.mediumImage ||
-            playlistInfo?.musicList?.[0]?.image ||
-            LogoImage
-          " />
+  <AnimalPage>
+    <div
+      class="music-playlist"
+      :class="playlistInfo ? 'music-playlist-info-show' : ''">
+      <el-scrollbar>
+        <div class="music-playlist-header">
+          <img
+            class="music-playlist-header-image"
+            v-if="playlistInfoShow && !loading"
+            :src="
+              playlistInfo?.image ||
+              playlistInfo?.musicList?.[0]?.largeImage ||
+              playlistInfo?.musicList?.[0]?.mediumImage ||
+              playlistInfo?.musicList?.[0]?.image ||
+              LogoImage
+            " />
 
-        <div
-          v-if="playlistInfo?.daily"
-          class="music-playlist-header-image-daily">
-          <img :src="DailyImage" />
-          <span
+          <div
             v-if="playlistInfo?.daily"
-            :style="'color: ' + playlistInfo?.dailyColor"
-            >{{ new Date().getDate() }}</span
-          >
-        </div>
-        <el-skeleton
-          animated
-          :loading="loading"
-          class="music-playlist-header-image">
-          <template #template>
-            <el-skeleton-item variant="image" />
-          </template>
-        </el-skeleton>
-        <div class="music-playlist-header-info">
-          <div v-if="playlistInfoShow" v-show="!loading">
-            <div class="music-playlist-header-info-name text-overflow-1">
-              {{ playlistInfo?.name || '' }}
-            </div>
-            <el-scrollbar class="music-playlist-header-info-desc">
-              <div
-                v-html="playlistInfo?.description || ''"
-                :title="
-                  playlistInfo?.description?.replace(/<br \/>/g, '\n') || ''
-                "></div>
-            </el-scrollbar>
+            class="music-playlist-header-image-daily">
+            <img :src="DailyImage" />
+            <span
+              v-if="playlistInfo?.daily"
+              :style="'color: ' + playlistInfo?.dailyColor"
+              >{{ new Date().getDate() }}</span
+            >
           </div>
-          <el-skeleton animated :loading="loading" :row="4"> </el-skeleton>
+          <el-skeleton
+            animated
+            :loading="loading"
+            class="music-playlist-header-image">
+            <template #template>
+              <el-skeleton-item variant="image" />
+            </template>
+          </el-skeleton>
+          <div class="music-playlist-header-info">
+            <div v-if="playlistInfoShow" v-show="!loading">
+              <div class="music-playlist-header-info-name text-overflow-1">
+                {{ playlistInfo?.name || '' }}
+              </div>
+              <el-scrollbar class="music-playlist-header-info-desc">
+                <div
+                  v-html="playlistInfo?.description || ''"
+                  :title="
+                    playlistInfo?.description?.replace(/<br \/>/g, '\n') || ''
+                  "></div>
+              </el-scrollbar>
+            </div>
+            <el-skeleton animated :loading="loading" :row="4"> </el-skeleton>
+            <div>
+              <el-button-group>
+                <el-button
+                  type="primary"
+                  ref="playAllButton"
+                  :loading="loading"
+                  :disabled="loading || musicList.length === 0"
+                  @click="playAll">
+                  <span class="music-icon">播</span>
+                  播放
+                </el-button>
+                <el-button
+                  type="primary"
+                  :loading="loading"
+                  :disabled="loading || musicList.length === 0"
+                  @click="addAll"
+                  title="添加到播放列表">
+                  <span class="music-icon">添</span>
+                </el-button>
+              </el-button-group>
+              <el-button
+                v-if="
+                  !hideFavoriteKeys.includes(
+                    currentRoute.meta?.key?.toString() || ''
+                  )
+                "
+                type="info"
+                @click="addMyFavorite">
+                <span class="music-icon">{{
+                  playlistInfo &&
+                  play.myFavorite[playlistInfo.type + playlistInfo.id]
+                    ? '藏'
+                    : '收'
+                }}</span>
+                {{
+                  playlistInfo &&
+                  play.myFavorite[playlistInfo.type + playlistInfo.id]
+                    ? '已'
+                    : ''
+                }}收藏
+              </el-button>
+            </div>
+          </div>
+        </div>
+        <MusicList :loading="loading" :list="musicList" />
+        <div
+          v-if="total > musicList.length && !loading"
+          class="load-more"
+          @click="searchMusic(false)"></div>
+      </el-scrollbar>
+      <div
+        class="music-playlist-header-affix"
+        :class="affixShow ? 'music-playlist-header-affix-show' : ''">
+        <div class="music-playlist-header-info">
+          <div class="music-playlist-header-info-name text-overflow-1">
+            {{ playlistInfo?.name || '' }}
+          </div>
           <div>
             <el-button-group>
               <el-button
                 type="primary"
-                ref="playAllButton"
                 :loading="loading"
                 :disabled="loading || musicList.length === 0"
                 @click="playAll">
@@ -240,63 +298,8 @@ onUnmounted(unWatch);
           </div>
         </div>
       </div>
-      <MusicList :loading="loading" :list="musicList" />
-      <div
-        v-if="total > musicList.length && !loading"
-        class="load-more"
-        @click="searchMusic(false)"></div>
-    </el-scrollbar>
-    <div
-      class="music-playlist-header-affix"
-      :class="affixShow ? 'music-playlist-header-affix-show' : ''">
-      <div class="music-playlist-header-info">
-        <div class="music-playlist-header-info-name text-overflow-1">
-          {{ playlistInfo?.name || '' }}
-        </div>
-        <div>
-          <el-button-group>
-            <el-button
-              type="primary"
-              :loading="loading"
-              :disabled="loading || musicList.length === 0"
-              @click="playAll">
-              <span class="music-icon">播</span>
-              播放
-            </el-button>
-            <el-button
-              type="primary"
-              :loading="loading"
-              :disabled="loading || musicList.length === 0"
-              @click="addAll"
-              title="添加到播放列表">
-              <span class="music-icon">添</span>
-            </el-button>
-          </el-button-group>
-          <el-button
-            v-if="
-              !hideFavoriteKeys.includes(
-                currentRoute.meta?.key?.toString() || ''
-              )
-            "
-            type="info"
-            @click="addMyFavorite">
-            <span class="music-icon">{{
-              playlistInfo &&
-              play.myFavorite[playlistInfo.type + playlistInfo.id]
-                ? '藏'
-                : '收'
-            }}</span>
-            {{
-              playlistInfo &&
-              play.myFavorite[playlistInfo.type + playlistInfo.id]
-                ? '已'
-                : ''
-            }}收藏
-          </el-button>
-        </div>
-      </div>
     </div>
-  </div>
+  </AnimalPage>
 </template>
 
 <style lang="less" scoped>
@@ -391,6 +394,11 @@ onUnmounted(unWatch);
       }
       button {
         height: 45px;
+      }
+      .el-button-group {
+        button {
+          height: 41px;
+        }
       }
     }
   }

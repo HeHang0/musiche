@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@vueuse/core": "^14.3.0",
+    "animal-island-ui-vue": "^0.1.0",
     "colorthief": "^3.3.1",
     "crypto-js": "^4.2.0",
     "default-passive-events": "^4.0.0",

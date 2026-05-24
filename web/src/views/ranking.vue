@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import * as api from '../utils/api/api';
 import RadioGroupEle from '../components/RadioGroup.vue';
 import MusicList from '../components/MusicList.vue';
+import AnimalPage from '../components/AnimalPage.vue';
 import { Music, MusicType, RankingType } from '../utils/type';
 import { usePlayStore } from '../stores/play';
 import { useSettingStore } from '../stores/setting';
@@ -91,60 +92,64 @@ onUnmounted(unWatch);
 </script>
 
 <template>
-  <div class="music-ranking">
-    <div class="music-ranking-header">
-      <div>
-        <RadioGroupEle
-          :value="rankingType"
-          :menu="rankingTypes"
-          @change="rankingTypeChange" />
-      </div>
-      <div>
-        <el-button-group>
-          <el-button
-            type="primary"
-            :disabled="loading"
-            @click="play.play(undefined, musicList)">
-            <span class="music-icon">播</span>
-            播放
-          </el-button>
-          <el-button
-            type="primary"
-            :disabled="loading"
-            @click="
-              play.add(musicList);
-              play.showCurrentListPopover();
-            "
-            title="添加到播放列表">
-            <span class="music-icon">添</span>
-          </el-button>
-        </el-button-group>
-        <el-button type="info" :disabled="loading" @click="favoritePlaylist">
-          <span class="music-icon">
+  <AnimalPage>
+    <div class="music-ranking">
+      <div class="music-ranking-header">
+        <div>
+          <RadioGroupEle
+            :value="rankingType"
+            :menu="rankingTypes"
+            @change="rankingTypeChange" />
+        </div>
+        <div>
+          <el-button-group>
+            <el-button
+              type="primary"
+              :disabled="loading"
+              @click="play.play(undefined, musicList)">
+              <span class="music-icon">播</span>
+              播放
+            </el-button>
+            <el-button
+              type="primary"
+              :disabled="loading"
+              @click="
+                play.add(musicList);
+                play.showCurrentListPopover();
+              "
+              title="添加到播放列表">
+              <span class="music-icon">添</span>
+            </el-button>
+          </el-button-group>
+          <el-button type="info" :disabled="loading" @click="favoritePlaylist">
+            <span class="music-icon">
+              {{
+                play.myFavorite[
+                  setting.currentMusicType + 'ranking' + rankingType
+                ]
+                  ? '藏'
+                  : '收'
+              }}
+            </span>
             {{
               play.myFavorite[
                 setting.currentMusicType + 'ranking' + rankingType
               ]
-                ? '藏'
-                : '收'
-            }}
-          </span>
-          {{
-            play.myFavorite[setting.currentMusicType + 'ranking' + rankingType]
-              ? '已'
-              : ''
-          }}收藏
-        </el-button>
+                ? '已'
+                : ''
+            }}收藏
+          </el-button>
+        </div>
       </div>
+      <el-scrollbar>
+        <MusicList :loading="loading" :list="musicList" />
+        <div
+          v-if="total > musicList.length && !loading"
+          class="load-more"
+          @click="searchMusic(false)"></div>
+      </el-scrollbar>
     </div>
-    <el-scrollbar>
-      <MusicList :loading="loading" :list="musicList" />
-      <div
-        v-if="total > musicList.length && !loading"
-        class="load-more"
-        @click="searchMusic(false)"></div>
-    </el-scrollbar>
-  </div>
+  </AnimalPage>
 </template>
 
 <style lang="less" scoped>
@@ -156,11 +161,15 @@ onUnmounted(unWatch);
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 0 var(--music-page-padding-horizontal);
     & > div {
       display: flex;
       align-items: center;
     }
-    padding: 0 var(--music-page-padding-horizontal);
+
+    .el-button--info {
+      height: 45px;
+    }
   }
   .el-scrollbar {
     margin-top: 5px;

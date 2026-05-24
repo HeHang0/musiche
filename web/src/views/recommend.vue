@@ -5,6 +5,7 @@ import { useDebounceFn } from '@vueuse/core';
 import * as api from '../utils/api/api';
 import { MusicType, Playlist } from '../utils/type';
 import PlaylistEle from '../components/Playlist.vue';
+import AnimalPage from '../components/AnimalPage.vue';
 import { useSettingStore } from '../stores/setting';
 import { musicTypeAll } from '../utils/platform';
 const { currentRoute, replace } = useRouter();
@@ -105,9 +106,11 @@ onUnmounted(unWatch);
 </script>
 
 <template>
-  <el-scrollbar ref="scrollBar" class="music-recommend" @scroll="onScroll">
-    <PlaylistEle :loading="loading" :list="playlist" />
-  </el-scrollbar>
+  <AnimalPage>
+    <el-scrollbar ref="scrollBar" class="music-recommend" @scroll="onScroll">
+      <PlaylistEle :loading="loading" :list="playlist" />
+    </el-scrollbar>
+  </AnimalPage>
 </template>
 
 <style lang="less" scoped>

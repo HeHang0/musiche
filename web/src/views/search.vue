@@ -3,6 +3,7 @@ import { ref, onMounted, watch, Ref, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import * as api from '../utils/api/api';
 import MusicList from '../components/MusicList.vue';
+import AnimalPage from '../components/AnimalPage.vue';
 import { Music, MusicType } from '../utils/type';
 import { usePlayStore } from '../stores/play';
 import { useSettingStore } from '../stores/setting';
@@ -75,50 +76,52 @@ onUnmounted(unWatch);
 </script>
 
 <template>
-  <div class="music-search">
-    <div class="music-search-header">
-      <div>
-        <span class="music-search-title">{{ keywords }}</span>
-        <span class="music-search-subtitle" v-if="searchTextShow">
-          的相关搜索如下，找到{{ total }}首单曲
-        </span>
-      </div>
-      <div>
-        <el-button-group>
+  <AnimalPage>
+    <div class="music-search">
+      <div class="music-search-header">
+        <div>
+          <span class="music-search-title">{{ keywords }}</span>
+          <span class="music-search-subtitle" v-if="searchTextShow">
+            的相关搜索如下，找到{{ total }}首单曲
+          </span>
+        </div>
+        <div>
+          <el-button-group>
+            <el-button
+              type="primary"
+              :disabled="loading || musicList.length === 0"
+              @click="play.play(undefined, musicList)">
+              <span class="music-icon">播</span>
+              播放
+            </el-button>
+            <el-button
+              type="primary"
+              :disabled="loading || musicList.length === 0"
+              @click="
+                play.add(musicList);
+                play.showCurrentListPopover();
+              "
+              title="添加到播放列表">
+              <span class="music-icon">添</span>
+            </el-button>
+          </el-button-group>
           <el-button
-            type="primary"
+            type="info"
             :disabled="loading || musicList.length === 0"
-            @click="play.play(undefined, musicList)">
-            <span class="music-icon">播</span>
-            播放
+            @click="play.beforeAddMyPlaylistsMusic(musicList)">
+            <span class="music-icon"> 收 </span>收藏
           </el-button>
-          <el-button
-            type="primary"
-            :disabled="loading || musicList.length === 0"
-            @click="
-              play.add(musicList);
-              play.showCurrentListPopover();
-            "
-            title="添加到播放列表">
-            <span class="music-icon">添</span>
-          </el-button>
-        </el-button-group>
-        <el-button
-          type="info"
-          :disabled="loading || musicList.length === 0"
-          @click="play.beforeAddMyPlaylistsMusic(musicList)">
-          <span class="music-icon"> 收 </span>收藏
-        </el-button>
+        </div>
       </div>
+      <el-scrollbar>
+        <MusicList :list="musicList" search :loading="loading" />
+        <div
+          v-if="total > musicList.length && !loading"
+          class="load-more"
+          @click="searchMusic(false)"></div>
+      </el-scrollbar>
     </div>
-    <el-scrollbar>
-      <MusicList :list="musicList" search :loading="loading" />
-      <div
-        v-if="total > musicList.length && !loading"
-        class="load-more"
-        @click="searchMusic(false)"></div>
-    </el-scrollbar>
-  </div>
+  </AnimalPage>
 </template>
 
 <style lang="less" scoped>

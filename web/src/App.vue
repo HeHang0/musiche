@@ -56,6 +56,10 @@ onMounted(() => {
         ? `background: url(${setting.appTheme.objectURL}) 50% 50% / cover`
         : ''
     ">
+    <link
+      v-if="setting.appTheme.id === 'animal-island'"
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&amp;family=Zen+Maru+Gothic:wght@400;500;700&amp;display=swap" />
     <el-container
       class="music-layout-top"
       :class="play.musicList.length > 0 ? '' : 'music-layout-top-full'">

@@ -5,6 +5,7 @@ import { Music } from '../utils/type';
 import { useSettingStore } from '../stores/setting';
 import { usePlayStore } from '../stores/play';
 import MusicList from '../components/MusicList.vue';
+import AnimalPage from '../components/AnimalPage.vue';
 import {
   checkReadPermission,
   clearArray,
@@ -200,109 +201,111 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="music-local">
-    <div class="music-local-header">
-      <div>
-        <span>
-          <span class="music-local-header-name">本地音乐</span>
-          <span class="music-local-header-desc">
-            共{{ musicList.length }}首</span
-          >
-        </span>
-        <span
-          class="music-local-header-dir"
-          @click="showLocalDirectorySelection">
-          选择目录<span class="music-icon">右</span>
-        </span>
-      </div>
-      <div class="music-local-header-operate">
-        <span>
-          <el-button-group>
-            <el-button
-              type="primary"
-              :disabled="loading || musicList.length === 0"
-              @click="play.play(undefined, musicList)">
-              <span class="music-icon">播</span>
-              <span class="music-local-header-button-text">播放</span>
-            </el-button>
-            <el-button
-              type="primary"
-              :disabled="loading || musicList.length === 0"
-              @click="
-                play.add(musicList);
-                play.showCurrentListPopover();
-              "
-              title="添加到播放列表">
-              <span class="music-icon">添</span>
-            </el-button>
-          </el-button-group>
+  <AnimalPage>
+    <div class="music-local">
+      <div class="music-local-header">
+        <div>
           <span>
-            <el-button
-              type="info"
-              :disabled="loading || musicList.length === 0"
-              @click="play.beforeAddMyPlaylistsMusic(musicList)">
-              <span class="music-icon">收</span>
-              <span class="music-local-header-button-text">收藏</span>
-            </el-button>
-            <el-button
-              type="info"
-              :disabled="loading"
-              :icon="Refresh"
-              title="同步本地音乐"
-              @click="syncLocalMusic">
-            </el-button>
+            <span class="music-local-header-name">本地音乐</span>
+            <span class="music-local-header-desc">
+              共{{ musicList.length }}首</span
+            >
           </span>
-        </span>
-        <el-input
-          class="music-local-header-search"
-          v-model="searchKey"
-          placeholder="搜索"
-          :readonly="loading"
-          @keyup.enter.native="startSearch"
-          @input="startSearchThrottle"
-          clearable>
-          <template #prefix>
-            <el-icon
-              class="el-input__icon music-local-header-search-icon"
-              @click="startSearch">
-              <Search />
-            </el-icon>
-          </template>
-        </el-input>
+          <span
+            class="music-local-header-dir"
+            @click="showLocalDirectorySelection">
+            选择目录<span class="music-icon">右</span>
+          </span>
+        </div>
+        <div class="music-local-header-operate">
+          <span>
+            <el-button-group>
+              <el-button
+                type="primary"
+                :disabled="loading || musicList.length === 0"
+                @click="play.play(undefined, musicList)">
+                <span class="music-icon">播</span>
+                <span class="music-local-header-button-text">播放</span>
+              </el-button>
+              <el-button
+                type="primary"
+                :disabled="loading || musicList.length === 0"
+                @click="
+                  play.add(musicList);
+                  play.showCurrentListPopover();
+                "
+                title="添加到播放列表">
+                <span class="music-icon">添</span>
+              </el-button>
+            </el-button-group>
+            <span>
+              <el-button
+                type="info"
+                :disabled="loading || musicList.length === 0"
+                @click="play.beforeAddMyPlaylistsMusic(musicList)">
+                <span class="music-icon">收</span>
+                <span class="music-local-header-button-text">收藏</span>
+              </el-button>
+              <el-button
+                type="info"
+                :disabled="loading"
+                :icon="Refresh"
+                title="同步本地音乐"
+                @click="syncLocalMusic">
+              </el-button>
+            </span>
+          </span>
+          <el-input
+            class="music-local-header-search"
+            v-model="searchKey"
+            placeholder="搜索"
+            :readonly="loading"
+            @keyup.enter.native="startSearch"
+            @input="startSearchThrottle"
+            clearable>
+            <template #prefix>
+              <el-icon
+                class="el-input__icon music-local-header-search-icon"
+                @click="startSearch">
+                <Search />
+              </el-icon>
+            </template>
+          </el-input>
+        </div>
       </div>
+      <el-scrollbar>
+        <MusicList :loading="loading" :list="musicList" />
+      </el-scrollbar>
+      <el-dialog
+        v-model="selectLocalDirShow"
+        width="450"
+        class="music-local-dialog"
+        :show-close="false">
+        <template #header="{ close, titleId, titleClass }">
+          <div class="music-local-dialog-sel-dir-header">
+            <span :id="titleId" :class="titleClass">选择本地文件夹</span>
+            <span class="music-icon" @click="close">关</span>
+          </div>
+        </template>
+        <div class="music-local-dialog-sel-dir">
+          <p>将自动扫描已添加的音乐目录</p>
+          <div class="music-local-dialog-sel-dir-items">
+            <el-checkbox
+              v-for="item in setting.localDirectories"
+              v-model="item.selected"
+              size="large"
+              :title="item.path">
+              {{ item.name }}
+            </el-checkbox>
+          </div>
+          <span class="music-local-dialog-sel-dir-footer">
+            <el-button @click="addDirectory"> 添加文件夹 </el-button>
+            <el-button type="primary" @click="scanDir"> 确认 </el-button>
+          </span>
+        </div>
+      </el-dialog>
     </div>
-    <el-scrollbar>
-      <MusicList :loading="loading" :list="musicList" />
-    </el-scrollbar>
-    <el-dialog
-      v-model="selectLocalDirShow"
-      width="450"
-      class="music-local-dialog"
-      :show-close="false">
-      <template #header="{ close, titleId, titleClass }">
-        <div class="music-local-dialog-sel-dir-header">
-          <span :id="titleId" :class="titleClass">选择本地文件夹</span>
-          <span class="music-icon" @click="close">关</span>
-        </div>
-      </template>
-      <div class="music-local-dialog-sel-dir">
-        <p>将自动扫描已添加的音乐目录</p>
-        <div class="music-local-dialog-sel-dir-items">
-          <el-checkbox
-            v-for="item in setting.localDirectories"
-            v-model="item.selected"
-            size="large"
-            :title="item.path">
-            {{ item.name }}
-          </el-checkbox>
-        </div>
-        <span class="music-local-dialog-sel-dir-footer">
-          <el-button @click="addDirectory"> 添加文件夹 </el-button>
-          <el-button type="primary" @click="scanDir"> 确认 </el-button>
-        </span>
-      </div>
-    </el-dialog>
-  </div>
+  </AnimalPage>
 </template>
 
 <style lang="less" scoped>

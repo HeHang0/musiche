@@ -1,5 +1,6 @@
 @import './base.less';
 @import './element.less';
+@import './animal-island.less';
 
 @font-face {
   /*自定义字体名*/
@@ -11,7 +12,7 @@
 }
 
 .music-icon {
-  font-family: 'icon-font';
+  font-family: 'icon-font' !important;
   font-size: 20px;
   font-weight: normal;
   cursor: pointer;
