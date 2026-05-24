@@ -115,6 +115,20 @@ function addMyFavorite() {
     play.beforeAddMyPlaylistsMusic(musicList.value);
   }
 }
+async function loadAll() {
+  for (let i = 0; i < 10 && total.value > musicList.value.length; i++) {
+    await searchMusic(false);
+  }
+}
+async function playAll() {
+  await loadAll();
+  play.play(undefined, musicList.value);
+}
+async function addAll() {
+  await loadAll();
+  play.add(musicList.value);
+  play.showCurrentListPopover();
+}
 function onObserve(
   entries: IntersectionObserverEntry[],
   _observer: IntersectionObserver
@@ -183,18 +197,17 @@ onUnmounted(unWatch);
               <el-button
                 type="primary"
                 ref="playAllButton"
+                :loading="loading"
                 :disabled="loading || musicList.length === 0"
-                @click="play.play(undefined, musicList)">
+                @click="playAll">
                 <span class="music-icon">播</span>
                 播放
               </el-button>
               <el-button
                 type="primary"
+                :loading="loading"
                 :disabled="loading || musicList.length === 0"
-                @click="
-                  play.add(musicList);
-                  play.showCurrentListPopover();
-                "
+                @click="addAll"
                 title="添加到播放列表">
                 <span class="music-icon">添</span>
               </el-button>
@@ -240,18 +253,17 @@ onUnmounted(unWatch);
           <el-button-group>
             <el-button
               type="primary"
+              :loading="loading"
               :disabled="loading || musicList.length === 0"
-              @click="play.play(undefined, musicList)">
+              @click="playAll">
               <span class="music-icon">播</span>
               播放
             </el-button>
             <el-button
               type="primary"
+              :loading="loading"
               :disabled="loading || musicList.length === 0"
-              @click="
-                play.add(musicList);
-                play.showCurrentListPopover();
-              "
+              @click="addAll"
               title="添加到播放列表">
               <span class="music-icon">添</span>
             </el-button>
