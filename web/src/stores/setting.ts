@@ -296,7 +296,7 @@ export const useSettingStore = defineStore('setting', {
       if (themeColor) {
         themeColor.content = dark ? '#13131a' : '#f7f7f7';
         if (appTheme?.id.includes('pure')) themeColor.content = 'black';
-        if (appTheme?.id === 'animal-island') themeColor.content = '#f8f8f0';
+        if (appTheme?.id === 'animal-island') themeColor.content = '#fefaf0';
       }
       updateTheme(preferredColorScheme, this.autoAppTheme, true);
     },

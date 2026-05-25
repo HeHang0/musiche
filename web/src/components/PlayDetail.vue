@@ -357,4 +357,11 @@ html.animal-island .music-button-pure {
     }
   }
 }
+.animal-island .music-play-detail-header-mode-dropdown .el-dropdown-menu {
+  background: transparent !important;
+  .el-dropdown-menu__item {
+    color: var(--animal-text-color) !important;
+    border-radius: 22px;
+  }
+}
 </style>

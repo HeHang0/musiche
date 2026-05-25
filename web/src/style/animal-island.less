@@ -75,7 +75,7 @@ html.animal-island body {
 }
 
 html.animal-island * {
-  cursor: var(--music-animal-cursor);
+  cursor: var(--music-animal-cursor) !important;
 }
 
 html.animal-island ::selection {
@@ -127,6 +127,18 @@ html.animal-island .music-layout {
     box-shadow: -42px -28px 0 rgba(255, 204, 0, 0.14);
     content: ' ';
   }
+
+  .music-animal-page-card {
+    padding: 12px 0;
+
+    .el-scrollbar__view {
+      padding: 0 14px;
+
+      .el-scrollbar__view {
+        padding: unset;
+      }
+    }
+  }
 }
 
 html.animal-island .music-layout-right,
@@ -156,6 +168,16 @@ html.animal-island {
 }
 
 
+html.animal-island {
+  .music-footer-full {
+    color: var(--animal-text-color);
+  }
+
+  .el-popper__arrow::before {
+    border: none !important;
+    background: transparent !important;
+  }
+}
 
 html.animal-island .music-header {
   color: var(--animal-text-color);
