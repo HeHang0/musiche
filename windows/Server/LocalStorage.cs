@@ -23,8 +23,12 @@ namespace Musiche.Server
             }
             catch (Exception)
             {
-                _data = new Dictionary<string, string>();
             }
+            if (_data != null)
+            {
+                return;
+            }
+            _data = new Dictionary<string, string>();
         }
 
         public string GetAll()

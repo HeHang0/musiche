@@ -224,6 +224,11 @@ const unWatch = watch(
 );
 const installPromptShow = ref(isIOS || isMobile);
 let installPrompt: any = null;
+const appSchemeUrl = 'musiche://open';
+const windowsDownloadUrl = 'https://hehang0.github.io/musiche/Musiche.exe';
+const windowsNet6DownloadUrl =
+  'https://hehang0.github.io/musiche/Musiche.net6.exe';
+const androidDownloadUrl = 'https://hehang0.github.io/musiche/Musiche.apk';
 function onBeforeInstallPrompt(event: any) {
   installPrompt = event;
   installPromptShow.value = true;
@@ -246,6 +251,53 @@ function installPWA() {
   } else {
     installPrompt && installPrompt.prompt();
   }
+}
+
+function downloadFile(url: string) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function openAppOrDownload(downloadUrl: string) {
+  let appOpened = false;
+  let fallbackTimer: number | null = null;
+  const schemeFrame = document.createElement('iframe');
+  const markOpened = () => {
+    appOpened = true;
+  };
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      markOpened();
+    }
+  };
+  const cleanup = () => {
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('pagehide', markOpened);
+    window.removeEventListener('blur', markOpened);
+    if (fallbackTimer != null) window.clearTimeout(fallbackTimer);
+    schemeFrame.remove();
+  };
+
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('pagehide', markOpened, { once: true });
+  window.addEventListener('blur', markOpened, { once: true });
+  schemeFrame.style.display = 'none';
+  schemeFrame.src = appSchemeUrl;
+  document.body.appendChild(schemeFrame);
+  fallbackTimer = window.setTimeout(
+    () => {
+      cleanup();
+      if (!appOpened && document.visibilityState === 'visible') {
+        downloadFile(downloadUrl);
+      }
+    },
+    isMobile ? 1800 : 2800
+  );
 }
 
 async function onCookieInputChanged(type: MusicType) {
@@ -709,9 +761,7 @@ onUnmounted(unWatch);
                     @change="setting.autoAppThemeChanged()"></el-switch>
                   跟随系统
                 </span>
-                <div
-                  class="music-setting-theme-container"
-                  v-if="!setting.autoAppTheme">
+                <div class="music-setting-theme-container">
                   <div
                     class="music-setting-theme-card"
                     v-for="theme in themes"
@@ -1133,8 +1183,9 @@ onUnmounted(unWatch);
                   </a>
                   <a
                     class="music-setting-about-card"
-                    href="https://hehang0.github.io/musiche/Musiche.exe"
-                    target="_blank">
+                    :href="windowsDownloadUrl"
+                    target="_blank"
+                    @click.prevent="openAppOrDownload(windowsDownloadUrl)">
                     <div class="logo-app logo-app-microsoft">
                       <div></div>
                       <div></div>
@@ -1145,8 +1196,9 @@ onUnmounted(unWatch);
                   </a>
                   <a
                     class="music-setting-about-card"
-                    href="https://hehang0.github.io/musiche/Musiche.net6.exe"
-                    target="_blank">
+                    :href="windowsNet6DownloadUrl"
+                    target="_blank"
+                    @click.prevent="openAppOrDownload(windowsNet6DownloadUrl)">
                     <div class="logo-app" style="--logo-app-color: #512bd4">
                       .NET
                     </div>
@@ -1159,8 +1211,8 @@ onUnmounted(unWatch);
                     <div
                       class="logo-app"
                       style="
-                        --logo-app-color: var(--music-footer-background);
-                        color: white;
+                        --logo-app-color: var(--music-text-color);
+                        color: var(--music-background);
                       ">
                       <el-icon size="44"><AppleImage /></el-icon>
                     </div>
@@ -1168,8 +1220,9 @@ onUnmounted(unWatch);
                   </a>
                   <a
                     class="music-setting-about-card"
-                    href="https://hehang0.github.io/musiche/Musiche.apk"
-                    target="_blank">
+                    :href="androidDownloadUrl"
+                    target="_blank"
+                    @click.prevent="openAppOrDownload(androidDownloadUrl)">
                     <div
                       class="logo-app"
                       style="--logo-app-color: var(--music-footer-background)">
@@ -1297,6 +1350,10 @@ onUnmounted(unWatch);
       display: block;
       width: 100%;
       border-spacing: 0;
+      & > tbody {
+        display: block;
+        width: 100%;
+      }
       & > tbody > tr {
         vertical-align: top;
         padding: 20px 0;
@@ -1366,6 +1423,7 @@ onUnmounted(unWatch);
     &-card {
       width: 150px;
       height: 130px;
+      max-width: calc(50% - 10px);
       display: flex;
       flex-direction: column;
       cursor: pointer;

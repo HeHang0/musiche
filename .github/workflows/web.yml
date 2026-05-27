@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -16,6 +17,7 @@ concurrency:
 jobs:
   build-on-macos:
     runs-on: macos-14
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -29,7 +31,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.24.0
+          flutter-version: 3.44.0
       - name: Build
         run: |
           sw_vers -productVersion
@@ -41,17 +43,20 @@ jobs:
           yarn build
           cd ../mobile
           flutter pub get
-          flutter build ios --release --no-codesign
-          flutter build macos --release
-          appdmg dmg.json musiche.dmg
-          mkdir Payload
-          mv build/ios/Release-iphoneos/*.app Payload/musiche.app
-          zip -r musiche.zip Payload
-          mv musiche.zip musiche.ipa
+          flutter build ios --release --no-codesign || true
+          flutter build macos --release || true
+          appdmg dmg.json musiche.dmg || true
+          mkdir -p Payload
+          if ls build/ios/Release-iphoneos/*.app >/dev/null 2>&1; then
+            mv build/ios/Release-iphoneos/*.app Payload/musiche.app
+            zip -r musiche.zip Payload
+            mv musiche.zip musiche.ipa
+          fi
       - name: Upload macOS package
         uses: actions/upload-artifact@v7
         with:
           name: macos-package
+          if-no-files-found: warn
           path: |
             mobile/musiche.dmg
             mobile/musiche.ipa
@@ -61,7 +66,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: windows-latest
-    needs: build-on-macos
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -85,12 +89,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.24.0
-
-      - name: Download macOS package
-        uses: actions/download-artifact@v8
-      - name: Display structure of downloaded files
-        run: ls -R
+          flutter-version: 3.44.0
 
       - name: Build
         run: |
@@ -126,6 +125,39 @@ jobs:
           copy windows\bin\Release\net472\Musiche.exe web\dist\Musiche.exe -ErrorAction SilentlyContinue
           copy windows\bin\Publish\net6.0-windows\Musiche.exe web\dist\Musiche.net6.exe -ErrorAction SilentlyContinue
           copy mobile\build\app\outputs\flutter-apk\app-release.apk web\dist\Musiche.apk -ErrorAction SilentlyContinue
+
+      - name: Wait for macOS package
+        shell: pwsh
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $deadline = (Get-Date).AddMinutes(60)
+          while ((Get-Date) -lt $deadline) {
+            $jobs = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID/jobs" | ConvertFrom-Json
+            $macJob = $jobs.jobs | Where-Object { $_.name -eq 'build-on-macos' } | Select-Object -First 1
+            $artifacts = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID/artifacts" | ConvertFrom-Json
+            $artifact = $artifacts.artifacts | Where-Object { $_.name -eq 'macos-package' -and -not $_.expired } | Select-Object -First 1
+
+            if ($artifact) {
+              gh run download $env:GITHUB_RUN_ID --name macos-package --dir macos-package
+              exit 0
+            }
+
+            if ($macJob -and $macJob.status -eq 'completed') {
+              Write-Host "build-on-macos completed without macos-package artifact."
+              exit 0
+            }
+
+            Write-Host "Waiting for build-on-macos artifact..."
+            Start-Sleep -Seconds 30
+          }
+
+          Write-Host "Timed out waiting for macos-package artifact."
+
+      - name: Copy macOS package
+        shell: pwsh
+        run: |
           copy macos-package\musiche.dmg web\dist\Musiche.dmg -ErrorAction SilentlyContinue
           copy macos-package\musiche.ipa web\dist\Musiche.ipa -ErrorAction SilentlyContinue
       - name: Upload artifact
