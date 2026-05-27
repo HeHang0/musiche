@@ -279,7 +279,6 @@ export const useSettingStore = defineStore('setting', {
       if (!this.autoAppTheme || !isWindows || !this.config.remote) {
         preferredColorScheme = dark ? 2 : 1;
       }
-      this.autoAppTheme = false;
       this.appTheme.id = appTheme?.id || '';
       this.appTheme.color = appTheme?.color || '';
       this.appTheme.objectURL =

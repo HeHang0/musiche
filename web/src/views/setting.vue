@@ -449,6 +449,7 @@ async function setCustomTheme() {
     image: dataUrl
   });
   if (setting.customTheme.image) {
+    cancelAutoAppTheme();
     setting.setAppTheme(setting.customTheme);
   }
 }
@@ -476,6 +477,12 @@ function onProxyAddressChanged(value: string) {
   }
 }
 
+function cancelAutoAppTheme() {
+  if (setting.autoAppTheme) {
+    setting.autoAppThemeChanged();
+  }
+}
+
 function setAppTheme(theme: AppTheme) {
   if (
     theme.id?.startsWith('custom') &&
@@ -485,6 +492,7 @@ function setAppTheme(theme: AppTheme) {
     return;
   }
   if (theme.id === setting.appTheme.id) return;
+  cancelAutoAppTheme();
   setting.setAppTheme(theme);
 }
 var observer = null;
