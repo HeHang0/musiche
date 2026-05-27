@@ -71,7 +71,7 @@ export const useSettingStore = defineStore('setting', {
       shortcut: false
     } as Config,
     appTheme: {
-      id: isInStandaloneMode && isIOS ? 'dark' : ''
+      id: isInStandaloneMode && isIOS ? 'animal-island' : ''
     } as AppTheme,
     customTheme: {
       id: 'custom ',
@@ -279,6 +279,7 @@ export const useSettingStore = defineStore('setting', {
       if (!this.autoAppTheme || !isWindows || !this.config.remote) {
         preferredColorScheme = dark ? 2 : 1;
       }
+      this.autoAppTheme = false;
       this.appTheme.id = appTheme?.id || '';
       this.appTheme.color = appTheme?.color || '';
       this.appTheme.objectURL =

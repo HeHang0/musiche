@@ -475,11 +475,15 @@ export const usePlayStore = defineStore('play', {
       this.setStatus(res.data);
     },
     async changeVolume(value: number, saved = true) {
-      if (value == null || isNaN(value) || value < 0 || value > 100) return;
-      if (!saved) {
-        this.playStatus.volume = value;
+      if (
+        this.playStatus.volume === value ||
+        value == null ||
+        isNaN(value) ||
+        value < 0 ||
+        value > 100
+      )
         return;
-      }
+      this.playStatus.volume = value;
       clearTimeout(this.volumeDisableTimeout);
       this.checkingStatus = true;
       var res = await musicOperate('/volume', value.toString());

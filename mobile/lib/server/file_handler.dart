@@ -43,7 +43,7 @@ class FileHandler{
     return false;
   }
   static Future<String?> showSelectedImage(List<dynamic> arguments) async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.image);
+    FilePickerResult? result = await FilePicker.pickFiles(type: FileType.image);
     if(result != null) {
       return result.files.first.path;
     }
@@ -51,7 +51,7 @@ class FileHandler{
   }
   static Future<List<String>> showSelectedDirectory(List<dynamic> arguments) async {
     List<String> result = [];
-    String? path = await FilePicker.platform.getDirectoryPath();
+    String? path = await FilePicker.getDirectoryPath();
     if(path != null) {
       result.add(path);
     }
