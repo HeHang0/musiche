@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
   pages: write
   id-token: write
 
@@ -15,8 +14,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 26
+
+      - name: Build web artifacts
+        run: |
+          node web/scripts/version.js
+          rm -f web/public/logo.png web/public/logo-circle.png || true
+          cp resources/logo.png web/public/logo.png || true
+          cp resources/logo-circle.png web/public/logo-circle.png || true
+          cd web
+          yarn
+          yarn build:zip
+          mkdir -p ../artifacts/web-app
+          cp -R dist/. ../artifacts/web-app/
+          yarn build:musiche
+          echo '<html><head><script>if(!localStorage.getItem("musiche-proxy-address"))localStorage.setItem("musiche-proxy-address","https://music.picapico.top/proxy");let pathname=location.pathname.substring(9);let redirect=pathname?`${(location.search?"&":"?")}redirect=${pathname}`:"";location.href="/musiche"+location.search+redirect;</script></head></html>' > dist/404.html
+
+      - name: Upload web app dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-app-dist
+          path: artifacts/web-app
+
+      - name: Upload web zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-zip
+          path: web/web.zip
+
+      - name: Upload Pages dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: pages-dist
+          path: web/dist
+
   build-on-macos:
     runs-on: macos-14
+    needs: build-web
     continue-on-error: true
     steps:
       - name: Checkout
@@ -32,16 +75,19 @@ jobs:
         with:
           channel: stable
           flutter-version: 3.44.0
-      - name: Build
+
+      - name: Download web app dist
+        uses: actions/download-artifact@v8
+        with:
+          name: web-app-dist
+          path: web/dist
+
+      - name: Build macOS and iOS packages
         run: |
           sw_vers -productVersion
           xcodebuild -version
-          node web/scripts/version.js
           npm install -g appdmg
-          cd web
-          yarn
-          yarn build
-          cd ../mobile
+          cd mobile
           flutter pub get
           flutter build ios --release --no-codesign || true
           flutter build macos --release || true
@@ -52,6 +98,7 @@ jobs:
             zip -r musiche.zip Payload
             mv musiche.zip musiche.ipa
           fi
+
       - name: Upload macOS package
         uses: actions/upload-artifact@v7
         with:
@@ -62,21 +109,56 @@ jobs:
             mobile/musiche.ipa
 
   build-on-windows:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: windows-latest
+    needs: build-web
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Pages
-        uses: actions/setup-node@v6
-        with:
-          node-version: 26
-
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v3
+
+      - name: Download web zip
+        uses: actions/download-artifact@v8
+        with:
+          name: web-zip
+          path: web-package
+
+      - name: Build Windows packages
+        shell: pwsh
+        run: |
+          Remove-Item windows\logo.ico -Force -ErrorAction SilentlyContinue
+          Copy-Item resources\logo.ico windows\logo.ico
+          Copy-Item web-package\web.zip windows\Resources\web.zip -Force
+          cd windows
+          Set-Content FodyWeavers.xml "<Weavers><Costura/></Weavers>"
+          msbuild Musiche.sln -t:"Restore;Build" /p:Configuration=Release /p:Platform="Any CPU"
+          msbuild Musiche.sln -t:"Restore;Build;Publish" /p:Configuration=Release /p:Platform="Any CPU" /p:PublishProfile="Properties\PublishProfiles\net6.0.pubxml" /p:TargetFramework=net6.0-windows
+          cd ..\proxy-windows
+          Set-Content FodyWeavers.xml "<Weavers><Costura/></Weavers>"
+          msbuild ProxyServer.sln -t:"Restore;Build" /p:Configuration=Release /p:Platform="Any CPU"
+
+      - name: Stage Windows package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts\windows | Out-Null
+          Copy-Item windows\Resources\web.zip artifacts\windows\web.zip -Force
+          Copy-Item windows\bin\Release\net472\Musiche.exe artifacts\windows\Musiche.exe -Force
+          Copy-Item windows\bin\Publish\net6.0-windows\Musiche.exe artifacts\windows\Musiche.net6.exe -Force
+          Copy-Item proxy-windows\bin\Release\net472\ProxyServer.exe artifacts\windows\ProxyServer.exe -Force
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-package
+          path: artifacts/windows
+
+  build-on-android:
+    runs-on: ubuntu-latest
+    needs: build-web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
       - name: Setup JDK
         uses: actions/setup-java@v5
@@ -91,80 +173,95 @@ jobs:
           channel: stable
           flutter-version: 3.44.0
 
-      - name: Build
-        run: |
-          powershell
-          node web\scripts\version.js
-          Remove-Item windows\logo.ico -Force -ErrorAction SilentlyContinue
-          Remove-Item web\public\logo.png -Force -ErrorAction SilentlyContinue
-          Remove-Item web\public\logo-circle.png -Force -ErrorAction SilentlyContinue
-          Remove-Item mobile\assets -Force -Recurse -ErrorAction SilentlyContinue
-          copy resources\logo.ico windows\logo.ico
-          copy resources\logo.png web\public\logo.png
-          copy resources\logo-circle.png web\public\logo-circle.png
-          cd web
-          yarn
-          yarn build:zip
-          cd ..\windows
-          echo "<Weavers><Costura/></Weavers>" > FodyWeavers.xml
-          mv ..\web\web.zip Resources\web.zip
-          msbuild Musiche.sln -t:"Restore;Build" /p:Configuration=Release /p:Platform="Any CPU"
-          msbuild Musiche.sln -t:"Restore;Build;Publish" /p:Configuration=Release /p:Platform="Any CPU" /p:PublishProfile="Properties\PublishProfiles\net6.0.pubxml" /p:TargetFramework=net6.0-windows
-          cd ..\proxy-windows
-          echo "<Weavers><Costura/></Weavers>" > FodyWeavers.xml
-          msbuild ProxyServer.sln -t:"Restore;Build" /p:Configuration=Release /p:Platform="Any CPU"
-          cd ..\mobile
-          Copy-Item ..\web\dist assets -Force -Recurse
-          flutter build apk --release
-          cd ..\web
-          Remove-Item dist -Force -Recurse -ErrorAction SilentlyContinue
-          yarn build:musiche
-          echo '<html><head><script>if(!localStorage.getItem("musiche-proxy-address"))localStorage.setItem("musiche-proxy-address","https://music.picapico.top/proxy");let pathname=location.pathname.substring(9);let redirect=pathname?`${(location.search?"&":"?")}redirect=${pathname}`:"";location.href="/musiche"+location.search+redirect;</script></head></html>' > dist\404.html
-          cd ..
-          copy proxy-windows\bin\Release\net472\ProxyServer.exe web\dist\ProxyServer.exe -ErrorAction SilentlyContinue
-          copy windows\bin\Release\net472\Musiche.exe web\dist\Musiche.exe -ErrorAction SilentlyContinue
-          copy windows\bin\Publish\net6.0-windows\Musiche.exe web\dist\Musiche.net6.exe -ErrorAction SilentlyContinue
-          copy mobile\build\app\outputs\flutter-apk\app-release.apk web\dist\Musiche.apk -ErrorAction SilentlyContinue
-
-      - name: Wait for macOS package
-        shell: pwsh
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $deadline = (Get-Date).AddMinutes(60)
-          while ((Get-Date) -lt $deadline) {
-            $jobs = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID/jobs" | ConvertFrom-Json
-            $macJob = $jobs.jobs | Where-Object { $_.name -eq 'build-on-macos' } | Select-Object -First 1
-            $artifacts = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID/artifacts" | ConvertFrom-Json
-            $artifact = $artifacts.artifacts | Where-Object { $_.name -eq 'macos-package' -and -not $_.expired } | Select-Object -First 1
-
-            if ($artifact) {
-              gh run download $env:GITHUB_RUN_ID --name macos-package --dir macos-package
-              exit 0
-            }
-
-            if ($macJob -and $macJob.status -eq 'completed') {
-              Write-Host "build-on-macos completed without macos-package artifact."
-              exit 0
-            }
-
-            Write-Host "Waiting for build-on-macos artifact..."
-            Start-Sleep -Seconds 30
-          }
-
-          Write-Host "Timed out waiting for macos-package artifact."
-
-      - name: Copy macOS package
-        shell: pwsh
-        run: |
-          copy macos-package\musiche.dmg web\dist\Musiche.dmg -ErrorAction SilentlyContinue
-          copy macos-package\musiche.ipa web\dist\Musiche.ipa -ErrorAction SilentlyContinue
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Download web app dist
+        uses: actions/download-artifact@v8
         with:
-          # Upload entire repository
+          name: web-app-dist
+          path: web/dist
+
+      - name: Prepare assets
+        shell: pwsh
+        run: |
+          Remove-Item mobile\assets -Force -Recurse -ErrorAction SilentlyContinue
+          Copy-Item web\dist mobile\assets -Force -Recurse
+          
+      - name: Build Android package
+        run: |
+          sed -i 's#https\\://mirrors.cloud.tencent.com/gradle/#https\\://services.gradle.org/distributions/#g' android/gradle/wrapper/gradle-wrapper.properties
+          flutter build apk --release
+        working-directory: mobile
+
+      - name: Stage Android package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts\android | Out-Null
+          Copy-Item mobile\build\app\outputs\flutter-apk\app-release.apk artifacts\android\Musiche.apk -Force
+
+      - name: Upload Android package
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-package
+          path: artifacts/android
+
+  publish:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: windows-latest
+    needs:
+      - build-web
+      - build-on-macos
+      - build-on-windows
+      - build-on-android
+    steps:
+      - name: Download Pages dist
+        uses: actions/download-artifact@v8
+        with:
+          name: pages-dist
+          path: web/dist
+
+      - name: Download web zip
+        uses: actions/download-artifact@v8
+        with:
+          name: web-zip
+          path: packages/web
+
+      - name: Download Windows package
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-package
+          path: packages/windows
+
+      - name: Download Android package
+        uses: actions/download-artifact@v8
+        with:
+          name: android-package
+          path: packages/android
+
+      - name: Download macOS package
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: macos-package
+          path: packages/macos
+
+      - name: Merge release files
+        shell: pwsh
+        run: |
+          Copy-Item packages\web\web.zip web\dist\web.zip -Force -ErrorAction SilentlyContinue
+          Copy-Item packages\windows\Musiche.exe web\dist\Musiche.exe -Force -ErrorAction SilentlyContinue
+          Copy-Item packages\windows\Musiche.net6.exe web\dist\Musiche.net6.exe -Force -ErrorAction SilentlyContinue
+          Copy-Item packages\windows\ProxyServer.exe web\dist\ProxyServer.exe -Force -ErrorAction SilentlyContinue
+          Copy-Item packages\android\Musiche.apk web\dist\Musiche.apk -Force -ErrorAction SilentlyContinue
+          Copy-Item packages\macos\musiche.dmg web\dist\Musiche.dmg -Force -ErrorAction SilentlyContinue
+          Copy-Item packages\macos\musiche.ipa web\dist\Musiche.ipa -Force -ErrorAction SilentlyContinue
+          Get-ChildItem web\dist
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
           path: 'web/dist'
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
@@ -174,7 +271,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            windows\Resources\web.zip
+            web\dist\web.zip
             web\dist\Musiche.exe
             web\dist\Musiche.net6.exe
             web\dist\Musiche.apk

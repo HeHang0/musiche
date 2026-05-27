@@ -6,7 +6,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../log/logger.dart';
 import 'handler.dart';
-import 'handler_Interface.dart';
+import 'handler_interface.dart';
 
 class WebSocketHandler extends Handler with TrayListener, WindowListener implements IHandler {
   static const String _tag = "MusicheWebSocketHandler";
