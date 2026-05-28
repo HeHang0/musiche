@@ -1,6 +1,5 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
-import 'default-passive-events';
 
 import 'element-plus/theme-chalk/dark/css-vars.css';
 import 'element-plus/theme-chalk/el-message-box.css';
@@ -12,9 +11,16 @@ import 'element-plus/theme-chalk/el-message.css';
 import App from './App.vue';
 import router from './router';
 
-const app = createApp(App);
+(window as any).defaultPassiveEvents_supportedPassiveEvents = [
+  'scroll',
+  'wheel'
+];
 
-app.use(createPinia());
-app.use(router);
+import('default-passive-events').finally(() => {
+  const app = createApp(App);
 
-app.mount('#app');
+  app.use(createPinia());
+  app.use(router);
+
+  app.mount('#app');
+});
