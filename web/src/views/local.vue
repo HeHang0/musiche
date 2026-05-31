@@ -13,7 +13,12 @@ import {
   getFileName,
   readAudioFiles
 } from '../utils/utils';
-import { fileToMusic, fileHandlerDB, pathToMusic } from '../utils/api/local';
+import {
+  fileToMusic,
+  fileHandlerDB,
+  pathToMusic,
+  supplementLocalMusicMetadata
+} from '../utils/api/local';
 import { useThrottleFn } from '@vueuse/core';
 import { musicOperate } from '../utils/http';
 
@@ -132,7 +137,7 @@ async function syncLocalMusicBackend() {
       `/file/list/audio?path=${encodeURIComponent(directory.path)}&recursive=1`
     );
     if (musicFilesText && musicFilesText.data) {
-      pathToMusic(JSON.parse(musicFilesText.data)).forEach(m => {
+      for (const m of pathToMusic(JSON.parse(musicFilesText.data))) {
         const filePath = m.url || m.id;
         if (
           filePath &&
@@ -140,9 +145,10 @@ async function syncLocalMusicBackend() {
             item => item.url == filePath || item.id == filePath
           )
         ) {
+          await supplementLocalMusicMetadata(m);
           musicListAll.push(m);
         }
-      });
+      }
     }
   }
 }

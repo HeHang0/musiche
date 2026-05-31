@@ -23,7 +23,8 @@ export enum StorageKey {
   PlayQuality = 'play-quality',
   DownloadQuality = 'download-quality',
   LyricOptions = 'lyric-options',
-  ProxyAddress = 'proxy-address'
+  ProxyAddress = 'proxy-address',
+  LocalMusicSupplement = 'local-music-supplement'
 }
 
 function setRemoteMode(remote: boolean) {

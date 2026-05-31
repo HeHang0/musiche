@@ -84,7 +84,12 @@ async function searchMusic(clear: boolean = true) {
       result = {
         list: play.musicHistory,
         total: play.musicHistory.length,
-        playlist: null
+        playlist: {
+          id: 'recent',
+          name: '最近播放',
+          type: 'recent' as any,
+          image: ''
+        }
       };
       break;
     case 'created':
@@ -152,7 +157,9 @@ onUnmounted(unWatch);
   <AnimalPage>
     <div
       class="music-playlist"
-      :class="playlistInfo ? 'music-playlist-info-show' : ''">
+      :class="
+        playlistInfo && playlistInfoShow ? 'music-playlist-info-show' : ''
+      ">
       <el-scrollbar>
         <div class="music-playlist-header">
           <img
@@ -346,6 +353,7 @@ onUnmounted(unWatch);
       .el-skeleton__image {
         width: 100%;
         height: 100%;
+        border-radius: 22px;
       }
       &-daily {
         width: 100px;

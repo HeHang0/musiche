@@ -28,3 +28,45 @@ button .music-icon {
   font-size: 18px;
   margin-right: 5px;
 }
+
+/* theme-ios.css */
+:root {
+  /* 1. 替换为苹果官方色彩体系 */
+  --el-color-primary: #007aff; /* iOS 经典蓝 */
+  --el-color-success: #34c759; /* iOS 绿 */
+  --el-color-warning: #ff9500; /* iOS 橙 */
+  --el-color-danger: #ff3b30; /* iOS 红 */
+  --el-color-info: #8e8e93; /* iOS 灰 */
+
+  /* 2. 页面与组件背景（iOS 浅色模式层级） */
+  --el-bg-color-page: #f2f2f7; /* iOS 系统二级背景（设置页面那种浅灰） */
+  --el-bg-color: rgba(255, 255, 255, 0.8); /* 组件背景，为毛玻璃做准备 */
+  --el-bg-color-overlay: rgba(255, 255, 255, 0.85); /* 弹窗背景 */
+
+  /* 3. 苹果标志性的圆角（iOS 常用 10px - 14px 连续曲率圆角） */
+  --el-border-radius-base: 12px;
+  --el-border-radius-small: 8px;
+  --el-border-radius-round: 20px;
+
+  /* 4. 极细边框与灰色阴影 */
+  --el-border-color: #e5e5ea;
+  --el-box-shadow-light: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* 5. 注入 iOS 的灵魂：毛玻璃效果 (Backdrop Filter) */
+.el-dialog,
+.el-message-box,
+.el-loading-mask {
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  background-color: rgba(255, 255, 255, 0.75) !important;
+  border: 0.5px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 6. 改造 Element Plus 的 Switch 变为纯正 iOS 开关 */
+.el-switch {
+  --el-switch-on-color: #34c759; /* iOS 开关开启是绿色 */
+}
+.el-switch__core {
+  border-radius: 16px;
+}

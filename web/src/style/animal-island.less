@@ -578,11 +578,19 @@ html.animal-island .music-play-detail {
     background:
       radial-gradient(circle at 20% 18%, rgba(255, 204, 0, 0.18), transparent 24%),
       radial-gradient(circle at 82% 14%, rgba(130, 213, 187, 0.24), transparent 22%),
-      #fffaf0;
+      #040404;
   }
 
   .music-play-detail-header {
     color: #725d42;
+  }
+}
+
+html.animal-island {
+  .music-header-search {
+    .el-input__inner {
+      color: var(--animal-text-color);
+    }
   }
 }
 
@@ -597,6 +605,12 @@ html.animal-island .music-animal-page {
 
   .el-scrollbar__bar.is-vertical {
     right: 1px;
+  }
+
+  .music-search-header,
+  .music-ranking-header,
+  .music-local-header {
+    padding: 0 14px 12px 14px !important;
   }
 
   .music-recommend,
@@ -632,6 +646,8 @@ html.animal-island .music-animal-page {
     border-radius: 24px;
     background: rgba(255, 250, 240, 0.94);
     box-shadow: 0 8px 24px rgba(83, 61, 36, 0.12);
+    margin: 0 14px;
+    width: calc(100% - 28px);
   }
 
   .music-playlist-header-image,

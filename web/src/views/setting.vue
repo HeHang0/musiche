@@ -479,6 +479,7 @@ function onProxyAddressChanged(value: string) {
 
 function cancelAutoAppTheme() {
   if (setting.autoAppTheme) {
+    setting.autoAppTheme = false;
     setting.autoAppThemeChanged();
   }
 }

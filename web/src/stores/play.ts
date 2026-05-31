@@ -286,6 +286,48 @@ export const usePlayStore = defineStore('play', {
       }
       update && this.updateRemoteList();
     },
+    async isMusicUrlAvailable(url?: string) {
+      if (!url || url.startsWith('blob:') || url.startsWith('data:')) {
+        return true;
+      }
+      try {
+        let res = await fetch(url, {
+          method: 'HEAD'
+        });
+        if (res.ok || (res.status >= 200 && res.status < 400)) {
+          return true;
+        }
+        res = await fetch(url, {
+          method: 'GET',
+          headers: {
+            Range: 'bytes=0-1'
+          }
+        });
+        return res.ok || (res.status >= 200 && res.status < 400);
+      } catch {
+        return false;
+      }
+    },
+    async refreshMusicUrl(music: Music) {
+      if (!music || music.type === 'local') return music;
+      music.url = '';
+      music.audition = false;
+      await api.musicDetail(music);
+      if (music.id == this.music.id && music.type == this.music.type) {
+        this.music.url = music.url || '';
+        this.music.lyricUrl = music.lyricUrl || '';
+        this.music.audition = music.audition || false;
+      }
+      const musicInList = this.musicList.find(
+        m => m.id == music.id && m.type == music.type
+      );
+      if (musicInList) {
+        musicInList.url = music.url;
+        musicInList.lyricUrl = music.lyricUrl;
+        musicInList.audition = music.audition;
+      }
+      return music;
+    },
     async updateRemoteList() {
       if (!this.config.list) return;
       const data: any = {
@@ -325,6 +367,33 @@ export const usePlayStore = defineStore('play', {
           music.id == this.music.id &&
           music.type == this.music.type)
       ) {
+        const currentMusic = this.music;
+        if (currentMusic.url) {
+          const progress = this.playStatus.progress;
+          const available = await this.isMusicUrlAvailable(currentMusic.url);
+          if (!available) {
+            await this.refreshMusicUrl(currentMusic);
+            if (!currentMusic.url) {
+              console.log('fail', currentMusic);
+              ElMessage(
+                messageOption(`当前音乐[${this.music.name}]无法播放`)
+              );
+              this.preparePlay = false;
+              return;
+            }
+            await this.updateRemoteList();
+            this.checkingStatus = true;
+            let playRes = await musicOperate('/play', currentMusic.url);
+            if (progress > 0 && progress < 1000) {
+              playRes = await musicOperate('/progress', progress.toString());
+            }
+            this.checkingStatus = false;
+            this.setStatus(playRes.data);
+            this.setTitle();
+            this.preparePlay = false;
+            return;
+          }
+        }
         this.checkingStatus = true;
         const res = await musicOperate('/play');
         this.checkingStatus = false;

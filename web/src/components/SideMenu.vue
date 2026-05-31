@@ -82,10 +82,10 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
         <el-divider></el-divider>
         <el-sub-menu index="favorite">
           <template #title>
-            <el-menu-item index="favorite-item">
+            <li class="el-menu-item">
               <span class="music-icon">藏</span>
               <span>收藏的歌单({{ play.myFavorites.length }})</span>
-            </el-menu-item>
+            </li>
           </template>
           <el-menu-item
             class="el-menu-item-wide"
@@ -100,10 +100,10 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
         <el-divider></el-divider>
         <el-sub-menu index="created">
           <template #title>
-            <el-menu-item index="created-item">
+            <li class="el-menu-item">
               <span class="music-icon">编</span>
               <span>创建的歌单({{ play.myPlaylists.length }})</span>
-            </el-menu-item>
+            </li>
           </template>
           <el-menu-item
             class="el-menu-item-wide"
@@ -304,6 +304,23 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
         font-size: 12px;
       }
     }
+    .music-aside-sub-menu-title {
+      display: flex;
+      align-items: center;
+      margin: 2px 20px;
+      height: 35px;
+      border-radius: 8px;
+      font-size: 13px;
+      width: calc(100% - 40px);
+      padding: 0 10px !important;
+      box-sizing: border-box;
+      & > span {
+        opacity: 0.8;
+      }
+      &:hover {
+        background: var(--music-side-menu-color-hover);
+      }
+    }
     .el-menu-item.is-active {
       color: white;
       background: var(--music-button-primary-background);
@@ -435,6 +452,17 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
             height: 35px;
             margin-right: 0;
           }
+        }
+      }
+      .music-aside-sub-menu-title {
+        margin: 2px 5px;
+        justify-content: center;
+        padding: 0 var(--el-menu-base-level-padding) !important;
+        span:first-child {
+          margin-right: 0;
+        }
+        span:last-child {
+          display: none;
         }
       }
       .el-divider {
