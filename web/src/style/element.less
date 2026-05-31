@@ -81,9 +81,11 @@ input {
     }
 }
 
-.el-dialog {
+div.el-dialog {
     border-radius: var(--music-border-radius);
     max-width: 80%;
+    background-color: var(--music-dialog-background) !important;
+    backdrop-filter: blur(20px);
 }
 
 .el-dialog__header {

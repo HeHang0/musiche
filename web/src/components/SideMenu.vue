@@ -126,6 +126,7 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
       <el-dialog
         v-model="play.selectPlaylistShow"
         width="450"
+        append-to-body
         :show-close="false">
         <template #header="{ close, titleId, titleClass }">
           <div class="music-select-playlist-title">
@@ -178,6 +179,7 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
         v-model="createPlaylistShow"
         width="450"
         class="music-create-playlist-dialog"
+        append-to-body
         :show-close="false">
         <template #header="{ close, titleId, titleClass }">
           <div class="music-create-playlist-header">
@@ -382,8 +384,9 @@ const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
     display: flex;
     padding: 7px 30px;
     cursor: pointer;
+    border-radius: var(--music-border-radius);
     &:hover {
-      background-color: #efeff0;
+      background-color: var(--music-side-menu-color-hover);
     }
     &-create {
       background-color: rgba(183, 183, 183, 0.25);
