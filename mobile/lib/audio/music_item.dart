@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:encrypt/encrypt.dart';
@@ -122,19 +123,42 @@ class MusicItem {
     return "";
   }
 
+  Uint8List eF(Uint8List e, String r) {
+    if (r.isEmpty) return Uint8List(0);
+
+    final n = e.length;
+    final t = e[3];
+    final keyBytes = utf8.encode(r);
+    final keyLength = keyBytes.length;
+    final output = Uint8List(n - 4);
+
+    var s = 0;
+    for (var c = 4; c < n; c++, s++) {
+      output[s] = e[c] + t - keyBytes[s % keyLength];
+    }
+
+    return output;
+  }
+
+
   Future<String> _getMiGuMusicUrl(Quality quality) async {
     String toneFlag = quality.name.toUpperCase();
-    String requestUrl = "https://c.musicapp.migu.cn/MIGUM3.0/strategy"
-        "/listen-url/v2.4?resourceType=2&netType=01&"
-        "scene=&toneFlag=$toneFlag&contentId=$remark&"
-        "copyrightId=$id&lowerQualityContentId=$id";
+    String requestUrl = "https://app.c.nf.migu.cn/strategy/pc/listen/v2.0?"
+        "contentId=$remark&copyrightId=$id&"
+        "scene=&netType=01&resourceType=2&toneFlag=$toneFlag";
+
     final response = await http.get(Uri.parse(requestUrl), headers: {
       "channel": "014000D",
       "uid": uid,
-      "Cookie": cookie
+      "Cookie": cookie,
+      "appid": 'h5',
+      "birth": 'h5page',
+      "signature": '1',
+      "referer": 'https://music.migu.cn/'
     });
+    final a = 'Jk8qzuePiJ1qE3mDYhLQ3T73DtDoAhLP';
     try{
-      dynamic result = jsonDecode(response.body);
+      dynamic result = jsonDecode(utf8.decode(eF(response.bodyBytes, a)));
       String musicUrl = result["data"]?["url"]?.toString() ?? "";
       if(musicUrl.isNotEmpty) return musicUrl.replaceFirst("http://", "https://");
     }catch(e){
