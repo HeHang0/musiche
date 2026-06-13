@@ -156,7 +156,7 @@ class MusicItem {
       "signature": '1',
       "referer": 'https://music.migu.cn/'
     });
-    final a = 'Jk8qzuePiJ1qE3mDYhLQ3T73DtDoAhLP';
+    const a = 'Jk8qzuePiJ1qE3mDYhLQ3T73DtDoAhLP';
     try{
       dynamic result = jsonDecode(utf8.decode(eF(response.bodyBytes, a)));
       String musicUrl = result["data"]?["url"]?.toString() ?? "";

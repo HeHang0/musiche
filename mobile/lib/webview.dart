@@ -23,7 +23,7 @@ class WebViewApp extends StatefulWidget {
 class _WebViewAppState extends State<WebViewApp> with WidgetsBindingObserver {
   static const String _tag = "MusicWebView";
   final GlobalKey webViewKey = GlobalKey();
-  static final String _url = kDebugMode ? "http://127.0.0.1:5173" : "http://127.0.0.1:${ServerManager.port}/index.html";
+  static final String _url = kDebugMode && !kIsWeb && !Platform.isIOS ? "http://127.0.0.1:5173" : "http://127.0.0.1:${ServerManager.port}/index.html";
   InAppWebViewController? webViewController;
   InAppWebViewSettings settings = InAppWebViewSettings(
       isInspectable: kDebugMode,
