@@ -17,7 +17,9 @@ const setting = useSettingStore();
 function startSearch() {
   if (!searchKey.value.trim()) return;
   push(
-    `/search/${setting.currentMusicType}/${encodeURIComponent(searchKey.value)}`
+    `/search/${setting.currentMusicType}/music/${encodeURIComponent(
+      searchKey.value
+    )}`
   );
 }
 const canBack: Ref<boolean> = ref(Boolean(history.state.back));
@@ -58,6 +60,7 @@ onUnmounted(unWatch);
         v-model="searchKey"
         placeholder="搜索音乐、歌手、歌词、链接"
         @keyup.enter.native="startSearch"
+        @dblclick="startSearch"
         clearable>
         <template #prefix>
           <el-icon

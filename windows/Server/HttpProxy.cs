@@ -2,11 +2,27 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Musiche.Server
 {
     public class HttpProxy
     {
+        private static string GetLocalProxy()
+        {
+            string value = HttpHandler.GetStorage("musiche-proxy");
+            if (string.IsNullOrWhiteSpace(value)) return "system";
+            try
+            {
+                string proxy = JsonConvert.DeserializeObject<string>(value);
+                return string.IsNullOrWhiteSpace(proxy) ? "system" : proxy;
+            }
+            catch (Exception)
+            {
+                return value.Trim('"');
+            }
+        }
+
         public static async Task<ProxyResponseData> Request(ProxyRequestData data)
         {
             if (!Uri.IsWellFormedUriString(data.Url, UriKind.Absolute))
@@ -21,6 +37,15 @@ namespace Musiche.Server
 #pragma warning disable SYSLIB0014
                 HttpWebRequest request = (HttpWebRequest)WebRequest.Create(data.Url);
 #pragma warning restore SYSLIB0014
+                if (GetLocalProxy() == "system")
+                {
+                    request.Proxy = WebRequest.GetSystemWebProxy();
+                    request.Proxy.Credentials = CredentialCache.DefaultCredentials;
+                }
+                else
+                {
+                    request.Proxy = null;
+                }
                 request.Method = data.Method;
                 request.ContentLength = data.DataBytes.Length;
                 request.SetHeaders(data.Headers);

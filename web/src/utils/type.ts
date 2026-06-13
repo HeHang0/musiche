@@ -67,6 +67,20 @@ export interface Playlist {
   musicList?: Music[];
 }
 
+export interface PlaylistSearchItem {
+  id: string;
+  name: string;
+  highlightName?: string;
+  image: string;
+  type: MusicType;
+  trackCount: number;
+  playCount: number;
+  bookCount: number;
+  creator: string;
+  creatorId: string;
+  description: string;
+}
+
 export interface Album {
   id: string;
   name: string;
@@ -132,6 +146,7 @@ export interface Config {
   client: boolean;
   shortcut: boolean;
   gpu: boolean;
+  platform?: string;
 }
 
 export type ShortcutType =
@@ -198,6 +213,13 @@ export interface PlatformAPI {
   ): Promise<{
     total: number;
     list: Music[];
+  }>;
+  searchPlaylist?(
+    keywords: string,
+    offset: number
+  ): Promise<{
+    total: number;
+    list: PlaylistSearchItem[];
   }>;
   recommend?(offset: number): Promise<{
     total: number;

@@ -14,12 +14,14 @@ namespace Musiche.Server
     {
         private readonly Dictionary<string, Func<HttpListenerContext, Task>> routers;
         private static readonly string installChineseFontsJson = string.Empty;
+        private static LocalStorage currentLocalStorage;
         private readonly FileHandler fileHandler = new FileHandler();
         readonly LocalStorage localStorage;
         readonly FileAccessor fileAccessor;
         public HttpHandler(MainWindow window, AudioPlay audioPlay, MediaMetaManager mediaMetaManager) : base(window, audioPlay, mediaMetaManager)
         {
             localStorage = new LocalStorage(Utils.File.ConfigPath);
+            currentLocalStorage = localStorage;
             routers = Router.ReadHttpRouter(this);
             fileAccessor = new FileAccessor();
         }
@@ -73,11 +75,17 @@ namespace Musiche.Server
             localStorage.SaveToFile(null);
         }
 
+        public static string GetStorage(string key)
+        {
+            return currentLocalStorage?.Get(key) ?? string.Empty;
+        }
+
         [Router("/config")]
         public async Task GetConfig(HttpListenerContext ctx)
         {
             Dictionary<string, object> result = new Dictionary<string, object>()
             {
+                { "platform", "windows" },
                 { "remote", true },
                 { "storage", true },
                 { "file", true },

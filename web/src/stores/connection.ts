@@ -41,6 +41,7 @@ export class MusicConnection {
       this.config.shortcut = Boolean(remoteConfig.shortcut);
       this.config.gpu = Boolean(remoteConfig.gpu);
       this.config.lyric = Boolean(remoteConfig.lyric);
+      this.config.platform = remoteConfig.platform || '';
     } catch {}
 
     if (!this.config.remote) registerServiceWorker();

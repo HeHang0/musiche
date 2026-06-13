@@ -2,27 +2,50 @@
 import { ref, onMounted, watch, Ref, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import * as api from '../utils/api/api';
+import RadioGroupEle from '../components/RadioGroup.vue';
 import MusicList from '../components/MusicList.vue';
+import SearchPlaylistList from '../components/SearchPlaylistList.vue';
 import AnimalPage from '../components/AnimalPage.vue';
-import { Music, MusicType } from '../utils/type';
+import { Music, MusicType, PlaylistSearchItem } from '../utils/type';
 import { usePlayStore } from '../stores/play';
 import { useSettingStore } from '../stores/setting';
 const { currentRoute, replace } = useRouter();
 const play = usePlayStore();
 const setting = useSettingStore();
+type SearchResultType = 'music' | 'playlist';
 const searchTextShow = ref(true);
 const total = ref(0);
 const musicList: Ref<Music[]> = ref([] as Music[]);
+const playlistList: Ref<PlaylistSearchItem[]> = ref([]);
 const keywords = ref('');
 const loading = ref(false);
+const searchType: Ref<SearchResultType> = ref('music');
+const searchTypes = ref([
+  {
+    label: '歌曲',
+    value: 'music'
+  },
+  {
+    label: '歌单',
+    value: 'playlist'
+  }
+]);
 const unWatch = watch(currentRoute, searchMusic.bind(null, true));
+function parseSearchType(): SearchResultType {
+  const type = currentRoute.value.params.searchType?.toString();
+  return type === 'playlist' ? 'playlist' : 'music';
+}
+function searchPath(type: MusicType, resultType: SearchResultType, kw: string) {
+  return `/search/${type}/${resultType}/${encodeURIComponent(kw)}`;
+}
 async function searchMusic(clear: boolean = true) {
   if (currentRoute.value.meta.key != 'search') return;
-  setting.currentMusicType = currentRoute.value.params.type as MusicType;
-  setting.currentMusicTypeShow = true;
   const kw = decodeURIComponent(
     currentRoute.value.params?.keywords?.toString() || ''
   );
+  setting.currentMusicType = currentRoute.value.params.type as MusicType;
+  setting.currentMusicTypeShow = true;
+  searchType.value = parseSearchType();
   if (!kw) return;
   if (await checkLink(kw)) {
     return;
@@ -30,14 +53,32 @@ async function searchMusic(clear: boolean = true) {
   loading.value = true;
   keywords.value = kw;
   searchTextShow.value = true;
-  var result = await api.search(
-    setting.currentMusicType,
-    keywords.value,
-    musicList.value.length
-  );
+  const currentSearchType = searchType.value;
+  if (clear) {
+    musicList.value.splice(0, musicList.value.length);
+    playlistList.value.splice(0, playlistList.value.length);
+  }
+  var result =
+    currentSearchType === 'playlist'
+      ? await api.searchPlaylist(
+          setting.currentMusicType,
+          keywords.value,
+          playlistList.value.length
+        )
+      : await api.search(
+          setting.currentMusicType,
+          keywords.value,
+          musicList.value.length
+        );
+  if (currentSearchType !== searchType.value) {
+    return;
+  }
   total.value = result.total;
-  clear && musicList.value.splice(0, musicList.value.length);
-  result.list.map((m: Music) => musicList.value.push(m));
+  if (currentSearchType === 'playlist') {
+    result.list.map(m => playlistList.value.push(m as PlaylistSearchItem));
+  } else {
+    result.list.map(m => musicList.value.push(m as Music));
+  }
   loading.value = false;
 }
 async function checkLink(link: string) {
@@ -50,7 +91,7 @@ async function checkLinkCloud(link: string): Promise<boolean> {
   var dataParsed = await api.parseLink(link);
   if (dataParsed != null) {
     if (setting.currentMusicType != dataParsed.type) {
-      replace(`/search/${dataParsed.type}/${encodeURIComponent(link)}`);
+      replace(searchPath(dataParsed.type, 'music', link));
     } else {
       if (dataParsed.linkType === 'playlist') {
         replace(`/playlist/${dataParsed.type}/${dataParsed.id}`);
@@ -63,13 +104,24 @@ async function checkLinkCloud(link: string): Promise<boolean> {
   return false;
 }
 function setMusic(music: Music | null) {
+  searchType.value = 'music';
   total.value = 1;
   musicList.value.splice(0, musicList.value.length);
+  playlistList.value.splice(0, playlistList.value.length);
   if (music) {
     musicList.value.push(music);
     keywords.value = `${music.name} - ${music.singer}`;
     searchTextShow.value = false;
   }
+}
+function searchTypeChange(type: SearchResultType) {
+  if (searchType.value === type) return;
+  replace(searchPath(setting.currentMusicType, type, keywords.value));
+}
+function currentListLength() {
+  return searchType.value === 'playlist'
+    ? playlistList.value.length
+    : musicList.value.length;
 }
 onMounted(searchMusic);
 onUnmounted(unWatch);
@@ -82,11 +134,16 @@ onUnmounted(unWatch);
         <div>
           <span class="music-search-title">{{ keywords }}</span>
           <span class="music-search-subtitle" v-if="searchTextShow">
-            的相关搜索如下，找到{{ total }}首单曲
+            的相关搜索如下，找到{{ total
+            }}{{ searchType === 'playlist' ? '个歌单' : '首单曲' }}
           </span>
         </div>
         <div>
-          <el-button-group>
+          <RadioGroupEle
+            :value="searchType"
+            :menu="searchTypes"
+            @change="searchTypeChange" />
+          <el-button-group v-if="searchType === 'music'">
             <el-button
               type="primary"
               :disabled="loading || musicList.length === 0"
@@ -106,6 +163,7 @@ onUnmounted(unWatch);
             </el-button>
           </el-button-group>
           <el-button
+            v-if="searchType === 'music'"
             type="info"
             :disabled="loading || musicList.length === 0"
             @click="play.beforeAddMyPlaylistsMusic(musicList)">
@@ -114,9 +172,17 @@ onUnmounted(unWatch);
         </div>
       </div>
       <el-scrollbar>
-        <MusicList :list="musicList" search :loading="loading" />
+        <MusicList
+          v-if="searchType === 'music'"
+          :list="musicList"
+          search
+          :loading="loading" />
+        <SearchPlaylistList
+          v-else
+          :list="playlistList"
+          :loading="loading" />
         <div
-          v-if="total > musicList.length && !loading"
+          v-if="total > currentListLength() && !loading"
           class="load-more"
           @click="searchMusic(false)"></div>
       </el-scrollbar>
@@ -139,6 +205,10 @@ onUnmounted(unWatch);
     & > div {
       display: flex;
       align-items: center;
+    }
+    .el-radio-group {
+      margin-left: 0;
+      margin-right: 10px;
     }
     padding: 0 var(--music-page-padding-horizontal);
   }
@@ -166,6 +236,13 @@ onUnmounted(unWatch);
     &-header {
       flex-direction: column;
       align-items: flex-start;
+      & > div:last-child {
+        flex-wrap: wrap;
+        margin-top: 8px;
+      }
+      .el-radio-group {
+        margin-bottom: 5px;
+      }
     }
   }
 }

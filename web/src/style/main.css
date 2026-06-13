@@ -44,7 +44,7 @@ button .music-icon {
   --el-bg-color-overlay: rgba(255, 255, 255, 0.85); /* 弹窗背景 */
 
   /* 3. 苹果标志性的圆角（iOS 常用 10px - 14px 连续曲率圆角） */
-  --el-border-radius-base: 12px;
+  /* --el-border-radius-base: 12px; */
   --el-border-radius-small: 8px;
   --el-border-radius-round: 20px;
 

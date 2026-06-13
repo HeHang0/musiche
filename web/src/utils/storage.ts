@@ -24,6 +24,7 @@ export enum StorageKey {
   DownloadQuality = 'download-quality',
   LyricOptions = 'lyric-options',
   ProxyAddress = 'proxy-address',
+  Proxy = 'proxy',
   LocalMusicSupplement = 'local-music-supplement'
 }
 

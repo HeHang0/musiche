@@ -30,7 +30,9 @@ function toSinger(music: Music) {
     return;
   }
   if (music.type && music.singer) {
-    router.push(`/search/${music.type}/${encodeURIComponent(music.singer)}`);
+    router.push(
+      `/search/${music.type}/music/${encodeURIComponent(music.singer)}`
+    );
   }
 }
 function toAlbum(music: Music) {

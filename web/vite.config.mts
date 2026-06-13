@@ -34,7 +34,11 @@ export default defineConfig({
   base: '/' + (process.env.ROUTER_PREFIX || ''),
   plugins,
   build: {
-    rollupOptions: {
+    chunkSizeWarningLimit: 1000,
+    rolldownOptions: {
+      checks: {
+        invalidAnnotation: false
+      },
       output: {
         assetFileNames(chunkInfo) {
           console.log('chunkInfo', chunkInfo.type, chunkInfo.name);

@@ -3,6 +3,7 @@ import {
   MusicType,
   PlatformAPI,
   Playlist,
+  PlaylistSearchItem,
   RankingType,
   UserInfo,
   LoginStatus,
@@ -29,6 +30,26 @@ export async function search(
   list: Music[];
 }> {
   const func = musicAPI.get(type)?.search;
+  try {
+    if (func) return await func(keywords, offset);
+  } catch (e) {
+    console.error(e);
+  }
+  return {
+    total: 0,
+    list: []
+  };
+}
+
+export async function searchPlaylist(
+  type: MusicType,
+  keywords: string,
+  offset: number
+): Promise<{
+  total: number;
+  list: PlaylistSearchItem[];
+}> {
+  const func = musicAPI.get(type)?.searchPlaylist;
   try {
     if (func) return await func(keywords, offset);
   } catch (e) {

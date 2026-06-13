@@ -6,6 +6,7 @@
     --el-slider-background-color: #7c7c7c33;
     --el-slider-full-background-color: var(--el-slider-background-color);
     --el-bg-color: var(--music-background) !important;
+    --el-border-radius-base: var(--music-border-radius);
 }
 
 input {
@@ -82,8 +83,13 @@ input {
 }
 
 div.el-dialog {
-    border-radius: var(--music-border-radius);
     max-width: 80%;
+}
+
+div.el-dialog,
+div.el-message-box,
+div.el-loading-mask {
+    border-radius: var(--music-border-radius);
     background-color: var(--music-dialog-background) !important;
     backdrop-filter: blur(20px);
 }

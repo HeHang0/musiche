@@ -46,7 +46,9 @@ function toSinger() {
   if (play.music.type && play.music.singer) {
     cancelDetail();
     router.push(
-      `/search/${play.music.type}/${encodeURIComponent(play.music.singer)}`
+      `/search/${play.music.type}/music/${encodeURIComponent(
+        play.music.singer
+      )}`
     );
   }
 }

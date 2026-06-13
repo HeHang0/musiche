@@ -5,6 +5,7 @@ import {
   MusicQuality,
   MusicType,
   Playlist,
+  PlaylistSearchItem,
   ProxyRequestData,
   RankingType,
   UserInfo
@@ -184,6 +185,22 @@ function parseMusic3(data: any): Music | null {
   };
 }
 
+function parsePlaylistSearchItem(data: any): PlaylistSearchItem | null {
+  if (!data) return null;
+  return {
+    id: data.id,
+    name: data.name,
+    image: data.musicListPicUrl,
+    type: musicType,
+    trackCount: Number(data.musicNum || 0),
+    playCount: Number(data.playNum || 0),
+    bookCount: Number(data.keepNum || 0),
+    creator: '',
+    creatorId: '',
+    description: ''
+  };
+}
+
 var downloadQuality: MusicQuality = 'PQ';
 var playQuality: MusicQuality = 'PQ';
 
@@ -228,6 +245,44 @@ export async function search(keywords: string, offset: number) {
   ret?.map((m: any) => {
     const music = parseMusic3(m);
     music && list.push(music);
+  });
+  highlightKeys(list, keywords);
+  return {
+    total,
+    list
+  };
+}
+
+export async function searchPlaylist(
+  keywords: string,
+  offset: number = 0,
+  limit: number = 30
+): Promise<{
+  total: number;
+  list: PlaylistSearchItem[];
+}> {
+  const query = `?text=${encodeURIComponent(keywords).replace(
+    /%20/g,
+    '+'
+  )}&pageNo=${Math.round(offset / limit) + 1}&pageSize=${limit}&searchSwitch={"songlist":+1}`;
+  var url = `https://app.u.nf.migu.cn/pc/v1.0/content/search_all.do${query}`;
+  const requestParams = {
+    method: 'GET',
+    data: '',
+    headers: {
+      by: '22210ca73bf1af2ec2eace74a96ee356',
+      Referer: 'https://music.migu.cn/',
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36'
+    }
+  };
+  const res = await httpProxy({ url, ...requestParams });
+  const ret = await res.json();
+  const list: PlaylistSearchItem[] = [];
+  const total: number = ret.songListResultData?.totalCount || 0;
+  ret.songListResultData?.result.forEach((m: any) => {
+    const playlist = parsePlaylistSearchItem(m);
+    playlist && list.push(playlist);
   });
   highlightKeys(list, keywords);
   return {

@@ -2,6 +2,7 @@ import {
   Music,
   MusicType,
   Playlist,
+  PlaylistSearchItem,
   RankingType,
   UserInfo,
   LoginStatus,
@@ -55,12 +56,13 @@ enum CloudMusicAPI {
   Daily = 'https://music.163.com/weapi/v2/discovery/recommend/songs?csrf_token=',
   PlaylistDetail = 'https://music.163.com/weapi/v3/playlist/detail',
   AlbumDetail = 'https://interface.music.163.com/weapi/v1/album',
-  DownloadUrl = 'http://music.163.com/weapi/song/enhance/player/url?csrf_token=',
+  DownloadUrl = 'https://music.163.com/weapi/song/enhance/player/url?csrf_token=',
   SongDetail = 'https://music.163.com/weapi/v3/song/detail',
   QRCodeUniKey = 'https://music.163.com/weapi/login/qrcode/unikey?csrf_token=',
   LoginSwitch = 'https://music.163.com/weapi/w/user/login/type/switch?csrf_token=',
   LoginStatus = 'https://music.163.com/weapi/login/qrcode/client/login?csrf_token=',
-  UserInfo = 'https://music.163.com/weapi/w/nuser/account/get?csrf_token='
+  UserInfo = 'https://music.163.com/weapi/w/nuser/account/get?csrf_token=',
+  DeviceInfo = 'https://music.163.com/weapi/middle/device-info/web/get?csrf_token='
 }
 
 interface RequestOption {
@@ -169,6 +171,22 @@ function parseMusic(data: any): Music | null {
   };
 }
 
+function parsePlaylistSearchItem(data: any): PlaylistSearchItem | null {
+  if (!data) return null;
+  return {
+    id: data.id,
+    name: data.name,
+    image: data.coverImgUrl,
+    type: musicType,
+    trackCount: data.trackCount,
+    playCount: data.playCount,
+    bookCount: data.bookCount,
+    creator: (data.creator && data.creator.nickname) || '',
+    creatorId: (data.creator && data.creator.userId) || '',
+    description: data.description || ''
+  };
+}
+
 function parseSinger(data: any) {
   return data && Array.isArray(data)
     ? data.map((n: any) => n.name).join(' / ')
@@ -207,6 +225,38 @@ export async function search(
   ret.result.songs.map((m: any) => {
     const music = parseMusic(m);
     music && list.push(music);
+  });
+  highlightKeys(list, keywords);
+  return {
+    total,
+    list
+  };
+}
+
+export async function searchPlaylist(
+  keywords: string,
+  offset: number = 0,
+  limit: number = 30,
+  type: number = 1e3
+): Promise<{
+  total: number;
+  list: PlaylistSearchItem[];
+}> {
+  const ret = await httpRequest(CloudMusicAPI.Search, {
+    data: {
+      s: keywords.replace(/[\s]+/g, '+'),
+      limit: limit,
+      offset: offset,
+      type: type,
+      strategy: 5,
+      queryCorrect: true
+    }
+  });
+  const list: PlaylistSearchItem[] = [];
+  const total: number = ret.result.playlistCount;
+  ret.result.playlists.map((m: any) => {
+    const playlist = parsePlaylistSearchItem(m);
+    playlist && list.push(playlist);
   });
   highlightKeys(list, keywords);
   return {
@@ -601,19 +651,48 @@ export async function qrCodeKey(): Promise<{
       'nm-gcore-status': '1'
     }
   });
-  // const retSwitch = await httpRequest(CloudMusicAPI.LoginSwitch, {
-  //   data: { bizType: '' }
-  // });
-  // console.log('switch', await retSwitch);
+  let url = 'https://music.163.com/login?codekey=' + ret.unikey;
+  const chainId = generateChainId();
+  url += `&chainId=${chainId}`;
   if (ret && ret.unikey) {
     return {
       key: ret.unikey,
-      url: await qrcodeGenerate(
-        'https://music.163.com/login?codekey=' + ret.unikey
-      )
+      url: await qrcodeGenerate(url)
     };
   }
   return null;
+}
+
+export async function deviceInfo(): Promise<{
+  key: string;
+  url: string;
+} | null> {
+  const ret = await httpRequest(CloudMusicAPI.DeviceInfo, {
+    data: {
+      ydDeviceToken: '7B/lUPIJFk5EU0QFUEKC+S+sv5zAVADk',
+      ydDeviceType: 'WebOnline'
+    },
+    headers: {
+      'x-os': 'web',
+      'x-loginmethod': 'QrCode',
+      'x-channelsource': 'undefined',
+      'nm-gcore-status': '1'
+    },
+    setCookieRename: true
+  });
+  console.log('device info: ', ret);
+  return null;
+}
+deviceInfo();
+function generateChainId(): string {
+  const version = 'v1';
+  const randomNum = Math.floor(Math.random() * 1e6);
+  const deviceId = 'unknown-' + randomNum;
+  const platform = 'web';
+  const action = 'login';
+  const timestamp = Date.now();
+
+  return `${version}_${deviceId}_${platform}_${action}_${timestamp}`;
 }
 
 export async function loginStatus(key: string): Promise<{

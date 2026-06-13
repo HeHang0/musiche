@@ -37,6 +37,7 @@ import {
 
 import { LogoCircleImage } from '../utils/logo';
 import { ThemeColorManager } from '../utils/color';
+import { StorageKey, storage } from '../utils/storage';
 import DroidImage from '../assets/images/droid.svg';
 import AppleImage from '../components/apple.vue';
 import GithubImage from '../components/github.vue';
@@ -158,11 +159,13 @@ const defaultFonts = isWindows
       'Lucida Handwriting'
     ];
 const defaultProxyAddress = ref(getProxyAddress());
+const defaultProxyAddressReadonly = ref(true);
 const useHuaweiCloud = ref(isHuaweiCloud());
 const setting = useSettingStore();
 const play = usePlayStore();
 const currentVersion = ref('');
 const remoteVersion = ref('');
+const localNetworkProxy = ref<'system' | 'none'>('system');
 const delayMinute = ref(0);
 const delaySecond = ref(0);
 const delayExit = ref(false);
@@ -477,6 +480,10 @@ function onProxyAddressChanged(value: string) {
   }
 }
 
+function onLocalNetworkProxyChanged(value: 'system' | 'none') {
+  storage.setValue(StorageKey.Proxy, value);
+}
+
 function cancelAutoAppTheme() {
   if (setting.autoAppTheme) {
     setting.autoAppTheme = false;
@@ -549,6 +556,11 @@ onMounted(() => {
   setting.waitLoaded().then(() => {
     defaultProxyAddress.value = getProxyAddress();
     useHuaweiCloud.value = isHuaweiCloud();
+    storage
+      .getValue<'system' | 'none'>(StorageKey.Proxy, 'system', 'string')
+      .then(value => {
+        localNetworkProxy.value = value === 'none' ? 'none' : 'system';
+      });
   });
 });
 onUnmounted(unWatch);
@@ -757,8 +769,21 @@ onUnmounted(unWatch);
                 <span style="font-weight: bold; margin-top: 10px">代理</span>
                 <el-input
                   v-model="defaultProxyAddress"
+                  :readonly="defaultProxyAddressReadonly"
+                  @dblclick="defaultProxyAddressReadonly = false"
                   @change="onProxyAddressChanged"
                   style="padding: 10px 50px 0 0" />
+                <div
+                  v-if="isWindows && setting.config.remote"
+                  class="music-setting-general-local-proxy">
+                  <span>本地网络代理</span>
+                  <el-radio-group
+                    v-model="localNetworkProxy"
+                    @change="onLocalNetworkProxyChanged">
+                    <el-radio-button value="system">系统代理</el-radio-button>
+                    <el-radio-button value="none">不代理</el-radio-button>
+                  </el-radio-group>
+                </div>
               </td>
             </tr>
             <tr>
@@ -1416,6 +1441,16 @@ onUnmounted(unWatch);
     .el-select {
       width: 140px;
       margin-top: 10px;
+    }
+    &-local-proxy {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin-top: 10px;
+      & > span {
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
     }
     & > span:first-child {
       font-weight: bold;

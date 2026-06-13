@@ -2,6 +2,7 @@ import { httpProxy as httpProxyOrigin, parseHttpProxyAddress } from '../http';
 import {
   Music,
   Playlist,
+  PlaylistSearchItem,
   MusicType,
   RankingType,
   UserInfo,
@@ -86,6 +87,25 @@ function parseMusic(m: any): Music {
   };
 }
 
+function parsePlaylistSearchItem(data: any): PlaylistSearchItem | null {
+  if (!data) return null;
+  return {
+    id: data.dissid,
+    name:
+      data.dissname
+        ?.replace(/<em>/g, '<span class="highlight-text">')
+        .replace(/<\/em>/g, '</span>') || '',
+    image: data.logo,
+    trackCount: data.songnum,
+    playCount: data.listennum,
+    creator: data.nickname || '',
+    description: data.subhead?.replace(/<br>/g, '\n') || '',
+    type: musicType,
+    bookCount: 0,
+    creatorId: ''
+  };
+}
+
 var downloadQuality: MusicQuality = 'PQ';
 var playQuality: MusicQuality = 'PQ';
 
@@ -135,6 +155,52 @@ export async function search(keywords: string, offset: number) {
     const music = parseMusic(m);
     music.highlightName = highlightKeys(music.name, keywords);
     list.push(music);
+  });
+  return {
+    total,
+    list
+  };
+}
+
+export async function searchPlaylist(
+  keywords: string,
+  offset: number = 0
+): Promise<{
+  total: number;
+  list: PlaylistSearchItem[];
+}> {
+  var res = await httpProxy({
+    url: 'https://u.y.qq.com/cgi-bin/musicu.fcg',
+    method: 'POST',
+    data: JSON.stringify({
+      comm: {
+        mina: 1,
+        appid: 'wxada7aab80ba27074',
+        ct: 25
+      },
+      req: {
+        method: 'DoSearchForQQMusicMobile',
+        module: 'music.search.SearchBrokerCgiServer',
+        param: {
+          remoteplace: 'miniapp.wxada7aab80ba27074',
+          search_type: 3,
+          query: keywords,
+          page_num: Math.round(offset / 30) + 1,
+          num_per_page: 30,
+          grp: 0
+        }
+      }
+    }),
+    headers: {
+      'content-type': 'application/json'
+    }
+  });
+  const ret = await res.json();
+  const list: PlaylistSearchItem[] = [];
+  const total: number = ret.req.data.meta.sum;
+  ret.req.data.body.item_songlist.forEach((m: any) => {
+    const playlist = parsePlaylistSearchItem(m);
+    playlist && list.push(playlist);
   });
   return {
     total,

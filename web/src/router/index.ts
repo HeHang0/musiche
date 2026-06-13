@@ -36,10 +36,17 @@ const routers: RouteRecordRaw[] = [
     component: () => import(`../views/ranking.vue`)
   },
   {
-    path: '/search/:type/:keywords',
+    path: '/search/:type/:searchType/:keywords',
     name: '搜索',
     meta: { key: 'search', show: false },
     component: () => import(`../views/search.vue`)
+  },
+  {
+    path: '/search/:type/:keywords',
+    redirect: to =>
+      `/search/${to.params.type}/music/${encodeURIComponent(
+        to.params.keywords?.toString() || ''
+      )}`
   },
   {
     path: '/playlist/:type/:id',
