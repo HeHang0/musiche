@@ -35,6 +35,7 @@ export default defineConfig({
   plugins,
   build: {
     chunkSizeWarningLimit: 1000,
+    cssMinify: false,
     rolldownOptions: {
       checks: {
         invalidAnnotation: false

@@ -40,7 +40,7 @@ async function setValue<T>(key: string, value: T) {
     result = `${value}`;
   }
   if (useRemote) {
-    fetch(
+    await fetch(
       `//${httpAddress}/storage?key=` + encodeURIComponent('musiche-' + key),
       {
         method: 'POST',

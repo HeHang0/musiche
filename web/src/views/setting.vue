@@ -1,10 +1,12 @@
 <script lang="ts" setup>
-import { ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { Ref, h, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { WarningFilled, PictureFilled } from '@element-plus/icons-vue';
+import QRCode from 'qrcode';
 
 import Login from '../components/Login.vue';
+import LoginSyncScanner from '../components/LoginSyncScanner.vue';
 import AnimalPage from '../components/AnimalPage.vue';
 
 import { useSettingStore } from '../stores/setting';
@@ -182,6 +184,7 @@ const cookieInputVisible: Record<MusicType, boolean> = reactive({
   migu: false,
   local: false
 });
+const loginSyncQrCode = ref('');
 const themes = ref([
   {
     id: '',
@@ -316,6 +319,7 @@ async function onCookieInputChanged(type: MusicType) {
       cloudCookie['__csrf'] = cookieObj['__csrf'] || '';
       cloudCookie['MUSIC_U'] = cookieObj['MUSIC_U'] || '';
       cloudCookie['uid'] = cookieObj['uid'] || '';
+      ElMessage.success('识别: ' + JSON.stringify(cloudCookie));
       setting.userInfo.cloud.cookie = {
         ...((setting.userInfo.cloud.cookie as Record<string, string>) || {}),
         ...cloudCookie
@@ -396,6 +400,102 @@ function login(type: MusicType) {
       onLogon: loginSuccess
     })
   }).catch(() => {});
+}
+
+function getLoginSyncCookie(type: MusicType) {
+  const cookie = setting.userInfo[type]?.cookie;
+  if (!cookie) return '';
+  if (typeof cookie === 'string') return cookie;
+  return Object.keys(cookie)
+    .filter(key => cookie[key])
+    .map(key => `${key}=${cookie[key]}`)
+    .join('; ');
+}
+
+function parseLoginSyncData(text: string) {
+  try {
+    const data = JSON.parse(text);
+    if (data?.type !== 'musiche-login-sync' || !data.musicType || !data.cookie)
+      return null;
+    return data as {
+      type: 'musiche-login-sync';
+      version: number;
+      musicType: MusicType;
+      cookie: string;
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function showLoginSyncQRCode(type: MusicType) {
+  const cookie = getLoginSyncCookie(type);
+  if (!cookie) {
+    ElMessage.warning(`当前没有可同步的${musicTypeInfo[type].name}登录信息`);
+    return;
+  }
+  loginSyncQrCode.value = await QRCode.toDataURL(
+    JSON.stringify({
+      type: 'musiche-login-sync',
+      version: 1,
+      musicType: type,
+      cookie
+    }),
+    {
+      width: 260,
+      margin: 1,
+      errorCorrectionLevel: 'L'
+    }
+  );
+  ElMessageBox({
+    title: `${musicTypeInfo[type].name} - 同步登录信息`,
+    confirmButtonText: '关闭',
+    showCancelButton: false,
+    closeOnClickModal: false,
+    message: h('div', { class: 'music-login-sync-qrcode' }, [
+      h('img', { src: loginSyncQrCode.value }),
+      h('p', {}, `在手机端点击${musicTypeInfo[type].name}同步并扫描`)
+    ])
+  }).catch(() => {});
+}
+
+function scanLoginSyncQRCode(type: MusicType) {
+  ElMessageBox({
+    title: `${musicTypeInfo[type].name} - 扫描电脑端二维码`,
+    confirmButtonText: '关闭',
+    showCancelButton: false,
+    closeOnClickModal: false,
+    message: h(LoginSyncScanner, {
+      onSync: async (text: string) => {
+        const data = parseLoginSyncData(text);
+        if (!data) {
+          ElMessage.warning('未识别到有效的登录同步二维码');
+          return;
+        }
+        if (data.musicType !== type) {
+          ElMessage.warning(`请扫描${musicTypeInfo[type].name}的同步二维码`);
+          return;
+        }
+        ElMessage.success('识别: ' + data.cookie);
+        cookieInput[type] = data.cookie;
+        await onCookieInputChanged(type);
+        if (setting.userInfo[type].id) {
+          ElMessageBox.close();
+          ElMessage.success('登录信息同步成功');
+        } else {
+          ElMessage.warning('登录信息同步失败');
+        }
+      }
+    })
+  }).catch(() => {});
+}
+
+function loginSync(info: { type: MusicType }) {
+  if (setting.userInfo[info.type].id) {
+    showLoginSyncQRCode(info.type);
+  } else if (isMobile) {
+    scanLoginSyncQRCode(info.type);
+  }
 }
 
 async function checkLocalVersion() {
@@ -695,6 +795,11 @@ onUnmounted(unWatch);
                       登录
                     </span>
                   </el-tooltip>
+                  <span
+                    v-if="setting.userInfo[info.type].id || isMobile"
+                    @click="loginSync(info)">
+                    同步
+                  </span>
                   <el-input
                     v-model="cookieInput[info.type]"
                     v-if="cookieInputVisible[info.type]"
@@ -1805,6 +1910,21 @@ onUnmounted(unWatch);
         }
       }
     }
+  }
+}
+:global(.music-login-sync-qrcode) {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  img {
+    width: 260px;
+    height: 260px;
+  }
+  p {
+    margin: 12px 0 0;
+    opacity: 0.7;
   }
 }
 @media (max-width: 800px) {
