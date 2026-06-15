@@ -35,7 +35,7 @@ export default defineConfig({
   plugins,
   build: {
     chunkSizeWarningLimit: 1000,
-    cssMinify: false,
+    cssTarget: ['ios14', 'safari14', 'chrome80'],
     rolldownOptions: {
       checks: {
         invalidAnnotation: false
