@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -63,7 +64,20 @@ func sendRequest(requestData *RequestData) (int, io.Reader, http.Header) {
 		return http.StatusBadRequest, nil, nil
 	}
 	setRequestHeaders(request, requestData.Headers)
+
+	transport := &http.Transport{}
+	if requestData.HttpProxy != "" {
+		if proxyUrl, err := url.Parse(requestData.HttpProxy); err == nil {
+			transport.Proxy = http.ProxyURL(proxyUrl)
+		}
+	} else if HttpProxyUrl != "" {
+		if proxyUrl, err := url.Parse(HttpProxyUrl); err == nil {
+			transport.Proxy = http.ProxyURL(proxyUrl)
+		}
+	}
+
 	client := &http.Client{
+		Transport:     transport,
 		CheckRedirect: requestData.CheckRedirect,
 	}
 	response, err := client.Do(request)

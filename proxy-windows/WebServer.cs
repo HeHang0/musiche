@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -173,6 +173,11 @@ namespace ProxyServer
 #pragma warning disable SYSLIB0014
                 HttpWebRequest request = (HttpWebRequest)WebRequest.Create(_proxyAddress + queryString);
 #pragma warning restore SYSLIB0014
+                Settings settings = Settings.Load();
+                if (settings.HttpProxyEnable && !string.IsNullOrWhiteSpace(settings.HttpProxy))
+                {
+                    request.Proxy = new WebProxy(settings.HttpProxy);
+                }
                 request.Method = ctx.Request.HttpMethod;
                 request.ContentLength = body.Length;
                 if (request.ContentLength > 0)
@@ -366,6 +371,15 @@ namespace ProxyServer
 #pragma warning disable SYSLIB0014
                 HttpWebRequest request = (HttpWebRequest)WebRequest.Create(data.Url);
 #pragma warning restore SYSLIB0014
+                Settings settings = Settings.Load();
+                if (!string.IsNullOrWhiteSpace(data.HttpProxy))
+                {
+                    request.Proxy = new WebProxy(data.HttpProxy);
+                }
+                else if (settings.HttpProxyEnable && !string.IsNullOrWhiteSpace(settings.HttpProxy))
+                {
+                    request.Proxy = new WebProxy(settings.HttpProxy);
+                }
                 request.Method = data.Method;
                 request.ContentLength = data.DataBytes.Length;
                 SetHeaders(request, data.Headers);

@@ -13,6 +13,7 @@ type RequestData struct {
 	Data              string            `json:"data"`
 	AllowAutoRedirect bool              `json:"allowAutoRedirect"`
 	SetCookieRename   bool              `json:"setCookieRename"`
+	HttpProxy         string            `json:"httpProxy"`
 	Headers           map[string]string `json:"headers"`
 }
 

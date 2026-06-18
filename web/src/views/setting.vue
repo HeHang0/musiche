@@ -15,7 +15,9 @@ import {
   httpAddress,
   musicOperate,
   getProxyAddress,
-  isHuaweiCloud
+  isHuaweiCloud,
+  getGlobalHttpProxy,
+  setGlobalHttpProxy
 } from '../utils/http';
 import { musicTypeInfo, musicTypeInfoAll } from '../utils/platform';
 import {
@@ -162,6 +164,7 @@ const defaultFonts = isWindows
     ];
 const defaultProxyAddress = ref(getProxyAddress());
 const defaultProxyAddressReadonly = ref(true);
+const defaultHttpProxy = ref(getGlobalHttpProxy());
 const useHuaweiCloud = ref(isHuaweiCloud());
 const setting = useSettingStore();
 const play = usePlayStore();
@@ -580,6 +583,10 @@ function onProxyAddressChanged(value: string) {
   }
 }
 
+function onHttpProxyChanged(value: string) {
+  setGlobalHttpProxy(value.trim());
+}
+
 function onLocalNetworkProxyChanged(value: 'system' | 'none') {
   storage.setValue(StorageKey.Proxy, value);
 }
@@ -871,12 +878,18 @@ onUnmounted(unWatch);
                     (减少资源占用，提升性能)
                   </span>
                 </el-checkbox>
-                <span style="font-weight: bold; margin-top: 10px">代理</span>
+                <span style="font-weight: bold; margin-top: 10px; display: block;">代理地址 (ProxyServer)</span>
                 <el-input
                   v-model="defaultProxyAddress"
                   :readonly="defaultProxyAddressReadonly"
                   @dblclick="defaultProxyAddressReadonly = false"
                   @change="onProxyAddressChanged"
+                  style="padding: 10px 50px 0 0" />
+                <span style="font-weight: bold; margin-top: 10px; display: block;">HTTP 代理 (翻墙/VPN代理)</span>
+                <el-input
+                  v-model="defaultHttpProxy"
+                  placeholder="例如: http://127.0.0.1:1080，留空则不使用"
+                  @change="onHttpProxyChanged"
                   style="padding: 10px 50px 0 0" />
                 <div
                   v-if="isWindows && setting.config.remote"

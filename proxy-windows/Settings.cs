@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System;
 using System.IO;
 
@@ -13,6 +13,8 @@ namespace ProxyServer
         public int HttpPort { get; set; } = 8080;
         public string ProxyAddress { get; set; } = string.Empty;
         public bool ProxyAddressEnable { get; set; } = false;
+        public string HttpProxy { get; set; } = string.Empty;
+        public bool HttpProxyEnable { get; set; } = false;
 
         public static readonly string SettingFolder;
         public static readonly string CacheFolder;

@@ -122,6 +122,7 @@ export interface ProxyRequestData {
   headers?: Record<string, string>;
   allowAutoRedirect?: boolean;
   setCookieRename?: boolean;
+  httpProxy?: string;
 }
 
 export enum CloseType {

@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Text;
 
@@ -31,6 +31,7 @@ namespace ProxyServer
         public bool HasBody => DataBytes.Length > 0;
         public Dictionary<string, string> Headers { get; set; } = new Dictionary<string, string>();
         public bool AllowAutoRedirect { get; set; } = true;
+        public string HttpProxy { get; set; } = string.Empty;
 
         public static ProxyRequestData Parse(string data)
         {

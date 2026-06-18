@@ -1,4 +1,4 @@
-﻿using PicaPico;
+using PicaPico;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -40,6 +40,8 @@ namespace ProxyServer
             HttpPortTextBox.Text = _settings.HttpPort.ToString();
             ProxyAddressTextBox.Text = _settings.ProxyAddress;
             ProxyAddressSwitch.IsChecked = _settings.ProxyAddressEnable;
+            HttpProxyTextBox.Text = _settings.HttpProxy;
+            HttpProxySwitch.IsChecked = _settings.HttpProxyEnable;
             HttpAddressTextBox.Text = $"http://{WebServer.ListeningIP}:";
         }
 
@@ -89,6 +91,8 @@ namespace ProxyServer
             HttpPortTextBox.IsReadOnly = !started;
             ProxyAddressTextBox.IsReadOnly = !started;
             ProxyAddressSwitch.IsEnabled = started;
+            HttpProxyTextBox.IsReadOnly = !started;
+            HttpProxySwitch.IsEnabled = started;
         }
 
         private void OnPortPreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -113,6 +117,16 @@ namespace ProxyServer
         private void OnProxyAddressSwitchChanged(object sender, RoutedEventArgs e)
         {
             _settings.ProxyAddressEnable = ProxyAddressSwitch.IsChecked ?? false;
+        }
+
+        private void OnHttpProxyChanged(object sender, TextChangedEventArgs e)
+        {
+            _settings.HttpProxy = HttpProxyTextBox.Text.Trim();
+        }
+
+        private void OnHttpProxySwitchChanged(object sender, RoutedEventArgs e)
+        {
+            _settings.HttpProxyEnable = HttpProxySwitch.IsChecked ?? false;
         }
 
         private void OnStrategySelectionChanged(object sender, SelectionChangedEventArgs e)

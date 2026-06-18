@@ -10,6 +10,16 @@ export const httpAddress = import.meta.env.DEV
 let proxyAddress =
   localStorage.getItem('musiche-proxy-address') || `//${httpAddress}/proxy`;
 let useHuaweiCloud = proxyAddress.includes('huawei');
+
+let globalHttpProxy = localStorage.getItem('musiche-http-proxy') || '';
+export function setGlobalHttpProxy(proxy: string) {
+  globalHttpProxy = proxy;
+  localStorage.setItem('musiche-http-proxy', proxy);
+}
+export function getGlobalHttpProxy() {
+  return globalHttpProxy;
+}
+
 let useLocalAudio = true;
 var localAudio: AudioPlayer | null = null;
 
@@ -41,6 +51,9 @@ export function decodeBase64(text: string) {
 }
 export async function httpProxy(prd: ProxyRequestData): Promise<Response> {
   prd.method = prd.method || 'GET';
+  if (globalHttpProxy) {
+    prd.httpProxy = globalHttpProxy;
+  }
   try {
     const res = fetch(proxyAddress, {
       method: 'POST',
