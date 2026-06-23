@@ -33,7 +33,7 @@ class ServerManager {
     _trayManager = TrayManager(_websocketHandler!);
     HttpHandler httpHandler = HttpHandler(audioPlay, _trayManager!, sharedPreferences);
     _port = kDebugMode ? 54621 : await Network.findAvailablePort();
-    InternetAddress address = kDebugMode ? InternetAddress.anyIPv4 : InternetAddress('127.0.0.1');
+    InternetAddress address = InternetAddress.anyIPv4;
     Logger.i(_tag, "start server: $address:$_port");
     try{
       _server = await HttpServer.bind(address, _port, shared: Platform.isMacOS);

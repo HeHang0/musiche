@@ -576,12 +576,16 @@ function onRemoteClientChanged(client: RemoteClient) {
 
 function onProxyAddressChanged(value: string) {
   value = value ? value.trim() : '';
-  if (!value || value.startsWith(location.origin)) {
+  if (!value) {
     storage.removeKey(StorageKey.ProxyAddress);
     setProxyAddress('');
     return;
   }
-  if (value.startsWith('http://') || value.startsWith('https://')) {
+  if (
+    value.startsWith('http://') ||
+    value.startsWith('https://') ||
+    value.startsWith('//')
+  ) {
     storage.setValue(StorageKey.ProxyAddress, value);
     setProxyAddress(value);
   }

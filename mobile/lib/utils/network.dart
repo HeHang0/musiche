@@ -7,7 +7,7 @@ class Network {
   static Future<int> findAvailablePort({int port = 8080}) async {
     for(;port < 65535;port++) {
       try {
-        ServerSocket serverSocket = await ServerSocket.bind('localhost', port);
+        ServerSocket serverSocket = await ServerSocket.bind(InternetAddress.anyIPv4, port);
         await serverSocket.close();
         break;
       } catch (e) {
