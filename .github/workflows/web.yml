@@ -58,101 +58,101 @@ jobs:
           name: pages-dist
           path: web/dist
 
-  build-on-macos:
-    runs-on: macos-26-intel
-    needs: build-web
-    continue-on-error: true
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 26
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: 3.44.0
-
-      - name: Download web app dist
-        uses: actions/download-artifact@v8
-        with:
-          name: web-app-dist
-          path: web/dist
-
-      - name: Build macOS and iOS packages
-        run: |
-          sw_vers -productVersion
-          xcodebuild -version
-          npm install -g appdmg
-          cd mobile
-          flutter pub get
-          flutter build ios --release --no-codesign || true
-          flutter build macos --release || true
-          appdmg dmg.json musiche.dmg || true
-          mkdir -p Payload
-          if ls build/ios/Release-iphoneos/*.app >/dev/null 2>&1; then
-            mv build/ios/Release-iphoneos/*.app Payload/musiche.app
-            zip -r musiche.zip Payload
-            mv musiche.zip musiche.ipa
-          fi
-
-      - name: Upload macOS package
-        uses: actions/upload-artifact@v7
-        with:
-          name: macos-package
-          if-no-files-found: warn
-          path: |
-            mobile/musiche.dmg
-            mobile/musiche.ipa
-
-  build-on-windows:
-    runs-on: windows-latest
-    needs: build-web
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v3
-
-      - name: Download web zip
-        uses: actions/download-artifact@v8
-        with:
-          name: web-zip
-          path: web-package
-
-      - name: Build Windows packages
-        shell: pwsh
-        run: |
-          Remove-Item windows\logo.ico -Force -ErrorAction SilentlyContinue
-          Copy-Item resources\logo.ico windows\logo.ico
-          Copy-Item web-package\web.zip windows\Resources\web.zip -Force
-          cd windows
-          Set-Content FodyWeavers.xml "<Weavers><Costura/></Weavers>"
-          msbuild Musiche.sln -t:"Restore;Build" /p:Configuration=Release /p:Platform="Any CPU"
-          msbuild Musiche.sln -t:"Restore;Build;Publish" /p:Configuration=Release /p:Platform="Any CPU" /p:PublishProfile="Properties\PublishProfiles\net6.0.pubxml" /p:TargetFramework=net6.0-windows
-          cd ..\proxy-windows
-          Set-Content FodyWeavers.xml "<Weavers><Costura/></Weavers>"
-          msbuild ProxyServer.sln -t:"Restore;Build" /p:Configuration=Release /p:Platform="Any CPU"
-
-      - name: Stage Windows package
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force artifacts\windows | Out-Null
-          Copy-Item windows\Resources\web.zip artifacts\windows\web.zip -Force
-          Copy-Item windows\bin\Release\net472\Musiche.exe artifacts\windows\Musiche.exe -Force
-          Copy-Item windows\bin\Publish\net6.0-windows\Musiche.exe artifacts\windows\Musiche.net6.exe -Force
-          Copy-Item proxy-windows\bin\Release\net472\ProxyServer.exe artifacts\windows\ProxyServer.exe -Force
-
-      - name: Upload Windows package
-        uses: actions/upload-artifact@v7
-        with:
-          name: windows-package
-          path: artifacts/windows
+#  build-on-macos:
+#    runs-on: macos-26-intel
+#    needs: build-web
+#    continue-on-error: true
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v6
+#
+#      - name: Setup Node
+#        uses: actions/setup-node@v6
+#        with:
+#          node-version: 26
+#
+#      - name: Setup Flutter
+#        uses: subosito/flutter-action@v2
+#        with:
+#          channel: stable
+#          flutter-version: 3.44.0
+#
+#      - name: Download web app dist
+#        uses: actions/download-artifact@v8
+#        with:
+#          name: web-app-dist
+#          path: web/dist
+#
+#      - name: Build macOS and iOS packages
+#        run: |
+#          sw_vers -productVersion
+#          xcodebuild -version
+#          npm install -g appdmg
+#          cd mobile
+#          flutter pub get
+#          flutter build ios --release --no-codesign || true
+#          flutter build macos --release || true
+#          appdmg dmg.json musiche.dmg || true
+#          mkdir -p Payload
+#          if ls build/ios/Release-iphoneos/*.app >/dev/null 2>&1; then
+#            mv build/ios/Release-iphoneos/*.app Payload/musiche.app
+#            zip -r musiche.zip Payload
+#            mv musiche.zip musiche.ipa
+#          fi
+#
+#      - name: Upload macOS package
+#        uses: actions/upload-artifact@v7
+#        with:
+#          name: macos-package
+#          if-no-files-found: warn
+#          path: |
+#            mobile/musiche.dmg
+#            mobile/musiche.ipa
+#
+#  build-on-windows:
+#    runs-on: windows-latest
+#    needs: build-web
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v6
+#
+#      - name: Setup MSBuild
+#        uses: microsoft/setup-msbuild@v3
+#
+#      - name: Download web zip
+#        uses: actions/download-artifact@v8
+#        with:
+#          name: web-zip
+#          path: web-package
+#
+#      - name: Build Windows packages
+#        shell: pwsh
+#        run: |
+#          Remove-Item windows\logo.ico -Force -ErrorAction SilentlyContinue
+#          Copy-Item resources\logo.ico windows\logo.ico
+#          Copy-Item web-package\web.zip windows\Resources\web.zip -Force
+#          cd windows
+#          Set-Content FodyWeavers.xml "<Weavers><Costura/></Weavers>"
+#          msbuild Musiche.sln -t:"Restore;Build" /p:Configuration=Release /p:Platform="Any CPU"
+#          msbuild Musiche.sln -t:"Restore;Build;Publish" /p:Configuration=Release /p:Platform="Any CPU" /p:PublishProfile="Properties\PublishProfiles\net6.0.pubxml" /p:TargetFramework=net6.0-windows
+#          cd ..\proxy-windows
+#          Set-Content FodyWeavers.xml "<Weavers><Costura/></Weavers>"
+#          msbuild ProxyServer.sln -t:"Restore;Build" /p:Configuration=Release /p:Platform="Any CPU"
+#
+#      - name: Stage Windows package
+#        shell: pwsh
+#        run: |
+#          New-Item -ItemType Directory -Force artifacts\windows | Out-Null
+#          Copy-Item windows\Resources\web.zip artifacts\windows\web.zip -Force
+#          Copy-Item windows\bin\Release\net472\Musiche.exe artifacts\windows\Musiche.exe -Force
+#          Copy-Item windows\bin\Publish\net6.0-windows\Musiche.exe artifacts\windows\Musiche.net6.exe -Force
+#          Copy-Item proxy-windows\bin\Release\net472\ProxyServer.exe artifacts\windows\ProxyServer.exe -Force
+#
+#      - name: Upload Windows package
+#        uses: actions/upload-artifact@v7
+#        with:
+#          name: windows-package
+#          path: artifacts/windows
 
   build-on-android:
     runs-on: ubuntu-latest
@@ -211,8 +211,8 @@ jobs:
     runs-on: windows-latest
     needs:
       - build-web
-      - build-on-macos
-      - build-on-windows
+#      - build-on-macos
+#      - build-on-windows
       - build-on-android
     steps:
       - name: Download Pages dist
@@ -227,11 +227,11 @@ jobs:
           name: web-zip
           path: packages/web
 
-      - name: Download Windows package
-        uses: actions/download-artifact@v8
-        with:
-          name: windows-package
-          path: packages/windows
+#      - name: Download Windows package
+#        uses: actions/download-artifact@v8
+#        with:
+#          name: windows-package
+#          path: packages/windows
 
       - name: Download Android package
         uses: actions/download-artifact@v8
@@ -239,23 +239,23 @@ jobs:
           name: android-package
           path: packages/android
 
-      - name: Download macOS package
-        uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          name: macos-package
-          path: packages/macos
+#      - name: Download macOS package
+#        uses: actions/download-artifact@v8
+#        continue-on-error: true
+#        with:
+#          name: macos-package
+#          path: packages/macos
 
       - name: Merge release files
         shell: pwsh
         run: |
           Copy-Item packages\web\web.zip web\dist\web.zip -Force -ErrorAction SilentlyContinue
-          Copy-Item packages\windows\Musiche.exe web\dist\Musiche.exe -Force -ErrorAction SilentlyContinue
-          Copy-Item packages\windows\Musiche.net6.exe web\dist\Musiche.net6.exe -Force -ErrorAction SilentlyContinue
-          Copy-Item packages\windows\ProxyServer.exe web\dist\ProxyServer.exe -Force -ErrorAction SilentlyContinue
+#          Copy-Item packages\windows\Musiche.exe web\dist\Musiche.exe -Force -ErrorAction SilentlyContinue
+#          Copy-Item packages\windows\Musiche.net6.exe web\dist\Musiche.net6.exe -Force -ErrorAction SilentlyContinue
+#          Copy-Item packages\windows\ProxyServer.exe web\dist\ProxyServer.exe -Force -ErrorAction SilentlyContinue
           Copy-Item packages\android\Musiche.apk web\dist\Musiche.apk -Force -ErrorAction SilentlyContinue
-          Copy-Item packages\macos\musiche.dmg web\dist\Musiche.dmg -Force -ErrorAction SilentlyContinue
-          Copy-Item packages\macos\musiche.ipa web\dist\Musiche.ipa -Force -ErrorAction SilentlyContinue
+#          Copy-Item packages\macos\musiche.dmg web\dist\Musiche.dmg -Force -ErrorAction SilentlyContinue
+#          Copy-Item packages\macos\musiche.ipa web\dist\Musiche.ipa -Force -ErrorAction SilentlyContinue
           Get-ChildItem web\dist
 
       - name: Upload artifact
@@ -273,9 +273,9 @@ jobs:
         with:
           files: |
             web\dist\web.zip
-            web\dist\Musiche.exe
-            web\dist\Musiche.net6.exe
+#            web\dist\Musiche.exe
+#            web\dist\Musiche.net6.exe
             web\dist\Musiche.apk
-            web\dist\Musiche.ipa
-            web\dist\Musiche.dmg
-            web\dist\ProxyServer.exe
+#            web\dist\Musiche.ipa
+#            web\dist\Musiche.dmg
+#            web\dist\ProxyServer.exe
