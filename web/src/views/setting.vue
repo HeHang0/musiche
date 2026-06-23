@@ -15,6 +15,7 @@ import {
   httpAddress,
   musicOperate,
   getProxyAddress,
+  setProxyAddress,
   isHuaweiCloud,
   getGlobalHttpProxy,
   setGlobalHttpProxy
@@ -574,12 +575,15 @@ function onRemoteClientChanged(client: RemoteClient) {
 }
 
 function onProxyAddressChanged(value: string) {
+  value = value ? value.trim() : '';
   if (!value || value.startsWith(location.origin)) {
-    localStorage.removeItem('musiche-proxy-address');
+    storage.removeKey(StorageKey.ProxyAddress);
+    setProxyAddress('');
     return;
   }
   if (value.startsWith('http://') || value.startsWith('https://')) {
-    localStorage.setItem('musiche-proxy-address', value);
+    storage.setValue(StorageKey.ProxyAddress, value);
+    setProxyAddress(value);
   }
 }
 
