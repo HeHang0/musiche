@@ -46,7 +46,11 @@ class HttpProxy {
       );
     } catch (e) {
       Logger.e(_tag, "send http proxy request error: $e");
-      result = ProxyResponseData();
+      result = ProxyResponseData(
+        statusCode: HttpStatus.badGateway,
+        data: "Proxy Error: $e",
+        contentType: "text/plain; charset=utf-8"
+      );
     }
     return result;
   }
