@@ -67,7 +67,8 @@ class MusicItem {
       }, body: paramData);
       Map<String, dynamic> result = jsonDecode(response.body);
       String musicUrl = result["data"][0]["url"];
-      if(musicUrl.isNotEmpty) return musicUrl.replaceFirst("http://", "https://");
+      // 安卓端无需强制替换为 https，保留原始链接以防播放失败
+      if(musicUrl.isNotEmpty) return musicUrl;
     }catch(e){
       Logger.e(_tag, "request cloud url error", error: e);
     } finally {
@@ -170,7 +171,8 @@ class MusicItem {
       const a = 'Jk8qzuePiJ1qE3mDYhLQ3T73DtDoAhLP';
       dynamic result = jsonDecode(utf8.decode(eF(response.bodyBytes, a)));
       String musicUrl = result["data"]?["url"]?.toString() ?? "";
-      if(musicUrl.isNotEmpty) return musicUrl.replaceFirst("http://", "https://");
+      // 安卓端无需强制替换为 https，保留原始链接以防播放失败
+      if(musicUrl.isNotEmpty) return musicUrl;
     }catch(e){
       Logger.e(_tag, "request qq url error", error: e);
     } finally {
