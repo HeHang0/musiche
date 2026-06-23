@@ -211,8 +211,6 @@ jobs:
     runs-on: windows-latest
     needs:
       - build-web
-#      - build-on-macos
-#      - build-on-windows
       - build-on-android
     steps:
       - name: Download Pages dist
@@ -227,36 +225,18 @@ jobs:
           name: web-zip
           path: packages/web
 
-#      - name: Download Windows package
-#        uses: actions/download-artifact@v8
-#        with:
-#          name: windows-package
-#          path: packages/windows
-
       - name: Download Android package
         uses: actions/download-artifact@v8
         with:
           name: android-package
           path: packages/android
 
-#      - name: Download macOS package
-#        uses: actions/download-artifact@v8
-#        continue-on-error: true
-#        with:
-#          name: macos-package
-#          path: packages/macos
-
       - name: Merge release files
         shell: pwsh
         run: |
-          Copy-Item packages\web\web.zip web\dist\web.zip -Force -ErrorAction SilentlyContinue
-#          Copy-Item packages\windows\Musiche.exe web\dist\Musiche.exe -Force -ErrorAction SilentlyContinue
-#          Copy-Item packages\windows\Musiche.net6.exe web\dist\Musiche.net6.exe -Force -ErrorAction SilentlyContinue
-#          Copy-Item packages\windows\ProxyServer.exe web\dist\ProxyServer.exe -Force -ErrorAction SilentlyContinue
-          Copy-Item packages\android\Musiche.apk web\dist\Musiche.apk -Force -ErrorAction SilentlyContinue
-#          Copy-Item packages\macos\musiche.dmg web\dist\Musiche.dmg -Force -ErrorAction SilentlyContinue
-#          Copy-Item packages\macos\musiche.ipa web\dist\Musiche.ipa -Force -ErrorAction SilentlyContinue
-          Get-ChildItem web\dist
+          Copy-Item packages/web/web.zip web/dist/web.zip -Force -ErrorAction SilentlyContinue
+          Copy-Item packages/android/Musiche.apk web/dist/Musiche.apk -Force -ErrorAction SilentlyContinue
+          Get-ChildItem web/dist
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
@@ -272,10 +252,5 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            web\dist\web.zip
-#            web\dist\Musiche.exe
-#            web\dist\Musiche.net6.exe
-            web\dist\Musiche.apk
-#            web\dist\Musiche.ipa
-#            web\dist\Musiche.dmg
-#            web\dist\ProxyServer.exe
+            web/dist/web.zip
+            web/dist/Musiche.apk
