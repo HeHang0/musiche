@@ -112,9 +112,9 @@ class MusicItem {
       }, body: data);
       var body = utf8.decode(response.bodyBytes);
       dynamic result = jsonDecode(body);
-      dynamic data = result["req_0"]["data"];
-      String pUrl = data["midurlinfo"][0]["purl"];
-      List<dynamic> sip = data["sip"];
+      dynamic qqData = result["req_0"]["data"];
+      String pUrl = qqData["midurlinfo"][0]["purl"];
+      List<dynamic> sip = qqData["sip"];
       String urlPrefix = "https://dl.stream.qqmusic.qq.com/";
       for(int i=0;i<sip.length;i++){
         if(sip[i].isNotEmpty){
