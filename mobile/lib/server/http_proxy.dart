@@ -8,6 +8,7 @@ class HttpProxy {
   static const String _tag = 'MusicheHttpProxy';
   static Future<ProxyResponseData> request(ProxyRequestData data) async {
     var httpClient = HttpClient();
+    httpClient.badCertificateCallback = (cert, host, port) => true;
     ProxyResponseData result;
     if (data.httpProxy.isNotEmpty) {
       String proxy = data.httpProxy.trim();
