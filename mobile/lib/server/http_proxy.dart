@@ -9,6 +9,16 @@ class HttpProxy {
   static Future<ProxyResponseData> request(ProxyRequestData data) async {
     var httpClient = HttpClient();
     ProxyResponseData result;
+    if (data.httpProxy.isNotEmpty) {
+      String proxy = data.httpProxy.trim();
+      if (proxy.startsWith("http://")) {
+        proxy = proxy.substring(7);
+      } else if (proxy.startsWith("https://")) {
+        proxy = proxy.substring(8);
+      }
+      httpClient.findProxy = (uri) => "PROXY $proxy";
+      Logger.i(_tag, "正在使用代理: $proxy 进行请求");
+    }
     try {
       httpClient.autoUncompress = false;
       var request = await httpClient.openUrl(data.method, Uri.parse(data.url));

@@ -10,6 +10,7 @@ class ProxyRequestData {
   Map<String, dynamic>? headers;
   String method = "GET";
   String data = "";
+  String httpProxy = "";
   bool get hasBody => data.isNotEmpty;
 
   ProxyRequestData();
@@ -58,6 +59,11 @@ class ProxyRequestData {
         case "data":
           if(value.runtimeType == String) {
             result.data = value;
+          }
+          break;
+        case "httpproxy":
+          if(value.runtimeType == String) {
+            result.httpProxy = value;
           }
           break;
       }
