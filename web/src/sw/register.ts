@@ -4,7 +4,12 @@ export function getServiceWorkerRegistration(): ServiceWorkerRegistration | null
 }
 
 function sendMessageToServiceWorker(registration: ServiceWorkerRegistration) {
-  const proxyAddress = localStorage.getItem('musiche-proxy-address') || '';
+  let proxyAddress = localStorage.getItem('musiche-proxy-address') || '';
+  if (proxyAddress.startsWith('"') && proxyAddress.endsWith('"')) {
+    try {
+      proxyAddress = JSON.parse(proxyAddress);
+    } catch {}
+  }
   proxyAddress &&
     registration.active?.postMessage({
       type: 'MESSAGE_PROXY_ADDRESS',

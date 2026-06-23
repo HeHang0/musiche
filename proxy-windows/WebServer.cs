@@ -42,6 +42,17 @@ namespace ProxyServer
             {
                 listener.Prefixes.Add($"http://localhost:{port}/");
                 listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+                try
+                {
+                    foreach (var ip in Dns.GetHostEntry(Dns.GetHostName()).AddressList)
+                    {
+                        if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        {
+                            listener.Prefixes.Add($"http://{ip}:{port}/");
+                        }
+                    }
+                }
+                catch {}
             }
             listener.Start();
 
