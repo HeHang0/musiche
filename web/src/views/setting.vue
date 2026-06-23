@@ -893,7 +893,7 @@ onUnmounted(unWatch);
                   @dblclick="defaultProxyAddressReadonly = false"
                   @change="onProxyAddressChanged"
                   style="padding: 10px 50px 0 0" />
-                <span style="font-weight: bold; margin-top: 10px; display: block;">HTTP 代理 (翻墙/VPN代理)</span>
+                <span style="font-weight: bold; margin-top: 10px; display: block;">http解锁服务器</span>
                 <el-input
                   v-model="defaultHttpProxy"
                   placeholder="例如: http://127.0.0.1:1080，留空则不使用"

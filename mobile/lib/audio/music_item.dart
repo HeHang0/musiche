@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart' as io_client;
 import 'package:encrypt/encrypt.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../log/logger.dart';
 
@@ -54,18 +57,21 @@ class MusicItem {
     param = aesEncrypt(param, "t9Y0m4pdsoMznMlL");
     param = Uri.encodeComponent(param);
     String paramData = "params=$param$_encSecKey";
-    final response = await http.post(Uri.parse(_cloudMusicAPI), headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "Referer": "https://music.163.com",
-      "User-Agent": _userAgent,
-      "Cookie": "os=ios;MUSIC_U=$musicU"
-    }, body: paramData);
+    final client = await _getClient();
     try{
+      final response = await client.post(Uri.parse(_cloudMusicAPI), headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Referer": "https://music.163.com",
+        "User-Agent": _userAgent,
+        "Cookie": "os=ios;MUSIC_U=$musicU"
+      }, body: paramData);
       Map<String, dynamic> result = jsonDecode(response.body);
       String musicUrl = result["data"][0]["url"];
       if(musicUrl.isNotEmpty) return musicUrl.replaceFirst("http://", "https://");
     }catch(e){
       Logger.e(_tag, "request cloud url error", error: e);
+    } finally {
+      client.close();
     }
     return "";
   }
@@ -97,12 +103,13 @@ class MusicItem {
         }
       }
     });
-    final response = await http.post(Uri.parse("https://u.y.qq.com/cgi-bin/musicu.fcg"), headers: {
-      "Referer": "https://y.qq.com",
-      "User-Agent": _userAgent,
-      "Cookie": cookie
-    }, body: data);
+    final client = await _getClient();
     try{
+      final response = await client.post(Uri.parse("https://u.y.qq.com/cgi-bin/musicu.fcg"), headers: {
+        "Referer": "https://y.qq.com",
+        "User-Agent": _userAgent,
+        "Cookie": cookie
+      }, body: data);
       var body = utf8.decode(response.bodyBytes);
       dynamic result = jsonDecode(body);
       dynamic data = result["req_0"]["data"];
@@ -118,6 +125,8 @@ class MusicItem {
       if(pUrl.isNotEmpty) return urlPrefix+pUrl;
     }catch(e){
       Logger.e(_tag, "request qq url error", error: e);
+    } finally {
+      client.close();
     }
     if(!audition) return _getQQMusicUrl(quality, true);
     return "";
@@ -147,22 +156,25 @@ class MusicItem {
         "contentId=$remark&copyrightId=$id&"
         "scene=&netType=01&resourceType=2&toneFlag=$toneFlag";
 
-    final response = await http.get(Uri.parse(requestUrl), headers: {
-      "channel": "014000D",
-      "uid": uid,
-      "Cookie": cookie,
-      "appid": 'h5',
-      "birth": 'h5page',
-      "signature": '1',
-      "referer": 'https://music.migu.cn/'
-    });
-    const a = 'Jk8qzuePiJ1qE3mDYhLQ3T73DtDoAhLP';
+    final client = await _getClient();
     try{
+      final response = await client.get(Uri.parse(requestUrl), headers: {
+        "channel": "014000D",
+        "uid": uid,
+        "Cookie": cookie,
+        "appid": 'h5',
+        "birth": 'h5page',
+        "signature": '1',
+        "referer": 'https://music.migu.cn/'
+      });
+      const a = 'Jk8qzuePiJ1qE3mDYhLQ3T73DtDoAhLP';
       dynamic result = jsonDecode(utf8.decode(eF(response.bodyBytes, a)));
       String musicUrl = result["data"]?["url"]?.toString() ?? "";
       if(musicUrl.isNotEmpty) return musicUrl.replaceFirst("http://", "https://");
     }catch(e){
       Logger.e(_tag, "request qq url error", error: e);
+    } finally {
+      client.close();
     }
     return "";
   }
@@ -181,6 +193,29 @@ class MusicItem {
       Logger.e(_tag, "aes encrypt error: ${e.toString()}");
     }
     return "";
+  }
+
+  Future<http.Client> _getClient() async {
+    try {
+      SharedPreferences.setPrefix("musiche");
+      var sp = await SharedPreferences.getInstance();
+      var httpProxy = sp.getString("musiche-http-proxy") ?? "";
+      if (httpProxy.isNotEmpty) {
+        String proxy = httpProxy.trim();
+        if (proxy.startsWith("http://")) {
+          proxy = proxy.substring(7);
+        } else if (proxy.startsWith("https://")) {
+          proxy = proxy.substring(8);
+        }
+        var httpClient = HttpClient();
+        httpClient.badCertificateCallback = (cert, host, port) => true;
+        httpClient.findProxy = (uri) => "PROXY $proxy";
+        return io_client.IOClient(httpClient);
+      }
+    } catch (e) {
+      Logger.e(_tag, "创建代理 http 客户端失败", error: e);
+    }
+    return http.Client();
   }
 
   factory MusicItem.from(dynamic source){
