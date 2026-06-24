@@ -262,9 +262,6 @@ class AudioPlay extends BaseAudioHandler {
     } on PlayerException catch (e) {
       _lastError = "播放器错误 (${e.code}): ${e.message}";
       Logger.e(_tag, "播放器错误: $url", error: e);
-    } on ClipException catch (e) {
-      _lastError = "裁剪错误: ${e.message}";
-      Logger.e(_tag, "裁剪错误: $url", error: e);
     } catch (e) {
       _lastError = e.toString();
       Logger.e(_tag, "播放音频失败: $url", error: e);
