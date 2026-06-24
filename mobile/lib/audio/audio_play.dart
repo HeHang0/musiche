@@ -240,31 +240,58 @@ class AudioPlay extends BaseAudioHandler {
     _audioPlayer.pause();
   }
 
+  Future<void> _playHttpOrFile(String url) async {
+    if (url.startsWith("http")) {
+      await _audioPlayer.setUrl(url, headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
+      });
+      _audioPlayer.play();
+    } else {
+      File file = File(url);
+      if (await file.exists()) {
+        await _audioPlayer.setFilePath(file.path);
+        _audioPlayer.play();
+      }
+    }
+  }
+
   Future<void> playUrl(String url) async {
     if(url.isEmpty) {
       playCurrent();
       return;
     }
     _lastError = "";
+    
+    // 优先尝试 https 以防明文阻断或劫持
+    String targetUrl = url;
+    if (url.startsWith("http://")) {
+      targetUrl = url.replaceFirst("http://", "https://");
+    }
+
     try {
-      if (url.startsWith("http")) {
-        await _audioPlayer.setUrl(url, headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
-        });
-        _audioPlayer.play();
-      }else {
-        File file = File(url);
-        if(await file.exists()){
-          await _audioPlayer.setFilePath(file.path);
-          _audioPlayer.play();
-        }
-      }
-    } on PlayerException catch (e) {
-      _lastError = "播放器错误 (${e.code}): ${e.message}";
-      Logger.e(_tag, "播放器错误: $url", error: e);
+      await _playHttpOrFile(targetUrl);
     } catch (e) {
-      _lastError = e.toString();
-      Logger.e(_tag, "播放音频失败: $url", error: e);
+      // 若优先尝试 HTTPS 失败了，且我们确实做过升级，尝试降级回原 HTTP 重新播放
+      if (targetUrl != url && url.startsWith("http")) {
+        Logger.w(_tag, "HTTPS 播放失败，尝试降级回原 HTTP 直连重新播放: $url", error: e);
+        try {
+          await _playHttpOrFile(url);
+        } on PlayerException catch (e2) {
+          _lastError = "播放器错误 (${e2.code}): ${e2.message}";
+          Logger.e(_tag, "HTTP降级播放也失败了: $url", error: e2);
+        } catch (e2) {
+          _lastError = e2.toString();
+          Logger.e(_tag, "HTTP降级播放也失败了: $url", error: e2);
+        }
+      } else {
+        // 如果原本就是 https 或者本地文件，直接记录错误
+        if (e is PlayerException) {
+          _lastError = "播放器错误 (${e.code}): ${e.message}";
+        } else {
+          _lastError = e.toString();
+        }
+        Logger.e(_tag, "播放音频失败: $targetUrl", error: e);
+      }
     }
   }
   void playCurrent(){
