@@ -449,6 +449,10 @@ class HttpHandler extends Handler implements IHandler {
   Future<void> _testProxy(HttpRequest request) async {
     String httpProxy = sharedPreferences?.getString("musiche-http-proxy") ?? "";
     httpProxy = httpProxy.trim();
+    if (httpProxy.startsWith('"') && httpProxy.endsWith('"')) {
+      httpProxy = httpProxy.substring(1, httpProxy.length - 1);
+    }
+    httpProxy = httpProxy.trim();
 
     Map<String, dynamic> result = <String, dynamic>{};
     if (httpProxy.isEmpty) {

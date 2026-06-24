@@ -204,6 +204,9 @@ class MusicItem {
       var httpProxy = sp.getString("musiche-http-proxy") ?? "";
       if (httpProxy.isNotEmpty) {
         String proxy = httpProxy.trim();
+        if (proxy.startsWith('"') && proxy.endsWith('"')) {
+          proxy = proxy.substring(1, proxy.length - 1);
+        }
         if (proxy.startsWith("http://")) {
           proxy = proxy.substring(7);
         } else if (proxy.startsWith("https://")) {

@@ -618,6 +618,10 @@ const proxyTestResult = ref('');
 const proxyTestSuccess = ref(false);
 
 async function testHttpProxy() {
+  const trimmed = defaultHttpProxy.value.trim();
+  setGlobalHttpProxy(trimmed);
+  await storage.setValue('http-proxy', trimmed);
+
   testingProxy.value = true;
   proxyTestResult.value = '正在测试连接...';
   try {
