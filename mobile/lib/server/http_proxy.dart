@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:shared_preferences/shared_preferences.dart';
 import '../log/logger.dart';
 import 'proxy_request_data.dart';
 import 'proxy_response_data.dart';
@@ -10,8 +11,20 @@ class HttpProxy {
     var httpClient = HttpClient();
     httpClient.badCertificateCallback = (cert, host, port) => true;
     ProxyResponseData result;
-    if (data.httpProxy.isNotEmpty) {
-      String proxy = data.httpProxy.trim();
+    
+    String? finalProxy = data.httpProxy;
+    if (finalProxy.isEmpty) {
+      try {
+        SharedPreferences.setPrefix("musiche");
+        var sp = await SharedPreferences.getInstance();
+        finalProxy = sp.getString("musiche-http-proxy") ?? "";
+      } catch (e) {
+        Logger.e(_tag, "中转代理服务在后台读取代理配置失败", error: e);
+      }
+    }
+
+    if (finalProxy != null && finalProxy.isNotEmpty) {
+      String proxy = finalProxy.trim();
       if (proxy.startsWith('"') && proxy.endsWith('"')) {
         proxy = proxy.substring(1, proxy.length - 1);
       }
