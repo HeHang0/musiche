@@ -273,7 +273,7 @@ class AudioPlay extends BaseAudioHandler {
     } catch (e) {
       // 若优先尝试 HTTPS 失败了，且我们确实做过升级，尝试降级回原 HTTP 重新播放
       if (targetUrl != url && url.startsWith("http")) {
-        Logger.w(_tag, "HTTPS 播放失败，尝试降级回原 HTTP 直连重新播放: $url", error: e);
+        Logger.w(_tag, "HTTPS 播放失败，尝试降级回原 HTTP 直连重新播放: $url, 错误: $e");
         try {
           await _playHttpOrFile(url);
         } on PlayerException catch (e2) {
