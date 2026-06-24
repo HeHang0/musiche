@@ -52,6 +52,9 @@ export class MusicConnection {
     const storages = await storage.getAll();
     storages[StorageKey.ProxyAddress] &&
       http.setProxyAddress(storages[StorageKey.ProxyAddress]);
+    if (storages['http-proxy']) {
+      http.setGlobalHttpProxy(storages['http-proxy']);
+    }
     await this.play.initValue(this.config, storages);
     await this.setting.initValue(this.config, storages);
     await import('../style/main.css');

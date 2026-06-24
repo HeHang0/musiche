@@ -30,6 +30,7 @@ import {
   ShortcutType
 } from '../utils/type';
 import {
+  formatCookies,
   getImageFile,
   imageToDataUrl,
   isInStandaloneMode,
@@ -387,6 +388,21 @@ function logout(type: MusicType) {
     .catch(() => {});
 }
 
+async function copyCookie(type: MusicType) {
+  const cookie = setting.userInfo[type]?.cookie;
+  if (!cookie) {
+    ElMessage.warning('暂无 cookie');
+    return;
+  }
+  const text = formatCookies(cookie);
+  try {
+    await navigator.clipboard.writeText(text);
+    ElMessage.success('cookie 已复制到剪贴板');
+  } catch {
+    ElMessage.warning('复制失败，请手动复制');
+  }
+}
+
 function login(type: MusicType) {
   const info = musicTypeInfo[type];
   let title = info.name;
@@ -592,7 +608,9 @@ function onProxyAddressChanged(value: string) {
 }
 
 function onHttpProxyChanged(value: string) {
-  setGlobalHttpProxy(value.trim());
+  const trimmed = value.trim();
+  setGlobalHttpProxy(trimmed);
+  storage.setValue('http-proxy', trimmed);
 }
 
 function onLocalNetworkProxyChanged(value: 'system' | 'none') {
@@ -814,6 +832,11 @@ onUnmounted(unWatch);
                     v-if="setting.userInfo[info.type].id || isMobile"
                     @click="loginSync(info)">
                     同步
+                  </span>
+                  <span
+                    v-if="setting.userInfo[info.type].id"
+                    @click="copyCookie(info.type)">
+                    导出
                   </span>
                   <el-input
                     v-model="cookieInput[info.type]"

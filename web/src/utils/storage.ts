@@ -25,6 +25,7 @@ export enum StorageKey {
   LyricOptions = 'lyric-options',
   ProxyAddress = 'proxy-address',
   Proxy = 'proxy',
+  HttpProxy = 'http-proxy',
   LocalMusicSupplement = 'local-music-supplement'
 }
 
