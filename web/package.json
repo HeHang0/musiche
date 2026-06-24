@@ -24,6 +24,7 @@
     "crypto-js": "^4.2.0",
     "default-passive-events": "^4.0.0",
     "element-plus": "^2.14.0",
+    "@element-plus/icons-vue": "^2.3.2",
     "jsqr": "^1.4.0",
     "jsmediatags": "^3.9.7",
     "magic-snowflakes": "^7.0.2",
