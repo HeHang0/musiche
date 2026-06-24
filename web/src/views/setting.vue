@@ -613,6 +613,30 @@ function onHttpProxyChanged(value: string) {
   storage.setValue('http-proxy', trimmed);
 }
 
+const testingProxy = ref(false);
+const proxyTestResult = ref('');
+const proxyTestSuccess = ref(false);
+
+async function testHttpProxy() {
+  testingProxy.value = true;
+  proxyTestResult.value = '正在测试连接...';
+  try {
+    const res = await musicOperate('/proxy/test');
+    if (res && res.data) {
+      proxyTestSuccess.value = Boolean(res.data.success);
+      proxyTestResult.value = res.data.message || '';
+    } else {
+      proxyTestSuccess.value = false;
+      proxyTestResult.value = '测试接口请求未返回有效数据';
+    }
+  } catch (err) {
+    proxyTestSuccess.value = false;
+    proxyTestResult.value = `测试接口连接失败: ${err}`;
+  } finally {
+    testingProxy.value = false;
+  }
+}
+
 function onLocalNetworkProxyChanged(value: 'system' | 'none') {
   storage.setValue(StorageKey.Proxy, value);
 }
@@ -922,6 +946,20 @@ onUnmounted(unWatch);
                   placeholder="例如: http://127.0.0.1:1080，留空则不使用"
                   @change="onHttpProxyChanged"
                   style="padding: 10px 50px 0 0" />
+                <div style="margin-top: 5px; display: flex; align-items: center; gap: 10px;">
+                  <el-button 
+                    size="small" 
+                    type="primary" 
+                    :loading="testingProxy" 
+                    @click="testHttpProxy">
+                    测试代理连接
+                  </el-button>
+                  <span 
+                    v-if="proxyTestResult" 
+                    :style="{ color: proxyTestSuccess ? '#67C23A' : '#F56C6C', fontSize: '13px', fontWeight: 'bold' }">
+                    {{ proxyTestResult }}
+                  </span>
+                </div>
                 <div
                   v-if="isWindows && setting.config.remote"
                   class="music-setting-general-local-proxy">

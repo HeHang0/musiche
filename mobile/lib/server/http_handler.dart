@@ -55,6 +55,7 @@ class HttpHandler extends Handler implements IHandler {
       MapEntry("lyric", _setLyric),
       MapEntry("lyricline", _setLyricLine),
       MapEntry("proxy", _proxy),
+      MapEntry("proxy/test", _testProxy),
       MapEntry("file", _readFile),
       MapEntry("file/read", _handleFiles),
       MapEntry("file/write", _handleFiles),
@@ -443,6 +444,68 @@ class HttpHandler extends Handler implements IHandler {
         request.response.write(proxyResData.data);
       }
     }
+  }
+
+  Future<void> _testProxy(HttpRequest request) async {
+    String httpProxy = sharedPreferences?.getString("musiche-http-proxy") ?? "";
+    httpProxy = httpProxy.trim();
+
+    Map<String, dynamic> result = <String, dynamic>{};
+    if (httpProxy.isEmpty) {
+      result["success"] = false;
+      result["message"] = "未在手机存储中检测到代理配置，请先保存代理设置";
+      result["proxy"] = "";
+      request.response.statusCode = HttpStatus.ok;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode(result));
+      return;
+    }
+
+    String proxy = httpProxy;
+    if (proxy.startsWith("http://")) {
+      proxy = proxy.substring(7);
+    } else if (proxy.startsWith("https://")) {
+      proxy = proxy.substring(8);
+    }
+
+    String msg = "连接成功";
+    bool success = false;
+    try {
+      var httpClient = HttpClient();
+      httpClient.connectionTimeout = const Duration(seconds: 5);
+      bool isUnblockNetease = false;
+      httpClient.badCertificateCallback = (cert, host, port) {
+        String issuer = cert.issuer.toLowerCase();
+        String subject = cert.subject.toLowerCase();
+        if (issuer.contains("unblock") || subject.contains("unblock")) {
+          isUnblockNetease = true;
+        }
+        return true;
+      };
+      httpClient.findProxy = (uri) => "PROXY $proxy";
+
+      var req = await httpClient.getUrl(Uri.parse("https://music.163.com/"));
+      var resp = await req.close();
+
+      success = resp.statusCode == HttpStatus.ok;
+      if (success) {
+        msg = isUnblockNetease
+            ? "测试成功！已读取系统配置并成功通过 UnblockNeteaseMusic 代理 [$httpProxy] 连通网易云"
+            : "测试成功！已读取系统配置并成功通过代理 [$httpProxy] 连通网易云";
+      } else {
+        msg = "代理连接正常，但请求测试返回状态码: ${resp.statusCode}";
+      }
+    } catch (e) {
+      success = false;
+      msg = "连接失败: $e";
+    }
+
+    result["success"] = success;
+    result["message"] = msg;
+    result["proxy"] = httpProxy;
+    request.response.statusCode = HttpStatus.ok;
+    request.response.headers.contentType = ContentType.json;
+    request.response.write(jsonEncode(result));
   }
 
   Future<void> _sendStatus(HttpRequest request) async {
