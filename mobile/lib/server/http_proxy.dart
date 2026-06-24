@@ -12,6 +12,9 @@ class HttpProxy {
     ProxyResponseData result;
     if (data.httpProxy.isNotEmpty) {
       String proxy = data.httpProxy.trim();
+      if (proxy.startsWith('"') && proxy.endsWith('"')) {
+        proxy = proxy.substring(1, proxy.length - 1);
+      }
       if (proxy.startsWith("http://")) {
         proxy = proxy.substring(7);
       } else if (proxy.startsWith("https://")) {
