@@ -199,7 +199,6 @@ class MusicItem {
 
   Future<http.Client> _getClient() async {
     try {
-      SharedPreferences.setPrefix("musiche");
       var sp = await SharedPreferences.getInstance();
       var httpProxy = sp.getString("musiche-http-proxy") ?? "";
       if (httpProxy.isNotEmpty) {

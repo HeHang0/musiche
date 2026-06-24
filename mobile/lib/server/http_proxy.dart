@@ -15,7 +15,6 @@ class HttpProxy {
     String? finalProxy = data.httpProxy;
     if (finalProxy.isEmpty) {
       try {
-        SharedPreferences.setPrefix("musiche");
         var sp = await SharedPreferences.getInstance();
         finalProxy = sp.getString("musiche-http-proxy") ?? "";
       } catch (e) {

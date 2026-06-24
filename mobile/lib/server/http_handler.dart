@@ -450,7 +450,6 @@ class HttpHandler extends Handler implements IHandler {
     Map<String, dynamic> result = <String, dynamic>{};
     
     // 1. 读取系统存储
-    SharedPreferences.setPrefix("musiche");
     var sp = await SharedPreferences.getInstance();
     String httpProxy = sp.getString("musiche-http-proxy") ?? "";
     httpProxy = httpProxy.trim();
