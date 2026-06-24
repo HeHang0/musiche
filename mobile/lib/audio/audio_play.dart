@@ -32,6 +32,8 @@ class AudioPlay extends BaseAudioHandler {
   Quality _quality = Quality.pq;
   MusicPlayRequest? _musicPlayRequest;
   int _volume = 100;
+  String _lastError = "";
+  String get lastError => _lastError;
   AudioPlay(){
     _audioPlayer = AudioPlayer();
     _onLoverChanged = StreamController<MusicItem>();
@@ -243,15 +245,21 @@ class AudioPlay extends BaseAudioHandler {
       playCurrent();
       return;
     }
-    if (url.startsWith("http")) {
-      await _audioPlayer.setUrl(url);
-      _audioPlayer.play();
-    }else {
-      File file = File(url);
-      if(await file.exists()){
-        await _audioPlayer.setFilePath(file.path);
+    _lastError = "";
+    try {
+      if (url.startsWith("http")) {
+        await _audioPlayer.setUrl(url);
         _audioPlayer.play();
+      }else {
+        File file = File(url);
+        if(await file.exists()){
+          await _audioPlayer.setFilePath(file.path);
+          _audioPlayer.play();
+        }
       }
+    } catch (e) {
+      _lastError = e.toString();
+      Logger.e(_tag, "播放音频失败: $url", error: e);
     }
   }
   void playCurrent(){

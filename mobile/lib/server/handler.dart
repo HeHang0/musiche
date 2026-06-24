@@ -17,7 +17,8 @@ class Handler {
       "totalTime": formatDuration(duration),
       "playing": audioPlay.playing,
       "stopped": audioPlay.stopped,
-      "progress": progress
+      "progress": progress,
+      "error": audioPlay.lastError
     };
     MusicItem? music = audioPlay.getCurrentMusic();
     if(music != null) {
