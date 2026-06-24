@@ -611,6 +611,13 @@ function onRemoteClientChanged(client: RemoteClient) {
   );
 }
 
+function onMultiDeviceSyncChanged() {
+  setting.saveSetting();
+  setTimeout(() => {
+    setting.updateRemoteClients();
+  }, 100);
+}
+
 function onProxyAddressChanged(value: string) {
   value = value ? value.trim() : '';
   if (!value) {
@@ -1113,6 +1120,12 @@ onUnmounted(unWatch);
                   v-model="setting.pageValue.fadeIn"
                   @change="setting.setFadeIn()"
                   label="开启音乐淡入"
+                  size="large" />
+                <el-checkbox
+                  v-if="setting.config.client"
+                  v-model="setting.pageValue.multiDeviceSync"
+                  @change="onMultiDeviceSyncChanged"
+                  label="启用多机互联（局域网同步播放）"
                   size="large" />
                 <div>
                   <span>播放列表</span>

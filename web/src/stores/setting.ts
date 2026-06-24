@@ -91,6 +91,7 @@ export const useSettingStore = defineStore('setting', {
       onlyAddMusicListAtDbClick: false,
       globalShortcutUsed: false,
       systemMediaShortcutUsed: false,
+      multiDeviceSync: false,
       lyric: {
         topmost: true,
         fontFamily: '',
