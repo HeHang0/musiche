@@ -626,9 +626,10 @@ async function testHttpProxy() {
   proxyTestResult.value = '正在测试连接...';
   try {
     const res = await musicOperate('/proxy/test');
-    if (res && res.data) {
-      proxyTestSuccess.value = Boolean(res.data.success);
-      proxyTestResult.value = res.data.message || '';
+    if (res && (res.data || res.success !== undefined)) {
+      const data = res.data || res;
+      proxyTestSuccess.value = Boolean(data.success);
+      proxyTestResult.value = data.message || '';
     } else {
       proxyTestSuccess.value = false;
       proxyTestResult.value = '测试接口请求未返回有效数据';
