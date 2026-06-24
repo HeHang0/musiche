@@ -447,14 +447,18 @@ class HttpHandler extends Handler implements IHandler {
   }
 
   Future<void> _testProxy(HttpRequest request) async {
-    String httpProxy = sharedPreferences?.getString("musiche-http-proxy") ?? "";
+    Map<String, dynamic> result = <String, dynamic>{};
+    
+    // 1. 读取系统存储
+    SharedPreferences.setPrefix("musiche");
+    var sp = await SharedPreferences.getInstance();
+    String httpProxy = sp.getString("musiche-http-proxy") ?? "";
     httpProxy = httpProxy.trim();
     if (httpProxy.startsWith('"') && httpProxy.endsWith('"')) {
       httpProxy = httpProxy.substring(1, httpProxy.length - 1);
     }
     httpProxy = httpProxy.trim();
 
-    Map<String, dynamic> result = <String, dynamic>{};
     if (httpProxy.isEmpty) {
       result["success"] = false;
       result["message"] = "未在手机存储中检测到代理配置，请先保存代理设置";
@@ -472,12 +476,14 @@ class HttpHandler extends Handler implements IHandler {
       proxy = proxy.substring(8);
     }
 
-    String msg = "连接成功";
-    bool success = false;
+    bool test1Success = false;
+    String test1Msg = "";
+    bool isUnblockNetease = false;
+
+    // 测试1: GET https://music.163.com/
     try {
       var httpClient = HttpClient();
       httpClient.connectionTimeout = const Duration(seconds: 5);
-      bool isUnblockNetease = false;
       httpClient.badCertificateCallback = (cert, host, port) {
         String issuer = cert.issuer.toLowerCase();
         String subject = cert.subject.toLowerCase();
@@ -490,22 +496,47 @@ class HttpHandler extends Handler implements IHandler {
 
       var req = await httpClient.getUrl(Uri.parse("https://music.163.com/"));
       var resp = await req.close();
-
-      success = resp.statusCode == HttpStatus.ok;
-      if (success) {
-        msg = isUnblockNetease
-            ? "测试成功！已读取系统配置并成功通过 UnblockNeteaseMusic 代理 [$httpProxy] 连通网易云"
-            : "测试成功！已读取系统配置并成功通过代理 [$httpProxy] 连通网易云";
-      } else {
-        msg = "代理连接正常，但请求测试返回状态码: ${resp.statusCode}";
-      }
+      test1Success = resp.statusCode == HttpStatus.ok;
+      test1Msg = "GET主页状态码: ${resp.statusCode}";
     } catch (e) {
-      success = false;
-      msg = "连接失败: $e";
+      test1Success = false;
+      test1Msg = "GET主页出错: $e";
+    }
+
+    // 测试2: 模拟 MusicItem 的 POST weapi 网易云音乐接口请求
+    bool test2Success = false;
+    String test2Msg = "";
+    try {
+      var httpClient = HttpClient();
+      httpClient.connectionTimeout = const Duration(seconds: 5);
+      httpClient.badCertificateCallback = (cert, host, port) => true;
+      httpClient.findProxy = (uri) => "PROXY $proxy";
+
+      var req = await httpClient.postUrl(Uri.parse("https://music.163.com/weapi/song/enhance/player/url"));
+      req.headers.set("Content-Type", "application/x-www-form-urlencoded");
+      req.headers.set("Referer", "https://music.163.com");
+      req.write("params=test&encSecKey=test");
+      
+      var resp = await req.close();
+      test2Success = resp.statusCode == HttpStatus.ok;
+      test2Msg = "POST接口状态码: ${resp.statusCode}";
+    } catch (e) {
+      test2Success = false;
+      test2Msg = "POST接口出错: $e";
+    }
+
+    bool success = test1Success && test2Success;
+    String summary = "";
+    if (success) {
+      summary = isUnblockNetease
+          ? "测试成功！已成功通过 UnblockNeteaseMusic 代理 [$httpProxy] 连通网易云并完成 API 解析测试。"
+          : "测试成功！已成功通过代理 [$httpProxy] 连通网易云并完成 API 解析测试。";
+    } else {
+      summary = "自检异常！\n1. $test1Msg\n2. $test2Msg\n请确认解锁代理配置。";
     }
 
     result["success"] = success;
-    result["message"] = msg;
+    result["message"] = summary;
     result["proxy"] = httpProxy;
     request.response.statusCode = HttpStatus.ok;
     request.response.headers.contentType = ContentType.json;
