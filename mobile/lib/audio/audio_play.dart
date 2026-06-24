@@ -248,7 +248,9 @@ class AudioPlay extends BaseAudioHandler {
     _lastError = "";
     try {
       if (url.startsWith("http")) {
-        await _audioPlayer.setUrl(url);
+        await _audioPlayer.setUrl(url, headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36"
+        });
         _audioPlayer.play();
       }else {
         File file = File(url);
@@ -257,6 +259,12 @@ class AudioPlay extends BaseAudioHandler {
           _audioPlayer.play();
         }
       }
+    } on PlayerException catch (e) {
+      _lastError = "播放器错误 (${e.code}): ${e.message}";
+      Logger.e(_tag, "播放器错误: $url", error: e);
+    } on ClipException catch (e) {
+      _lastError = "裁剪错误: ${e.message}";
+      Logger.e(_tag, "裁剪错误: $url", error: e);
     } catch (e) {
       _lastError = e.toString();
       Logger.e(_tag, "播放音频失败: $url", error: e);
