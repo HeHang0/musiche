@@ -8,6 +8,7 @@
   "license": "MIT",
   "private": false,
   "scripts": {
+    "dev": "vite --host",
     "start": "vite --host",
     "build": "run-p type-check build-only",
     "build:nc": "run-p build-only",

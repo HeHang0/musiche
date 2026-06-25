@@ -148,14 +148,14 @@ const play = usePlayStore();
           :auto-close="2000">
           <template #reference>
             <span
-              class="music-icon"
+              class="music-icon music-footer-layout-right-list-icon"
               @click="play.currentListShow = !play.currentListShow"
               @mouseup.stop>
               表
             </span>
           </template>
         </el-popover>
-        <template v-if="!isMobile || !play.config.remote">
+        <template v-if="!isMobile || play.config.remote">
           <el-popover
             placement="top"
             :width="30"
@@ -432,6 +432,10 @@ const play = usePlayStore();
         }
         * + * {
           margin-left: 6px;
+        }
+        &-list-icon {
+          position: relative;
+          left: -8px;
         }
       }
       &-center {
