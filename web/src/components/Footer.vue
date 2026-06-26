@@ -439,6 +439,7 @@ const play = usePlayStore();
         }
       }
       &-center {
+        transform: translateX(-6px);
         &-operate {
           span + span {
             margin-left: 10px;
