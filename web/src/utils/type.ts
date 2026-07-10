@@ -274,4 +274,7 @@ export interface PlatformAPI {
   setDownloadQuality?(quality: MusicQuality): void;
   setPlayQuality?(quality: MusicQuality): void;
   downloadUrl?(music: Music): Promise<string>;
+  subscribeCookieChanged?(
+    func: ((cookie: string | Record<string, string>) => void) | null
+  ): void;
 }

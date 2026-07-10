@@ -1,0 +1,5 @@
+.gocache/
+room-data/
+*.exe
+.idea/
+go.sum

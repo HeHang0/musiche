@@ -352,10 +352,26 @@ export const useSettingStore = defineStore('setting', {
     async setUserInfo(type: MusicType) {
       if (!this.userInfo[type]?.cookie) return;
       const userInfo = await api.userInfo(type, this.userInfo[type].cookie!);
-      if (!userInfo) return;
+      if (!userInfo) {
+        api.subscribeCookieChanged(type, null);
+        return;
+      }
       this.userInfo[type].id = userInfo.id;
       this.userInfo[type].name = userInfo.name;
       this.userInfo[type].image = userInfo.image;
+      api.subscribeCookieChanged(type, this.refreshCookie.bind(this, type));
+    },
+    refreshCookie(type: MusicType, cookie: Record<string, string> | string) {
+      if (type === 'cloud') {
+        this.userInfo.cloud.cookie = {
+          ...(this.userInfo.cloud.cookie as Record<string, string>),
+          ...(cookie as Record<string, string>)
+        };
+      } else {
+        this.userInfo[type].cookie = cookie;
+      }
+      console.log('refreshCookie', type, cookie, this.userInfo[type].cookie);
+      storage.setValue(StorageKey.UserInfo, this.userInfo);
     },
     setFadeIn(_value?: boolean, noSave?: boolean) {
       if (typeof noSave !== 'boolean') noSave = false;

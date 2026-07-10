@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { RouterView } from 'vue-router';
+import { RouterView, useRoute } from 'vue-router';
 import SideMenu from './components/SideMenu.vue';
 import Header from './components/Header.vue';
 import Footer from './components/Footer.vue';
@@ -10,12 +10,15 @@ import WindowHelper from './components/WindowHelper.vue';
 import { MusicConnection } from './stores/connection';
 import { usePlayStore } from './stores/play';
 import { useSettingStore } from './stores/setting';
+import { useRoomStore } from './stores/room';
 import { LogoImage } from './utils/logo';
 import { fixPwaForIOS } from './utils/utils';
 import { webView2Services } from './utils/files';
 import { getProxyAddress, parseHttpProxyAddress } from './utils/http';
 const play = usePlayStore();
 const setting = useSettingStore();
+const room = useRoomStore();
+const route = useRoute();
 document.addEventListener(
   'error',
   function (event: ErrorEvent) {
@@ -66,14 +69,14 @@ onMounted(() => {
       <SideMenu />
 
       <el-container class="music-layout-right" direction="vertical">
-        <Header />
+        <Header v-if="route.meta.key !== 'room'" />
         <el-main class="music-main">
           <RouterView />
           <CurrentList />
         </el-main>
       </el-container>
     </el-container>
-    <Footer v-show="play.musicList.length > 0" />
+    <Footer v-show="play.musicList.length > 0 && !room.room" />
     <PlayDetail />
     <WindowHelper v-if="webView2Services.specialService" />
   </el-container>

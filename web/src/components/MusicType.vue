@@ -32,7 +32,11 @@ function valueChange(v: MusicType) {
         "
         :value="info.type"
         :title="info.name">
-        <img class="music-type-icon" v-if="info.image" :src="info.image" />
+        <img
+          class="music-type-icon"
+          :class="`music-type-icon-${props.size}`"
+          v-if="info.image"
+          :src="info.image" />
         <span v-else>{{ info.name }}</span>
       </el-radio-button>
     </template>
@@ -43,6 +47,10 @@ function valueChange(v: MusicType) {
   width: 22px;
   height: 22px;
   border-radius: 50%;
+  &-small {
+    width: 18px;
+    height: 18px;
+  }
 }
 .el-radio-group {
   // border: 1px solid var(--el-input-border-color, var(--el-border-color));

@@ -23,6 +23,15 @@ const QRCode = () => import('qrcode');
 const musicType: MusicType = 'cloud';
 
 var cloudCookie: Record<string, string> = {};
+var onCookieChanged:
+  | ((cookie: string | Record<string, string>) => void)
+  | null = null;
+
+export async function subscribeCookieChanged(
+  func: (cookie: string | Record<string, string>) => void
+) {
+  onCookieChanged = func;
+}
 
 var qrcodeGenerate: (text: string) => Promise<string> = async (
   text: string
@@ -683,7 +692,7 @@ export async function deviceInfo(): Promise<{
   console.log('device info: ', ret);
   return null;
 }
-deviceInfo();
+
 function generateChainId(): string {
   const version = 'v1';
   const randomNum = Math.floor(Math.random() * 1e6);

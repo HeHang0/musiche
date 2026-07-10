@@ -113,7 +113,6 @@ self.addEventListener('update', event => {
 
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'MESSAGE_PROXY_ADDRESS') {
-    console.log('收到了！', event.data.payload);
     proxyAddress = event.data.payload || '';
     useHuaweiCloud = proxyAddress.includes('huawei');
   }

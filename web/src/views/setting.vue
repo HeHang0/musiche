@@ -17,6 +17,8 @@ import {
   getProxyAddress,
   isHuaweiCloud
 } from '../utils/http';
+import { getRoomServerAddress, setRoomServerAddress } from '../utils/room';
+import { useRoomStore } from '../stores/room';
 import { musicTypeInfo, musicTypeInfoAll } from '../utils/platform';
 import {
   AppTheme,
@@ -162,9 +164,12 @@ const defaultFonts = isWindows
     ];
 const defaultProxyAddress = ref(getProxyAddress());
 const defaultProxyAddressReadonly = ref(true);
+const roomServerAddress = ref(getRoomServerAddress());
+const roomServerAddressReadonly = ref(true);
 const useHuaweiCloud = ref(isHuaweiCloud());
 const setting = useSettingStore();
 const play = usePlayStore();
+const room = useRoomStore();
 const currentVersion = ref('');
 const remoteVersion = ref('');
 const localNetworkProxy = ref<'system' | 'none'>('system');
@@ -580,6 +585,20 @@ function onProxyAddressChanged(value: string) {
   }
 }
 
+function onRoomServerAddressChanged(value: string) {
+  if (!value || value.startsWith(location.origin)) {
+    setRoomServerAddress('');
+    roomServerAddress.value = getRoomServerAddress();
+    room.checkAvailability();
+    return;
+  }
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    setRoomServerAddress(value);
+    roomServerAddress.value = getRoomServerAddress();
+    room.checkAvailability();
+  }
+}
+
 function onLocalNetworkProxyChanged(value: 'system' | 'none') {
   storage.setValue(StorageKey.Proxy, value);
 }
@@ -873,10 +892,20 @@ onUnmounted(unWatch);
                 </el-checkbox>
                 <span style="font-weight: bold; margin-top: 10px">代理</span>
                 <el-input
+                  v-if="isWindows || !setting.config.remote"
                   v-model="defaultProxyAddress"
                   :readonly="defaultProxyAddressReadonly"
                   @dblclick="defaultProxyAddressReadonly = false"
                   @change="onProxyAddressChanged"
+                  style="padding: 10px 50px 0 0" />
+                <span style="font-weight: bold; margin-top: 10px"
+                  >歌房服务地址</span
+                >
+                <el-input
+                  v-model="roomServerAddress"
+                  :readonly="roomServerAddressReadonly"
+                  @dblclick="roomServerAddressReadonly = false"
+                  @change="onRoomServerAddressChanged"
                   style="padding: 10px 50px 0 0" />
                 <div
                   v-if="isWindows && setting.config.remote"

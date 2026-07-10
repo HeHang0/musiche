@@ -27,17 +27,31 @@ import RankingSoarImage from '../../assets/images/ranking-soar.jpg';
 const musicType: MusicType = 'qq';
 
 var qqCookie: string = '';
+var onCookieChanged:
+  | ((cookie: string | Record<string, string>) => void)
+  | null = null;
+
+export async function subscribeCookieChanged(
+  func: (cookie: string | Record<string, string>) => void
+) {
+  onCookieChanged = func;
+  onCookieChanged && onCookieChanged(qqCookie);
+}
 
 async function httpProxy(prd: ProxyRequestData): Promise<Response> {
   prd.setCookieRename = true;
   const res = await httpProxyOrigin(prd);
-  const newCookie =
-    parseCookie(res.headers.get('Set-Cookie-Renamed') || '') || {};
-  const miguCookieObj = parseCookieText(qqCookie);
-  qqCookie = formatCookies({
-    ...miguCookieObj,
-    ...newCookie
-  });
+  const newCookieText = res.headers.get('Set-Cookie-Renamed') || '';
+  if (newCookieText) {
+    const newCookie =
+      parseCookie(res.headers.get('Set-Cookie-Renamed') || '') || {};
+    const oldCookieObj = parseCookieText(qqCookie);
+    qqCookie = formatCookies({
+      ...oldCookieObj,
+      ...newCookie
+    });
+    onCookieChanged && onCookieChanged(qqCookie);
+  }
   return Promise.resolve(res);
 }
 
@@ -1004,6 +1018,9 @@ export async function loginStatus(key: string): Promise<{
 
 export async function userInfo(cookies: string): Promise<UserInfo | null> {
   qqCookie = cookies;
+  if (!cookies) {
+    return null;
+  }
   const cookie = formatCookies(cookies);
   var res = await httpProxy({
     url: 'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg?cid=205360838&reqfrom=1',
@@ -1016,6 +1033,15 @@ export async function userInfo(cookies: string): Promise<UserInfo | null> {
   const ret = await res.json();
   const creator = (ret && ret.data && ret.data.creator) || null;
   if (!creator || !creator.encrypt_uin) return null;
+  const cookieObj = parseCookieText(cookie);
+  const cookieNewObject = {
+    uin: cookieObj.uin || '',
+    qm_keyst: cookieObj.qm_keyst || ''
+  };
+  console.log('生效了cookieNew', cookies, cookieObj, cookieNewObject);
+  if (cookieNewObject) {
+    qqCookie = formatCookies(cookieNewObject);
+  }
   return {
     id: creator.encrypt_uin,
     name: creator.nick,

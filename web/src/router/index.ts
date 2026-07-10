@@ -36,6 +36,12 @@ const routers: RouteRecordRaw[] = [
     component: () => import(`../views/ranking.vue`)
   },
   {
+    path: '/room',
+    name: '在线歌房',
+    meta: { key: 'room', icon: '\u706b' },
+    component: () => import(`../views/room.vue`)
+  },
+  {
     path: '/search/:type/:searchType/:keywords',
     name: '搜索',
     meta: { key: 'search', show: false },

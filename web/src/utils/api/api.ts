@@ -309,6 +309,13 @@ export async function downloadUrl(music: Music): Promise<string> {
   return '';
 }
 
+export function subscribeCookieChanged(
+  type: MusicType,
+  func: ((cookie: string | Record<string, string>) => void) | null
+) {
+  musicAPI.get(type)?.subscribeCookieChanged?.call(null, func);
+}
+
 export function getCookie(type: MusicType) {
   switch (type) {
     case 'cloud':

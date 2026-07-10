@@ -32,16 +32,30 @@ var miguUid: string = localStorage.getItem('musiche-migu-uid') || '';
 
 var miguName: string = localStorage.getItem('musiche-migu-name') || '';
 
+var onCookieChanged:
+  | ((cookie: string | Record<string, string>) => void)
+  | null = null;
+
+export async function subscribeCookieChanged(
+  func: (cookie: string | Record<string, string>) => void
+) {
+  onCookieChanged = func;
+}
+
 async function httpProxy(prd: ProxyRequestData): Promise<Response> {
   prd.setCookieRename = true;
   const res = await httpProxyOrigin(prd);
-  const newCookie =
-    parseCookie(res.headers.get('Set-Cookie-Renamed') || '') || {};
-  const miguCookieObj = parseCookieText(miguCookie);
-  miguCookie = formatCookies({
-    ...miguCookieObj,
-    ...newCookie
-  });
+  const newCookieText = res.headers.get('Set-Cookie-Renamed') || '';
+  if (newCookieText) {
+    const newCookie =
+      parseCookie(res.headers.get('Set-Cookie-Renamed') || '') || {};
+    const oldCookieObj = parseCookieText(miguCookie);
+    miguCookie = formatCookies({
+      ...oldCookieObj,
+      ...newCookie
+    });
+    onCookieChanged && onCookieChanged(miguCookie);
+  }
   return Promise.resolve(res);
 }
 
@@ -701,6 +715,15 @@ async function listenUrl(music: Music, quality: MusicQuality = 'PQ') {
       length: 1000 * ret.data.song.duration,
       image
     };
+  } else if (ret && ret.data?.cannotCode === '440018') {
+    switch (quality) {
+      case 'PQ':
+        return await listenUrl(music, 'SQ');
+      case 'SQ':
+        return await listenUrl(music, 'HQ');
+      case 'HQ':
+        return await listenUrl(music, 'ZQ');
+    }
   }
   return null;
 }
