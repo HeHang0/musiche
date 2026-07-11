@@ -54,16 +54,37 @@ input {
 }
 
 .el-button {
-    height: 37px;
+    --el-button-size: 37px;
+    height: var(--el-button-size);
     border-radius: var(--music-border-radius);
     border: 1px solid var(--music-button-info-border-color);
-    background: var(--music-button-background);
+    --el-button-bg-color: var(--music-button-background);
     outline: none !important;
 
     &:hover {
         border: 1px solid var(--music-button-info-border-color-hover);
         color: var(--el-button-text-color);
-        background: var(--music-button-background-hover);
+        --el-button-bg-color: var(--music-button-background-hover);
+    }
+
+    &--warning {
+        --el-button-bg-color: var(--el-color-warning);
+    }
+
+    &--danger {
+        --el-button-bg-color: var(--el-color-danger);
+
+        &:hover {
+            --el-button-text-color: var(--el-button-hover-text-color);
+        }
+    }
+
+    &--info {
+        --el-button-bg-color: var(--el-color-info);
+    }
+
+    &--success {
+        --el-button-bg-color: var(--el-color-success);
     }
 
     &--primary {
@@ -83,8 +104,20 @@ input {
         }
     }
 
+    &--small {
+        --el-button-size: 24px;
+    }
+
+    &--large {
+        --el-button-size: 40px;
+    }
+
     &.is-disabled {
         opacity: 0.4;
+    }
+
+    &.is-circle {
+        min-width: var(--el-button-size);
     }
 }
 

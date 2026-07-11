@@ -417,6 +417,7 @@ export async function playlistDetail1(id: string) {
 }
 
 export async function playlistDetail(id: string, offset: number) {
+  id = String(id);
   if (id.startsWith('ranking')) {
     var rankingType = RankingType.Hot;
     switch (id) {

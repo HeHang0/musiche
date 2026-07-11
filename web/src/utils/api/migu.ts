@@ -498,6 +498,7 @@ export async function dailyPlayList(_offset: number) {
 }
 
 export async function playlistDetail(id: string, offset: number) {
+  id = String(id);
   if (id == 'daily') {
     return dailyPlayList(offset);
   }

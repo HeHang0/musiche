@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { useTitle } from '@vueuse/core';
 import * as musicAPI from '../utils/api/api';
 import { useSettingStore } from './setting';
 import type { Music } from '../utils/type';
@@ -17,6 +18,7 @@ import {
 const currentRoomKey = 'musiche-room-current-id';
 const adminTokensKey = 'musiche-room-admin-tokens';
 const roomVolumeKey = 'musiche-room-volume';
+const title = useTitle();
 
 function readAdminTokens(): Record<string, string> {
   try {
@@ -47,6 +49,8 @@ export const useRoomStore = defineStore('room', {
     pendingSeekSeconds: null as number | null,
     loadedMusicKey: '',
     audioResolveTimer: null as ReturnType<typeof setTimeout> | null,
+    audioRetryTimer: null as ReturnType<typeof setTimeout> | null,
+    adminCookieSyncing: false,
     syncingAudio: false,
     chatMessages: [] as RoomChatMessage[]
   }),
@@ -90,6 +94,7 @@ export const useRoomStore = defineStore('room', {
     },
     async initialize() {
       if (this.initialized) return;
+      title.value = '在线歌房 - Musiche';
       this.loading = true;
       try {
         if (!(await this.checkAvailability())) return;
@@ -167,6 +172,7 @@ export const useRoomStore = defineStore('room', {
       this.snapshot = snapshot;
       this.lastError = '';
       localStorage.setItem(currentRoomKey, snapshot.room.id);
+      if (snapshot.isAdmin) this.syncAdminCookies();
       this.syncAudio();
     },
     connect() {
@@ -236,8 +242,9 @@ export const useRoomStore = defineStore('room', {
             active.music.type === event.data?.type
           ) {
             // A privileged member has just shared a five-minute resolved URL.
-            // Retry after the current failed local resolution has unwound.
-            setTimeout(() => this.syncAudio(), 0);
+            // If a local resolution is still running, wait for it to unwind
+            // before retrying instead of losing this notification.
+            this.scheduleAudioSync(100);
           }
         } else if (event.type === 'dissolved') {
           this.lastError = event.data || '房间已解散';
@@ -286,6 +293,7 @@ export const useRoomStore = defineStore('room', {
       this.command('next');
     },
     seek(positionMs: number) {
+      console.log('[在线歌房] seek', positionMs);
       this.command('seek', { positionMs: Math.round(positionMs) });
     },
     chat(content: string, image = '') {
@@ -307,6 +315,7 @@ export const useRoomStore = defineStore('room', {
       name?: string;
       entryPassword?: string;
       adminPassword?: string;
+      allowGuestQueue?: boolean;
     }) {
       if (!this.snapshot) return;
       const response = await roomRequest<{
@@ -337,7 +346,11 @@ export const useRoomStore = defineStore('room', {
           })
         }
       );
-      await this.open(this.snapshot.room.id);
+      // Refresh only the credential metadata. Reopening the room here would
+      // unnecessarily replace the active WebSocket connection.
+      this.snapshot.credentialSources = [
+        ...new Set([...this.snapshot.credentialSources, source])
+      ];
     },
     async removeCookie(source: 'cloud' | 'qq' | 'migu') {
       if (!this.snapshot) return;
@@ -365,7 +378,12 @@ export const useRoomStore = defineStore('room', {
       });
     },
     getLocalCookie(source: 'cloud' | 'qq' | 'migu') {
-      const cookie = useSettingStore().userInfo[source]?.cookie;
+      const account = useSettingStore().userInfo[source];
+      // A cookie value can remain in an API module after an expired session or
+      // a failed login. Only upload it when the settings store still has a
+      // verified account identity for that music source.
+      if (!account?.id) return '';
+      const cookie = account.cookie;
       if (!cookie) return '';
       if (typeof cookie === 'string') return cookie.trim();
       return Object.entries(cookie)
@@ -400,6 +418,17 @@ export const useRoomStore = defineStore('room', {
         console.warn('[在线歌房] 本地 Cookie 上传失败', { source, error });
       }
     },
+    async syncAdminCookies() {
+      if (!this.snapshot || !this.isAdmin || this.adminCookieSyncing) return;
+      this.adminCookieSyncing = true;
+      try {
+        for (const source of ['cloud', 'qq', 'migu'] as const) {
+          await this.uploadLocalCookieIfMissing(source);
+        }
+      } finally {
+        this.adminCookieSyncing = false;
+      }
+    },
     async dissolve() {
       if (!this.snapshot) return;
       await roomRequest(`/api/v1/rooms/${this.snapshot.room.id}/dissolve`, {
@@ -418,6 +447,18 @@ export const useRoomStore = defineStore('room', {
       this.volume = Math.max(0, Math.min(100, value));
       localStorage.setItem(roomVolumeKey, this.volume.toString());
       if (this.audio) this.audio.volume = this.volume / 100;
+    },
+    scheduleAudioSync(delay = 0) {
+      if (this.audioRetryTimer) clearTimeout(this.audioRetryTimer);
+      this.audioRetryTimer = setTimeout(() => {
+        this.audioRetryTimer = null;
+        if (!this.snapshot) return;
+        if (this.syncingAudio) {
+          this.scheduleAudioSync(250);
+          return;
+        }
+        this.syncAudio();
+      }, delay);
     },
     async syncAudio() {
       if (this.syncingAudio || !this.snapshot) return;
@@ -491,6 +532,7 @@ export const useRoomStore = defineStore('room', {
             this.lastError = '当前歌曲暂未取得可播放地址，请等待管理员解析完成';
             return;
           }
+          title.value = `${music.name} - ${music.singer} - Musiche`;
           this.audio.src = music.url;
           this.loadedMusicKey = expectedKey;
           if (this.audioResolveTimer) clearTimeout(this.audioResolveTimer);
@@ -498,6 +540,18 @@ export const useRoomStore = defineStore('room', {
             this.loadedMusicKey = '';
             this.syncAudio();
           }, 305000);
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: `${music.name} - ${music.singer} - Musiche`,
+            album: music.album || undefined,
+            artist: music.singer || undefined,
+            artwork: music.image
+              ? [
+                  {
+                    src: music.largeImage || music.mediumImage || music.image
+                  }
+                ]
+              : []
+          });
         }
         const playback = this.snapshot.state.playback;
         const target = Math.max(
@@ -547,6 +601,8 @@ export const useRoomStore = defineStore('room', {
       this.pendingSeekSeconds = null;
       if (this.audioResolveTimer) clearTimeout(this.audioResolveTimer);
       this.audioResolveTimer = null;
+      if (this.audioRetryTimer) clearTimeout(this.audioRetryTimer);
+      this.audioRetryTimer = null;
       if (clearCurrent) localStorage.removeItem(currentRoomKey);
     },
     async resumeAudio() {

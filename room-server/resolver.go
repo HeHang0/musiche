@@ -32,6 +32,8 @@ type resolvedCacheItem struct {
 	expires time.Time
 }
 
+var errInvalidCredential = errors.New("音乐平台 Cookie 无效，请管理员重新登录")
+
 func newResolver(config Config) *Resolver {
 	return &Resolver{config: config, client: &http.Client{Timeout: 12 * time.Second}, cache: map[string]resolvedCacheItem{}}
 }
@@ -71,12 +73,183 @@ func (r *Resolver) resolve(room *Room, music Music) (Music, error) {
 		err = errors.New("不支持的音乐平台")
 	}
 	if err != nil {
+		// A provider can reject an otherwise well-formed song request when the
+		// persisted Cookie has expired. Re-check the account before returning the
+		// resolver error so stale credentials are removed from the room.
+		if validationErr := r.validateCredential(music.Type, cookie); validationErr != nil {
+			if errors.Is(validationErr, errInvalidCredential) {
+				r.invalidateCredential(room, music.Type)
+				return Music{}, validationErr
+			}
+			// A transient validation failure should not discard a working Cookie or
+			// hide the provider's more useful parsing error.
+			return Music{}, err
+		}
 		return Music{}, err
 	}
 	r.mu.Lock()
 	r.cache[key] = resolvedCacheItem{music: resolved, expires: time.Now().Add(r.config.AudioCacheTTL)}
 	r.mu.Unlock()
 	return resolved, nil
+}
+
+func (r *Resolver) validateCredential(source, rawCredential string) error {
+	cookie := strings.TrimSpace(credentialValue(rawCredential, "cookie"))
+	if cookie == "" {
+		return errInvalidCredential
+	}
+	switch source {
+	case "cloud":
+		return r.validateCloudCredential(cookie)
+	case "qq":
+		return r.validateQQCredential(cookie)
+	case "migu":
+		return r.validateMiguCredential(cookie)
+	default:
+		return errors.New("不支持的音乐平台")
+	}
+}
+
+func (r *Resolver) validateQQCredential(cookie string) error {
+	request, err := http.NewRequest(http.MethodGet, "https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg?cid=205360838&reqfrom=1", nil)
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Referer", "https://y.qq.com")
+	request.Header.Set("Cookie", cookie)
+	request.Header.Set("User-Agent", "Mozilla/5.0")
+	response, err := r.client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode >= 500 {
+		return fmt.Errorf("QQ 音乐账号验证失败（%s）", response.Status)
+	}
+	if response.StatusCode/100 != 2 {
+		return errInvalidCredential
+	}
+	var result struct {
+		Data struct {
+			Creator struct {
+				EncryptUIN any `json:"encrypt_uin"`
+			} `json:"creator"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(io.LimitReader(response.Body, 1024*1024)).Decode(&result); err != nil {
+		return err
+	}
+	if value := strings.TrimSpace(fmt.Sprint(result.Data.Creator.EncryptUIN)); value == "" || value == "<nil>" || value == "0" {
+		return errInvalidCredential
+	}
+	return nil
+}
+
+func (r *Resolver) validateCloudCredential(cookie string) error {
+	csrf := cookieValue(cookie, "__csrf")
+	musicU := cookieValue(cookie, "MUSIC_U")
+	if musicU == "" {
+		return errInvalidCredential
+	}
+	payload, _ := json.Marshal(map[string]any{})
+	params, err := cloudEncrypt(string(payload))
+	if err != nil {
+		return err
+	}
+	form := url.Values{}
+	form.Set("params", params)
+	form.Set("encSecKey", "409afd10f2fa06173df57525287c4a1cdf6fa08bd542c6400da953704eb92dc1ad3c582e82f51a707ebfa0f6a25bcd185139fc1509d40dd97b180ed21641df55e90af4884a0b587bd25256141a9270b1b6f18908c6a626b74167e5a55a796c0f808a2eb12c33e63d34a7c4d358bab1dc661637dd1e888a1268b81a89f6136053")
+	request, err := http.NewRequest(http.MethodPost, "https://music.163.com/weapi/w/nuser/account/get?csrf_token="+url.QueryEscape(csrf), strings.NewReader(form.Encode()))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("Referer", "https://music.163.com")
+	request.Header.Set("User-Agent", "Mozilla/5.0")
+	request.Header.Set("Cookie", "os=ios;MUSIC_U="+musicU+";__csrf="+csrf)
+	response, err := r.client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode >= 500 {
+		return fmt.Errorf("网易云账号验证失败（%s）", response.Status)
+	}
+	if response.StatusCode/100 != 2 {
+		return errInvalidCredential
+	}
+	var result struct {
+		Profile *struct {
+			UserID any `json:"userId"`
+		} `json:"profile"`
+	}
+	if err := json.NewDecoder(io.LimitReader(response.Body, 1024*1024)).Decode(&result); err != nil {
+		return err
+	}
+	if result.Profile == nil {
+		return errInvalidCredential
+	}
+	if value := strings.TrimSpace(fmt.Sprint(result.Profile.UserID)); value == "" || value == "<nil>" || value == "0" {
+		return errInvalidCredential
+	}
+	return nil
+}
+
+func (r *Resolver) validateMiguCredential(cookie string) error {
+	request, err := http.NewRequest(http.MethodGet, "https://app.c.nf.migu.cn/pc/user/h5/queryUserInfo/v1.0", nil)
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Cookie", cookie)
+	request.Header.Set("User-Agent", "Mozilla/5.0")
+	response, err := r.client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode >= 500 {
+		return fmt.Errorf("咪咕账号验证失败（%s）", response.Status)
+	}
+	if response.StatusCode/100 != 2 {
+		return errInvalidCredential
+	}
+	var result struct {
+		UserInfoItem *struct {
+			UserID any `json:"userId"`
+		} `json:"userInfoItem"`
+	}
+	if err := json.NewDecoder(io.LimitReader(response.Body, 1024*1024)).Decode(&result); err != nil {
+		return err
+	}
+	if result.UserInfoItem == nil {
+		return errInvalidCredential
+	}
+	if value := strings.TrimSpace(fmt.Sprint(result.UserInfoItem.UserID)); value == "" || value == "<nil>" || value == "0" {
+		return errInvalidCredential
+	}
+	return nil
+}
+
+func (r *Resolver) invalidateCredential(room *Room, source string) {
+	room.mu.Lock()
+	if _, exists := room.config.Credentials[source]; !exists {
+		room.mu.Unlock()
+		return
+	}
+	delete(room.config.Credentials, source)
+	_ = os.Remove(filepath.Join(room.path, "credentials", source+".enc"))
+	_ = room.saveConfigLocked()
+	roomID := room.config.ID
+	room.mu.Unlock()
+
+	r.mu.Lock()
+	for key := range r.cache {
+		if strings.HasPrefix(key, roomID+"|"+source+"|") {
+			delete(r.cache, key)
+		}
+	}
+	r.mu.Unlock()
+	broadcastRoomSnapshot(room)
 }
 
 // resolveQQ mirrors web/src/utils/api/qq.ts's downloadUrl implementation.

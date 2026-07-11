@@ -8,7 +8,7 @@ import { registerServiceWorker } from '../sw/register';
 import { LyricManager } from '../utils/lyric';
 import * as local from '../utils/api/local';
 import { ElMessage } from 'element-plus';
-import { isWindows, messageOption } from '../utils/utils';
+import { messageOption } from '../utils/utils';
 
 export class MusicConnection {
   webSocketClient?: http.CommunicationClient;

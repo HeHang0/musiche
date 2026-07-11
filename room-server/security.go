@@ -26,6 +26,13 @@ func randomID(length int) string {
 	return base64.RawURLEncoding.EncodeToString(randomBytes(length))
 }
 
+func constantTimeStringEqual(expected, actual string) bool {
+	if expected == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(expected), []byte(actual)) == 1
+}
+
 // PBKDF2-SHA256 is used to avoid bringing a database or a password library
 // into this small standalone service. The iteration count is encoded with the
 // result, which lets it be increased without invalidating existing rooms.

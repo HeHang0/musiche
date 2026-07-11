@@ -16,7 +16,8 @@ func TestRoomHTTPFlow(t *testing.T) {
 	store, err := newRoomStore(Config{
 		DataDir: t.TempDir(), MaxRooms: 50, MaxMembersPerRoom: 30,
 		EmptyTTL: 30 * time.Minute, MaxChatMessages: 500,
-		TokenSecret: []byte("test-token-secret-test-token-secret"),
+		TokenSecret:        []byte("test-token-secret-test-token-secret"),
+		SuperAdminPassword: "super-room-password",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -59,6 +60,12 @@ func TestRoomHTTPFlow(t *testing.T) {
 	handler.ServeHTTP(admin, httptest.NewRequest(http.MethodPost, "/api/v1/rooms/"+created.Snapshot.Room.ID+"/admin", bytes.NewReader(adminBody)))
 	if admin.Code != http.StatusOK {
 		t.Fatalf("admin status: %d, body: %s", admin.Code, admin.Body.String())
+	}
+	superAdminBody, _ := json.Marshal(AdminRequest{AdminPassword: "super-room-password", VisitorID: "visitor-one", Fingerprint: "fingerprint-one"})
+	superAdmin := httptest.NewRecorder()
+	handler.ServeHTTP(superAdmin, httptest.NewRequest(http.MethodPost, "/api/v1/rooms/"+created.Snapshot.Room.ID+"/admin", bytes.NewReader(superAdminBody)))
+	if superAdmin.Code != http.StatusOK {
+		t.Fatalf("super admin status: %d, body: %s", superAdmin.Code, superAdmin.Body.String())
 	}
 
 	resolvedBody, _ := json.Marshal(ResolvedCacheRequest{
@@ -122,9 +129,9 @@ func TestWebSocketQueueCommand(t *testing.T) {
 		t.Fatalf("expected snapshot after queue command, got %s", event.Type)
 	}
 	room.mu.RLock()
-	if len(room.state.Queue) != 1 || room.state.Queue[0].Music.ID != "123456" {
+	if len(room.state.Queue) != 0 || room.state.Current == nil || room.state.Current.Music.ID != "123456" || !room.state.Playback.Playing {
 		room.mu.RUnlock()
-		t.Fatal("queue command did not persist")
+		t.Fatal("first queue command did not start playback")
 	}
 	room.mu.RUnlock()
 	_ = connection.Close()

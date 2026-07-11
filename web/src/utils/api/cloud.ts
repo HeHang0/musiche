@@ -23,15 +23,10 @@ const QRCode = () => import('qrcode');
 const musicType: MusicType = 'cloud';
 
 var cloudCookie: Record<string, string> = {};
-var onCookieChanged:
-  | ((cookie: string | Record<string, string>) => void)
-  | null = null;
 
 export async function subscribeCookieChanged(
-  func: (cookie: string | Record<string, string>) => void
-) {
-  onCookieChanged = func;
-}
+  _func: (cookie: string | Record<string, string>) => void
+) {}
 
 var qrcodeGenerate: (text: string) => Promise<string> = async (
   text: string
@@ -386,6 +381,7 @@ export async function dailyPlayList(offset: number) {
 }
 
 export async function playlistDetail(id: string, offset: number) {
+  id = String(id);
   if (id == 'daily') {
     return dailyPlayList(offset);
   }

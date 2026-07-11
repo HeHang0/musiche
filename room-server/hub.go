@@ -75,38 +75,42 @@ func (c *RoomConnection) setToken(value string) {
 // the latest state. This avoids serializing and sending a burst of stale
 // snapshots without dropping the final update.
 func (c *RoomConnection) broadcastSnapshot() <-chan struct{} {
+	return broadcastRoomSnapshot(c.room)
+}
+
+func broadcastRoomSnapshot(room *Room) <-chan struct{} {
 	done := make(chan struct{})
-	c.room.snapshotMu.Lock()
-	c.room.snapshotWaiters = append(c.room.snapshotWaiters, done)
-	if c.room.snapshotRunning {
-		c.room.snapshotDirty = true
-		c.room.snapshotMu.Unlock()
+	room.snapshotMu.Lock()
+	room.snapshotWaiters = append(room.snapshotWaiters, done)
+	if room.snapshotRunning {
+		room.snapshotDirty = true
+		room.snapshotMu.Unlock()
 		return done
 	}
-	c.room.snapshotRunning = true
-	c.room.snapshotMu.Unlock()
+	room.snapshotRunning = true
+	room.snapshotMu.Unlock()
 
 	for {
-		c.room.mu.RLock()
-		connections := make([]*RoomConnection, 0, len(c.room.connections))
-		for connection := range c.room.connections {
+		room.mu.RLock()
+		connections := make([]*RoomConnection, 0, len(room.connections))
+		for connection := range room.connections {
 			connections = append(connections, connection)
 		}
-		c.room.mu.RUnlock()
+		room.mu.RUnlock()
 		for _, connection := range connections {
 			_ = connection.send(Event{Type: "snapshot", Data: connection.snapshot()})
 		}
 
-		c.room.snapshotMu.Lock()
-		if c.room.snapshotDirty {
-			c.room.snapshotDirty = false
-			c.room.snapshotMu.Unlock()
+		room.snapshotMu.Lock()
+		if room.snapshotDirty {
+			room.snapshotDirty = false
+			room.snapshotMu.Unlock()
 			continue
 		}
-		c.room.snapshotRunning = false
-		waiters := c.room.snapshotWaiters
-		c.room.snapshotWaiters = nil
-		c.room.snapshotMu.Unlock()
+		room.snapshotRunning = false
+		waiters := room.snapshotWaiters
+		room.snapshotWaiters = nil
+		room.snapshotMu.Unlock()
 		for _, waiter := range waiters {
 			close(waiter)
 		}
@@ -191,6 +195,11 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 			return errors.New("无效的歌曲")
 		}
 		c.room.mu.Lock()
+		admin := verifyAdminToken(c.store.config.TokenSecret, command.AdminToken, c.room.config.ID, c.memberID, c.room.config.AdminVersion)
+		if c.room.config.GuestQueueDisabled && !admin {
+			c.room.mu.Unlock()
+			return errors.New("管理员已关闭游客点歌")
+		}
 		if len(c.room.state.Queue) >= c.store.config.MaxQueueItems {
 			c.room.mu.Unlock()
 			return fmt.Errorf("当前点歌列表已达到 %d 首上限", c.store.config.MaxQueueItems)
@@ -198,6 +207,17 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 		member := c.room.config.Members[c.memberID]
 		item := QueueItem{ID: randomID(12), Music: *command.Music, RequestedBy: c.memberID, RequestedName: member.Nickname, RequestedAt: time.Now().UTC()}
 		c.room.state.Queue = append(c.room.state.Queue, item)
+		// The first song in an empty room should start immediately. Moving it
+		// into Current also makes the playback state authoritative for every
+		// member instead of requiring the administrator to press play manually.
+		if c.room.state.Current == nil {
+			c.room.state.Current = queueHead(&c.room.state)
+			c.room.state.Playback = PlaybackState{
+				Playing:    c.room.state.Current != nil,
+				PositionMS: 0,
+				UpdatedAt:  time.Now().UTC(),
+			}
+		}
 		c.room.state.Version++
 		err := c.room.saveStateLocked()
 		c.room.mu.Unlock()
@@ -249,16 +269,13 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 			c.room.mu.Unlock()
 			return errors.New("歌曲不在点歌队列中")
 		}
-		item := c.room.state.Queue[index]
-		item.Pinned = !item.Pinned
-		c.room.state.Queue = append(c.room.state.Queue[:index], c.room.state.Queue[index+1:]...)
-		insertAt := 0
-		for insertAt < len(c.room.state.Queue) && c.room.state.Queue[insertAt].Pinned {
-			insertAt++
+		if index == 0 {
+			c.room.mu.Unlock()
+			return nil
 		}
-		c.room.state.Queue = append(c.room.state.Queue, QueueItem{})
-		copy(c.room.state.Queue[insertAt+1:], c.room.state.Queue[insertAt:])
-		c.room.state.Queue[insertAt] = item
+		item := c.room.state.Queue[index]
+		queue := append(c.room.state.Queue[:index:index], c.room.state.Queue[index+1:]...)
+		c.room.state.Queue = append([]QueueItem{item}, queue...)
 		c.room.state.Version++
 		err := c.room.saveStateLocked()
 		c.room.mu.Unlock()
@@ -367,15 +384,8 @@ func queueHead(state *RoomState) *QueueItem {
 	if len(state.Queue) == 0 {
 		return nil
 	}
-	index := 0
-	for i, item := range state.Queue {
-		if item.Pinned {
-			index = i
-			break
-		}
-	}
-	item := state.Queue[index]
-	state.Queue = append(state.Queue[:index], state.Queue[index+1:]...)
+	item := state.Queue[0]
+	state.Queue = state.Queue[1:]
 	return &item
 }
 func currentPosition(playback PlaybackState, now time.Time) int64 {

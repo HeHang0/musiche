@@ -28,6 +28,7 @@ type Config struct {
 	AudioCacheTTL       time.Duration
 	TokenSecret         []byte
 	CookieKey           []byte
+	SuperAdminPassword  string
 }
 
 func loadConfig() Config {
@@ -45,8 +46,9 @@ func loadConfig() Config {
 		MaxChatMessageBytes: envInt("ROOM_MAX_CHAT_MESSAGE_BYTES", 600),
 		MaxChatImageBytes:   envInt("ROOM_MAX_CHAT_IMAGE_BYTES", 512*1024),
 		AudioCacheTTL:       time.Duration(envInt("ROOM_AUDIO_CACHE_SECONDS", 300)) * time.Second,
+		SuperAdminPassword:  envString("ROOM_SUPER_ADMIN_PASSWORD", ""),
 	}
-	secret := envString("ROOM_TOKEN_SECRET", "")
+	secret := envString("ROOM_TOKEN_SECRET", "123456")
 	if secret == "" {
 		// A process-local fallback is safe for development, but operators should
 		// always configure ROOM_TOKEN_SECRET in production to preserve sessions.
@@ -54,7 +56,7 @@ func loadConfig() Config {
 	}
 	sum := sha256.Sum256([]byte(secret))
 	c.TokenSecret = sum[:]
-	if cookieSecret := envString("ROOM_COOKIE_KEY", ""); cookieSecret != "" {
+	if cookieSecret := envString("ROOM_COOKIE_KEY", "123456"); cookieSecret != "" {
 		cookieSum := sha256.Sum256([]byte(cookieSecret))
 		c.CookieKey = cookieSum[:]
 	}

@@ -26,7 +26,6 @@ export interface RoomQueueItem {
   requestedBy: string;
   requestedName: string;
   requestedAt: string;
-  pinned?: boolean;
 }
 
 export interface RoomPlaybackState {
@@ -55,6 +54,7 @@ export interface RoomSnapshot {
   room: RoomSummary;
   state: RoomState;
   isAdmin: boolean;
+  allowGuestQueue: boolean;
   memberId: string;
   nickname: string;
   credentialSources: string[];

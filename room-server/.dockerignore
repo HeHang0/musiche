@@ -1,0 +1,6 @@
+.dockerignore
+.gocache
+.idea
+room-data
+*.exe
+*.tmp

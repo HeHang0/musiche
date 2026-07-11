@@ -2,14 +2,28 @@
 import { computed, h, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
-import { Search, Lock, Unlock } from '@element-plus/icons-vue';
+import {
+  ArrowDown,
+  CloseBold,
+  DeleteFilled,
+  Lock,
+  Search,
+  Setting,
+  Share,
+  Unlock,
+  Upload
+} from '@element-plus/icons-vue';
 import { useRoomStore } from '../stores/room';
+import { usePlayStore } from '../stores/play';
+import { useSettingStore } from '../stores/setting';
 import * as api from '../utils/api/api';
 import MusicTypeEle from '../components/MusicType.vue';
+import { RankingType } from '../utils/type';
 import type {
   LyricLine,
   Music,
   MusicType,
+  Playlist,
   PlaylistSearchItem
 } from '../utils/type';
 import { LogoImage } from '../utils/logo';
@@ -20,6 +34,8 @@ import {
 } from '../utils/utils';
 
 const roomStore = useRoomStore();
+const playStore = usePlayStore();
+const settingStore = useSettingStore();
 const route = useRoute();
 const router = useRouter();
 const roomCredentialsKey = 'musiche-room-credentials';
@@ -59,6 +75,12 @@ const settingsVisible = ref(false);
 const searchVisible = ref(false);
 const targetRoomId = ref('');
 const loadingList = ref(false);
+const routeRoomLoading = ref(false);
+const createLoading = ref(false);
+const joinLoading = ref(false);
+const adminLoading = ref(false);
+const settingsLoading = ref(false);
+const dissolveLoading = ref(false);
 const clock = ref(Date.now());
 const chatText = ref('');
 const nickname = ref(localStorage.getItem('musiche-room-nickname') || '');
@@ -69,19 +91,30 @@ const settingsName = ref('');
 const settingsEntryEnabled = ref(false);
 const settingsEntryPassword = ref('');
 const settingsAdminPassword = ref('');
-const cookieValues = ref<Record<string, string>>({
-  cloud: '',
-  qq: '',
-  migu: ''
-});
+const settingsGuestQueueEnabled = ref(true);
+const updatingCookieSource = ref<MusicType | ''>('');
 const searchKeyword = ref('');
 const searchSource = ref<MusicType>('cloud');
 const searchType = ref<'music' | 'playlist'>('music');
 const searchLoading = ref(false);
 const searchMusics = ref<Music[]>([]);
-const searchPlaylists = ref<PlaylistSearchItem[]>([]);
+type RoomPlaylistItem = PlaylistSearchItem & { musicList?: Music[] };
+type ShortcutKey = 'recommend' | 'ranking' | 'lover' | 'favorites' | 'created';
+const searchPlaylists = ref<RoomPlaylistItem[]>([]);
 const playlistMusics = ref<Music[]>([]);
 const playlistTitle = ref('');
+const activeShortcut = ref<ShortcutKey | ''>('');
+const shortcutOptions: Array<{
+  value: ShortcutKey;
+  label: string;
+  icon: string;
+}> = [
+  { value: 'recommend', label: '发现音乐', icon: '荐' },
+  { value: 'ranking', label: '音乐榜单', icon: '顶' },
+  { value: 'lover', label: '我喜欢的音乐', icon: '爱' },
+  { value: 'favorites', label: '收藏的歌单', icon: '藏' },
+  { value: 'created', label: '创建的歌单', icon: '编' }
+];
 const queueScrollbar = ref<any>(null);
 const emojiList = [
   '😀',
@@ -153,11 +186,20 @@ const musicSources = ['cloud', 'qq', 'migu'] as const;
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 let clockTimer: ReturnType<typeof setInterval> | null = null;
 
+watch(
+  () => musicSources.map(source => settingStore.userInfo[source]?.id || ''),
+  () => {
+    if (roomStore.isAdmin) roomStore.syncAdminCookies();
+  }
+);
+
 const snapshot = computed(() => roomStore.snapshot);
 const current = computed(() => snapshot.value?.state.current || null);
 const playback = computed(() => snapshot.value?.state.playback);
 const playbackLength = computed(() => current.value?.music.length || 1);
 const isRoomOpen = computed(() => Boolean(snapshot.value));
+const progressDragging = ref(false);
+const progressModelValue = ref(0);
 const roomLyricLines = ref<LyricLine[]>([]);
 const roomLyricLoading = ref(false);
 const roomLyricKey = computed(() =>
@@ -194,7 +236,7 @@ const currentRoomLyric = computed(() => {
 
 function generatePassword() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
-  const bytes = new Uint8Array(12);
+  const bytes = new Uint8Array(6);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, value => alphabet[value % alphabet.length]).join('');
 }
@@ -206,6 +248,24 @@ function currentPosition() {
   );
 }
 
+function changeProgress(value: number) {
+  progressDragging.value = false;
+  roomStore.seek(value);
+}
+
+watch(
+  () => [
+    clock.value,
+    current.value?.id,
+    playback.value?.positionMs,
+    playback.value?.updatedAt
+  ],
+  () => {
+    if (!progressDragging.value) progressModelValue.value = currentPosition();
+  },
+  { immediate: true }
+);
+
 function formatTime(value: number) {
   return millisecond2Duration(Math.round(value || 0));
 }
@@ -214,6 +274,28 @@ function chatMemberId(memberId: string) {
   return String(memberId || '')
     .slice(-4)
     .toUpperCase();
+}
+
+const chatAvatarCache = new Map<string, string>();
+function chatAvatar(memberId: string) {
+  const key = String(memberId || 'guest');
+  const cached = chatAvatarCache.get(key);
+  if (cached) return cached;
+  let hash = 2166136261;
+  for (let index = 0; index < key.length; index++) {
+    hash ^= key.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  const unsignedHash = hash >>> 0;
+  const hue = unsignedHash % 360;
+  const accentHue = (hue + 70 + ((unsignedHash >>> 8) % 80)) % 360;
+  const circleX = 16 + ((unsignedHash >>> 16) % 32);
+  const circleY = 16 + ((unsignedHash >>> 22) % 32);
+  const circleRadius = 8 + ((unsignedHash >>> 27) % 10);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="hsl(${hue} 72% 58%)"/><stop offset="1" stop-color="hsl(${accentHue} 72% 42%)"/></linearGradient></defs><rect width="64" height="64" rx="18" fill="url(#g)"/><circle cx="${circleX}" cy="${circleY}" r="${circleRadius}" fill="white" opacity=".72"/><path d="M0 48 Q18 30 34 48 T64 42 V64 H0Z" fill="hsl(${accentHue} 70% 30%)" opacity=".65"/><circle cx="48" cy="16" r="7" fill="white" opacity=".28"/></svg>`;
+  const dataURL = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+  chatAvatarCache.set(key, dataURL);
+  return dataURL;
 }
 
 watch(
@@ -275,6 +357,7 @@ async function createRoom() {
     ElMessage(messageOption('请先填写昵称'));
     return;
   }
+  createLoading.value = true;
   try {
     await roomStore.create({ ...createForm.value, nickname: nickname.value });
     localStorage.setItem('musiche-room-nickname', nickname.value.trim());
@@ -288,6 +371,8 @@ async function createRoom() {
     router.replace('/room');
   } catch (error: any) {
     ElMessage(messageOption(error?.message || '创建歌房失败'));
+  } finally {
+    createLoading.value = false;
   }
 }
 
@@ -297,7 +382,12 @@ async function openJoin(room: any) {
   if (saved) {
     nickname.value = saved.nickname;
     joinPassword.value = saved.entryPassword;
-    await joinRoom();
+    routeRoomLoading.value = true;
+    try {
+      await joinRoom();
+    } finally {
+      routeRoomLoading.value = false;
+    }
     return;
   }
   joinPassword.value = '';
@@ -309,6 +399,7 @@ async function joinRoom() {
     ElMessage(messageOption('请先填写昵称'));
     return;
   }
+  joinLoading.value = true;
   try {
     await roomStore.join(targetRoomId.value, {
       nickname: nickname.value,
@@ -323,12 +414,15 @@ async function joinRoom() {
     router.replace('/room');
   } catch (error: any) {
     ElMessage(messageOption(error?.message || '进入歌房失败'));
+  } finally {
+    joinLoading.value = false;
   }
 }
 
 async function openRouteRoom() {
   const id = typeof route.query.room === 'string' ? route.query.room : '';
   if (!id || roomStore.room?.id === id) return;
+  routeRoomLoading.value = true;
   try {
     await roomStore.open(id);
   } catch {
@@ -347,16 +441,21 @@ async function openRouteRoom() {
     targetRoomId.value = id;
     joinPassword.value = saved?.entryPassword || '';
     joinVisible.value = true;
+  } finally {
+    routeRoomLoading.value = false;
   }
 }
 
 async function enterAdmin() {
+  adminLoading.value = true;
   try {
     await roomStore.becomeAdmin(adminPassword.value);
     adminPassword.value = '';
     adminVisible.value = false;
   } catch (error: any) {
     ElMessage(messageOption(error?.message || '管理员密码错误'));
+  } finally {
+    adminLoading.value = false;
   }
 }
 
@@ -370,7 +469,7 @@ function openSettings() {
   settingsEntryEnabled.value = Boolean(roomStore.room?.locked);
   settingsEntryPassword.value = '';
   settingsAdminPassword.value = '';
-  cookieValues.value = { cloud: '', qq: '', migu: '' };
+  settingsGuestQueueEnabled.value = roomStore.snapshot?.allowGuestQueue ?? true;
   settingsVisible.value = true;
 }
 
@@ -383,13 +482,15 @@ async function saveSettings() {
     ElMessage(messageOption('请设置进入密码，或关闭进入密码开关'));
     return;
   }
+  settingsLoading.value = true;
   try {
     await roomStore.updateSettings({
       name: settingsName.value,
       entryPassword: settingsEntryEnabled.value
         ? settingsEntryPassword.value || undefined
         : '',
-      adminPassword: settingsAdminPassword.value || undefined
+      adminPassword: settingsAdminPassword.value || undefined,
+      allowGuestQueue: settingsGuestQueueEnabled.value
     });
     if (roomStore.room) {
       const saved = getRoomCredential(roomStore.room.id);
@@ -404,25 +505,29 @@ async function saveSettings() {
     ElMessage(messageOption('房间设置已保存'));
   } catch (error: any) {
     ElMessage(messageOption(error?.message || '保存设置失败'));
+  } finally {
+    settingsLoading.value = false;
   }
 }
 
-async function uploadCookie(source: 'cloud' | 'qq' | 'migu') {
-  try {
-    await roomStore.uploadCookie(source, cookieValues.value[source]);
-    cookieValues.value[source] = '';
-    ElMessage(messageOption('Cookie 已加密保存到房间'));
-  } catch (error: any) {
-    ElMessage(messageOption(error?.message || 'Cookie 保存失败'));
-  }
+function hasLocalCookie(source: (typeof musicSources)[number]) {
+  const account = settingStore.userInfo[source];
+  return Boolean(account?.id && roomStore.getLocalCookie(source));
 }
 
-async function removeCookie(source: 'cloud' | 'qq' | 'migu') {
+async function updateCookie(source: (typeof musicSources)[number]) {
+  if (!hasLocalCookie(source)) {
+    ElMessage(messageOption('请先前往左下角设置登录该音乐平台'));
+    return;
+  }
+  updatingCookieSource.value = source;
   try {
-    await roomStore.removeCookie(source);
-    ElMessage(messageOption('Cookie 已移除'));
+    await roomStore.uploadCookie(source, roomStore.getLocalCookie(source));
+    ElMessage(messageOption('Cookie 已更新到服务端'));
   } catch (error: any) {
-    ElMessage(messageOption(error?.message || '操作失败'));
+    ElMessage(messageOption(error?.message || 'Cookie 更新失败'));
+  } finally {
+    updatingCookieSource.value = '';
   }
 }
 
@@ -443,10 +548,17 @@ function dissolveRoom() {
     }
   )
     .then(async () => {
-      await roomStore.dissolve();
-      settingsVisible.value = false;
-      router.replace('/room');
-      loadRooms();
+      dissolveLoading.value = true;
+      try {
+        await roomStore.dissolve();
+        settingsVisible.value = false;
+        router.replace('/room');
+        loadRooms();
+      } catch (error: any) {
+        ElMessage(messageOption(error?.message || '解散房间失败'));
+      } finally {
+        dissolveLoading.value = false;
+      }
     })
     .catch(() => {});
 }
@@ -469,7 +581,7 @@ function resizeChatImage(file: File): Promise<string> {
     image.onload = () => {
       try {
         const longestSide = Math.max(image.naturalWidth, image.naturalHeight);
-        const scale = Math.min(1, 100 / longestSide);
+        const scale = Math.min(1, 200 / longestSide);
         const width = Math.max(1, Math.round(image.naturalWidth * scale));
         const height = Math.max(1, Math.round(image.naturalHeight * scale));
         const canvas = document.createElement('canvas');
@@ -538,24 +650,37 @@ function insertEmoji(emoji: string) {
   chatText.value += emoji;
 }
 
-function openSearch() {
-  searchVisible.value = true;
-  searchKeyword.value = '';
-  searchMusics.value = [];
-  searchPlaylists.value = [];
-  playlistMusics.value = [];
-  playlistTitle.value = '';
+function filterRoomMusic(list: Music[]) {
+  return list.filter(music => music.type !== 'local');
+}
+
+function toRoomPlaylistItem(playlist: Playlist): RoomPlaylistItem {
+  const musicList = playlist.musicList || [];
+  return {
+    id: String(playlist.id),
+    name: playlist.name,
+    image: musicList[0]?.image || playlist.image || '',
+    type: playlist.type,
+    trackCount: filterRoomMusic(musicList).length,
+    playCount: 0,
+    bookCount: 0,
+    creator: '',
+    creatorId: '',
+    description: playlist.description || '',
+    musicList
+  };
 }
 
 async function searchMusic() {
   const key = searchKeyword.value.trim();
   if (!key) return;
+  activeShortcut.value = '';
   searchLoading.value = true;
   playlistMusics.value = [];
   try {
     if (searchType.value === 'music') {
       const result = await api.search(searchSource.value, key, 0);
-      searchMusics.value = result.list;
+      searchMusics.value = filterRoomMusic(result.list);
       searchPlaylists.value = [];
     } else {
       const result = await api.searchPlaylist(searchSource.value, key, 0);
@@ -567,18 +692,115 @@ async function searchMusic() {
   }
 }
 
-async function openPlaylist(item: PlaylistSearchItem) {
+function refreshSearchAfterSwitch() {
+  if (searchKeyword.value.trim()) {
+    void searchMusic();
+    return;
+  }
+  searchMusics.value = [];
+  searchPlaylists.value = [];
+}
+
+function changeSearchSource(value: MusicType) {
+  searchSource.value = value;
+  if (searchKeyword.value.trim()) {
+    activeShortcut.value = '';
+    void searchMusic();
+  } else if (activeShortcut.value) {
+    void loadShortcut(activeShortcut.value);
+  } else {
+    refreshSearchAfterSwitch();
+  }
+}
+
+function changeSearchType(value: 'music' | 'playlist') {
+  searchType.value = value;
+  activeShortcut.value = '';
+  refreshSearchAfterSwitch();
+}
+
+async function openPlaylist(item: RoomPlaylistItem) {
+  if (item.type === 'local') {
+    playlistMusics.value = filterRoomMusic(item.musicList || []);
+    playlistTitle.value = item.name;
+    return;
+  }
   searchLoading.value = true;
   try {
-    const result = await api.playlistDetail(searchSource.value, item.id, 0);
-    playlistMusics.value = result.list;
+    const result = await api.playlistDetail(item.type, String(item.id), 0);
+    playlistMusics.value = filterRoomMusic(result.list);
     playlistTitle.value = item.name;
   } finally {
     searchLoading.value = false;
   }
 }
 
+async function loadShortcut(value: ShortcutKey) {
+  activeShortcut.value = value;
+  playlistTitle.value = '';
+  playlistMusics.value = [];
+  searchMusics.value = [];
+  searchPlaylists.value = [];
+
+  if (value === 'lover') {
+    playlistTitle.value = '我喜欢的音乐';
+    playlistMusics.value = filterRoomMusic(playStore.myLoves);
+    return;
+  }
+
+  searchType.value = 'playlist';
+  searchLoading.value = true;
+  try {
+    let playlists: Playlist[] = [];
+    switch (value) {
+      case 'recommend':
+        playlists = (await api.recommend(searchSource.value, 0)).list;
+        break;
+      case 'ranking':
+        playlists = [RankingType.Hot, RankingType.New, RankingType.Soar]
+          .map(ranking => api.rankingPlaylist(searchSource.value, ranking))
+          .filter((playlist): playlist is Playlist => Boolean(playlist));
+        break;
+      case 'favorites':
+        playlists = playStore.myFavorites;
+        break;
+      case 'created':
+        playlists = playStore.myPlaylists;
+        break;
+    }
+    searchPlaylists.value = playlists.map(toRoomPlaylistItem);
+  } finally {
+    searchLoading.value = false;
+  }
+}
+
+function backToPlaylistSearch() {
+  playlistTitle.value = '';
+  playlistMusics.value = [];
+}
+
+function openSearchDrawer() {
+  backToPlaylistSearch();
+  searchVisible.value = true;
+}
+
+function closeSearchDrawer() {
+  if (playlistTitle.value) {
+    backToPlaylistSearch();
+    return;
+  }
+  searchVisible.value = false;
+  backToPlaylistSearch();
+}
+
 function addMusic(music: Music) {
+  if (!roomStore.isAdmin && snapshot.value?.allowGuestQueue === false) {
+    ElMessage({
+      ...messageOption('管理员已关闭游客点歌'),
+      type: 'warning'
+    });
+    return;
+  }
   const queueLengthBeforeAdd = snapshot.value?.state.queue.length || 0;
   const errorBeforeAdd = roomStore.lastError;
   if (!roomStore.connected) {
@@ -622,6 +844,7 @@ function addMusic(music: Music) {
 let stopSearchWatch = () => {};
 let stopRoomWatch = () => {};
 let stopErrorWatch = () => {};
+let stopGuestQueueWatch = () => {};
 onMounted(async () => {
   await roomStore.initialize();
   await openRouteRoom();
@@ -645,6 +868,14 @@ onMounted(async () => {
       nextTick(() => (roomStore.lastError = ''));
     }
   );
+  stopGuestQueueWatch = watch(
+    () => roomStore.snapshot?.allowGuestQueue,
+    allowGuestQueue => {
+      if (allowGuestQueue === false && !roomStore.isAdmin) {
+        searchVisible.value = false;
+      }
+    }
+  );
 });
 
 onUnmounted(() => {
@@ -653,12 +884,15 @@ onUnmounted(() => {
   stopSearchWatch();
   stopRoomWatch();
   stopErrorWatch();
+  stopGuestQueueWatch();
   roomStore.leave();
 });
 </script>
 
 <template>
-  <div class="music-room" v-loading="!loaded || roomStore.loading">
+  <div
+    class="music-room"
+    v-loading="!loaded || roomStore.loading || routeRoomLoading">
     <template v-if="!isRoomOpen">
       <section class="music-room-lobby music-page-padding">
         <div class="music-room-lobby-header">
@@ -682,10 +916,23 @@ onUnmounted(() => {
         <!-- <p v-if="roomStore.lastError" class="music-room-error">
           {{ roomStore.lastError }}
         </p> -->
-        <div class="music-room-cards" v-loading="loadingList">
+        <div
+          class="music-room-cards"
+          v-loading="loadingList"
+          :style="
+            !loadingList && rooms.length === 0
+              ? 'grid-template-columns: none;'
+              : ''
+          ">
           <el-empty
             v-if="!loadingList && rooms.length === 0"
-            description="还没有歌房，创建第一个吧" />
+            description="还没有歌房，创建第一个吧">
+            <template #description>
+              <el-button type="primary" @click="openCreate"
+                >创建歌房</el-button
+              ></template
+            >
+          </el-empty>
           <article v-for="item in rooms" :key="item.id" class="music-room-card">
             <div class="music-room-card-title">
               <span class="text-overflow-1">{{ item.name }}</span>
@@ -698,13 +945,15 @@ onUnmounted(() => {
               {{ item.onlineCount }} / {{ item.maxMembers }} 人在线
             </div>
             <div class="music-room-card-current text-overflow-1">
-              正在播放：{{
+              {{
                 item.currentMusic
-                  ? `${item.currentMusic.name} · ${item.currentMusic.singer}`
+                  ? `正在播放：${item.currentMusic.name} · ${item.currentMusic.singer}`
                   : '暂无歌曲'
               }}
             </div>
-            <el-button size="small" @click="openJoin(item)">进入房间</el-button>
+            <el-button type="primary" size="small" @click="openJoin(item)"
+              >进入房间</el-button
+            >
           </article>
         </div>
         <el-pagination
@@ -734,16 +983,15 @@ onUnmounted(() => {
             <span v-else class="music-room-disconnected">重连中</span>
           </div>
           <div class="music-room-active-header-actions">
-            <el-button text @click="copyRoomLink">复制链接</el-button>
-            <el-button text @click="openSettings">设置</el-button>
-            <el-button text @click="leaveRoom">离开</el-button>
+            <el-button :icon="Share" type="success" @click="copyRoomLink"
+              >分享</el-button
+            >
+            <el-button :icon="Setting" @click="openSettings">设置</el-button>
+            <el-button type="warning" :icon="CloseBold" @click="leaveRoom"
+              >离开</el-button
+            >
           </div>
         </header>
-        <!-- <p
-          v-if="roomStore.lastError"
-          class="music-room-error music-room-active-error">
-          {{ roomStore.lastError }}
-        </p> -->
         <main class="music-room-active-main">
           <section class="music-room-queue">
             <div class="music-room-panel-title">
@@ -753,7 +1001,7 @@ onUnmounted(() => {
               <img :src="current.music.image || LogoImage" />
               <div class="text-overflow-1">
                 <b>正在播放</b
-                ><span
+                ><span class="text-overflow-1"
                   >{{ current.music.name }} · {{ current.music.singer }}</span
                 >
               </div>
@@ -781,19 +1029,15 @@ onUnmounted(() => {
                     roomStore.isAdmin || item.requestedBy === snapshot.memberId
                   "
                   class="music-room-queue-item-actions">
-                  <span
-                    v-if="roomStore.isAdmin"
-                    class="music-icon"
-                    :title="item.pinned ? '取消置顶' : '置顶'"
-                    @click.stop="roomStore.togglePinQueue(item.id)">
-                    {{ item.pinned ? '取' : '顶' }}
-                  </span>
-                  <span
-                    class="music-icon"
-                    title="删除"
-                    @click.stop="removeQueue(item.id)">
-                    删
-                  </span>
+                  <el-icon
+                    v-if="roomStore.isAdmin && index > 0"
+                    title="置顶到列表第一首"
+                    @click.stop="roomStore.togglePinQueue(item.id)"
+                    ><Upload
+                  /></el-icon>
+                  <el-icon title="删除" @click.stop="removeQueue(item.id)"
+                    ><DeleteFilled
+                  /></el-icon>
                 </div>
               </div>
             </el-scrollbar>
@@ -832,12 +1076,16 @@ onUnmounted(() => {
                 </p>
                 <div class="music-room-player-progress">
                   <span>{{ formatTime(currentPosition()) }}</span>
-                  <el-slider
-                    :model-value="currentPosition()"
-                    :max="playbackLength"
-                    :disabled="!roomStore.isAdmin || !current"
-                    :show-tooltip="false"
-                    @change="roomStore.seek" />
+                  <div class="music-room-progress-slider">
+                    <el-slider
+                      v-model="progressModelValue"
+                      :max="playbackLength"
+                      :disabled="!roomStore.isAdmin || !current"
+                      :show-tooltip="false"
+                      @mousedown="progressDragging = true"
+                      @touchstart="progressDragging = true"
+                      @change="changeProgress" />
+                  </div>
                   <span>{{
                     current?.music.duration || formatTime(playbackLength)
                   }}</span>
@@ -846,6 +1094,7 @@ onUnmounted(() => {
                   <template v-if="roomStore.isAdmin">
                     <el-button
                       circle
+                      type="primary"
                       :loading="
                         playback?.playing &&
                         !roomStore.localPlaying &&
@@ -853,7 +1102,7 @@ onUnmounted(() => {
                       "
                       @click="roomStore.togglePlayerAction"
                       ><span
-                        v-show="
+                        v-if="
                           !(
                             playback?.playing &&
                             !roomStore.localPlaying &&
@@ -878,15 +1127,15 @@ onUnmounted(() => {
                       :loading="roomStore.syncingAudio"
                       :disabled="roomStore.syncingAudio"
                       @click="roomStore.resumeAudio">
-                      播
+                      <span class="music-icon" title="播放">播</span>
                     </el-button>
-                    <span>管理员控制播放 · 你可调整本地音量</span>
+                    <span
+                      v-if="playback?.playing && !roomStore.localPlaying"
+                      class="music-room-player-resume-tip"
+                      >点击播放以恢复本地声音</span
+                    >
+                    <span v-else>管理员控制播放 · 你可调整本地音量</span>
                   </template>
-                  <span
-                    v-if="playback?.playing && !roomStore.localPlaying"
-                    class="music-room-player-resume-tip"
-                    >点击播放以恢复本地声音</span
-                  >
                   <div class="music-room-volume">
                     <span class="music-icon" title="静音">
                       {{ roomStore.volume > 0 ? '音' : '静' }} </span
@@ -906,24 +1155,40 @@ onUnmounted(() => {
             <div class="music-room-chat">
               <div class="music-room-panel-title">聊天</div>
               <el-scrollbar class="music-room-chat-list">
-                <p v-for="message in roomStore.chatMessages" :key="message.id">
-                  <b
-                    :class="{
+                <div
+                  v-for="message in roomStore.chatMessages"
+                  :key="message.id"
+                  :class="[
+                    'music-room-chat-message',
+                    {
                       'music-room-chat-self':
                         message.memberId === snapshot.memberId
-                    }">
-                    {{ message.nickname }} [{{
-                      chatMemberId(message.memberId)
-                    }}] </b
-                  ><span class="music-room-chat-content">
-                    <span v-if="message.content">{{ message.content }}</span>
-                    <img
-                      v-if="message.image"
-                      class="music-room-chat-image"
-                      :src="message.image"
-                      alt="聊天图片" />
-                  </span>
-                </p>
+                    }
+                  ]">
+                  <img
+                    class="music-room-chat-avatar"
+                    :src="chatAvatar(message.memberId)"
+                    alt="用户头像" />
+                  <div class="music-room-chat-body">
+                    <b v-if="message.memberId !== snapshot.memberId">
+                      {{ message.nickname }} [{{
+                        chatMemberId(message.memberId)
+                      }}]
+                    </b>
+                    <div class="music-room-chat-content">
+                      <span
+                        v-if="message.content"
+                        class="music-room-chat-text"
+                        >{{ message.content }}</span
+                      >
+                      <img
+                        v-if="message.image"
+                        class="music-room-chat-image"
+                        :src="message.image"
+                        alt="聊天图片" />
+                    </div>
+                  </div>
+                </div>
               </el-scrollbar>
               <div class="music-room-chat-input">
                 <el-input
@@ -957,9 +1222,12 @@ onUnmounted(() => {
             </div>
           </section>
         </main>
-        <button class="music-room-search-trigger" @click="openSearch">
+        <el-button
+          v-if="roomStore.isAdmin || snapshot.allowGuestQueue"
+          class="music-room-trigger"
+          @click="openSearchDrawer">
           <span>♪</span>点歌
-        </button>
+        </el-button>
       </section>
     </template>
 
@@ -997,7 +1265,7 @@ onUnmounted(() => {
       </el-form>
       <template #footer
         ><el-button @click="createVisible = false">取消</el-button
-        ><el-button type="primary" @click="createRoom"
+        ><el-button type="primary" :loading="createLoading" @click="createRoom"
           >创建并进入</el-button
         ></template
       >
@@ -1020,7 +1288,9 @@ onUnmounted(() => {
       ></el-form>
       <template #footer
         ><el-button @click="joinVisible = false">取消</el-button
-        ><el-button type="primary" @click="joinRoom">进入</el-button></template
+        ><el-button type="primary" :loading="joinLoading" @click="joinRoom"
+          >进入</el-button
+        ></template
       >
     </el-dialog>
 
@@ -1030,17 +1300,17 @@ onUnmounted(() => {
       width="380px"
       append-to-body>
       <p class="music-room-dialog-tip">
-        输入管理员密码后，可以控制播放、管理歌曲和修改房间设置。
+        输入管理员密码后，可以控制播放、管理歌曲和修改房间设置。服务端配置超级房间密码时，也可以使用超级密码。
       </p>
       <el-input
         v-model="adminPassword"
         type="password"
         show-password
-        placeholder="管理员密码"
+        placeholder="管理员密码或超级房间密码"
         @keyup.enter="enterAdmin" />
       <template #footer
         ><el-button @click="adminVisible = false">取消</el-button
-        ><el-button type="primary" @click="enterAdmin"
+        ><el-button type="primary" :loading="adminLoading" @click="enterAdmin"
           >确认</el-button
         ></template
       >
@@ -1066,6 +1336,13 @@ onUnmounted(() => {
             show-password
             placeholder="不填写则保持原密码"
         /></el-form-item>
+        <el-form-item>
+          <el-switch v-model="settingsGuestQueueEnabled" />
+          <span style="margin-left: 8px">允许游客点歌</span>
+          <p class="music-room-dialog-tip">
+            关闭后只有管理员可以添加歌曲到队列。
+          </p>
+        </el-form-item>
         <el-form-item label="新的管理员密码"
           ><el-input
             v-model="settingsAdminPassword"
@@ -1075,7 +1352,7 @@ onUnmounted(() => {
         /></el-form-item>
         <el-divider>音乐源 Cookie</el-divider>
         <p class="music-room-dialog-tip">
-          Cookie 仅加密存储在本房间服务端，不会同步给房间成员。
+          管理员登录后会自动将本地登录状态同步到歌房服务端。未配置时，请前往左下角设置登录对应音乐平台。
         </p>
         <div
           v-for="source in musicSources"
@@ -1088,36 +1365,41 @@ onUnmounted(() => {
                 ? 'QQ 音乐'
                 : '咪咕音乐'
           }}</b>
-          <span>{{
-            snapshot?.credentialSources.includes(source) ? '已配置' : '未配置'
+          <span style="flex: 1">{{
+            snapshot?.credentialSources.includes(source)
+              ? '服务端已配置'
+              : '未配置'
           }}</span>
-          <el-input
-            v-model="cookieValues[source]"
-            type="password"
-            show-password
-            placeholder="粘贴 Cookie" />
-          <el-button
-            :disabled="
-              !cookieValues[source] ||
-              !roomStore.config?.credentialUploadEnabled
-            "
-            @click="uploadCookie(source)"
-            >保存</el-button
-          >
-          <el-button
-            v-if="snapshot?.credentialSources.includes(source)"
-            text
-            type="danger"
-            @click="removeCookie(source)"
-            >移除</el-button
-          >
+          <span>
+            <small
+              v-if="
+                !snapshot?.credentialSources.includes(source) &&
+                !hasLocalCookie(source)
+              ">
+              请前往左下角设置登录
+            </small>
+            <el-button
+              v-if="hasLocalCookie(source)"
+              size="small"
+              :loading="updatingCookieSource === source"
+              @click="updateCookie(source)">
+              更新
+            </el-button>
+          </span>
         </div>
       </el-form>
       <template #footer
-        ><el-button type="danger" plain @click="dissolveRoom"
+        ><el-button
+          type="danger"
+          plain
+          :loading="dissolveLoading"
+          @click="dissolveRoom"
           >解散房间</el-button
         ><el-button @click="settingsVisible = false">取消</el-button
-        ><el-button type="primary" @click="saveSettings"
+        ><el-button
+          type="primary"
+          :loading="settingsLoading"
+          @click="saveSettings"
           >保存设置</el-button
         ></template
       >
@@ -1129,57 +1411,95 @@ onUnmounted(() => {
       size="min(520px, 100%)"
       :with-header="false"
       append-to-body
-      class="music-room-search-drawer">
-      <div class="music-room-search-head">
-        <h2>{{ playlistTitle || '点歌' }}</h2>
-        <span class="music-icon" @click="searchVisible = false">关</span>
-      </div>
-      <div v-if="!playlistTitle" class="music-room-search-input">
-        <MusicTypeEle :value="searchSource" @change="v => (searchSource = v)" />
-        <el-input
-          v-model="searchKeyword"
-          placeholder="搜索歌曲或歌单"
-          @keyup.enter="searchMusic"
-          style="flex: 1">
-          <template #suffix>
-            <el-icon @click="searchMusic" style="cursor: pointer">
-              <Search />
-            </el-icon>
-          </template>
-        </el-input>
-        <!-- <div class="music-room-search-switch">
-          <el-radio-group v-model="searchType">
-            <el-radio-button value="music">歌曲</el-radio-button>
-            <el-radio-button value="playlist">歌单</el-radio-button>
-          </el-radio-group>
-        </div> -->
-      </div>
-      <el-scrollbar class="music-room-search-results" v-loading="searchLoading">
-        <div
-          v-for="music in playlistTitle ? playlistMusics : searchMusics"
-          :key="music.type + music.id"
-          class="music-room-search-music">
-          <img :src="music.image || LogoImage" />
-          <div class="text-overflow-1">
-            <b class="text-overflow-1">{{ music.name }}</b
-            ><span class="text-overflow-1"
-              >{{ music.singer }} · {{ music.album }}</span
+      class="music-room-search-drawer"
+      @close="backToPlaylistSearch">
+      <div class="music-room-search-drawer-content">
+        <div class="music-room-search-head">
+          <h2>{{ playlistTitle || '点歌' }}</h2>
+          <span class="music-icon" @click="closeSearchDrawer">关</span>
+        </div>
+        <div v-if="!playlistTitle" class="music-room-search-input">
+          <MusicTypeEle
+            size="small"
+            :value="searchSource"
+            @change="changeSearchSource" />
+          <el-input
+            v-model="searchKeyword"
+            placeholder="搜索歌曲或歌单"
+            @keyup.enter="searchMusic"
+            style="flex: 1">
+            <template #suffix>
+              <el-icon @click="searchMusic" style="cursor: pointer">
+                <Search />
+              </el-icon>
+            </template>
+          </el-input>
+        </div>
+        <div v-if="!playlistTitle" class="music-room-search-input">
+          <div class="music-room-search-switch">
+            <el-radio-group v-model="searchType" @change="changeSearchType">
+              <el-radio-button value="music">歌曲</el-radio-button>
+              <el-radio-button value="playlist">歌单</el-radio-button>
+            </el-radio-group>
+          </div>
+          <el-dropdown trigger="click" @command="loadShortcut">
+            <el-button class="music-room-shortcut-button">
+              <span>快捷歌单</span>
+              <el-icon><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item
+                  v-for="option in shortcutOptions"
+                  :key="option.value"
+                  :command="option.value">
+                  <span class="music-room-shortcut-option">
+                    <span class="music-icon">{{ option.icon }}</span>
+                    <span>{{ option.label }}</span>
+                  </span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+        <!-- <div v-if="!playlistTitle" class="music-room-search-shortcuts"></div> -->
+        <el-scrollbar
+          class="music-room-search-results"
+          v-loading="searchLoading">
+          <div
+            v-for="music in playlistTitle ? playlistMusics : searchMusics"
+            :key="music.type + music.id"
+            class="music-room-search-music">
+            <img :src="music.image || LogoImage" />
+            <div class="text-overflow-1">
+              <b class="text-overflow-1">{{ music.name }}</b
+              ><span class="text-overflow-1"
+                >{{ music.singer }} · {{ music.album }}</span
+              >
+            </div>
+            <el-button type="primary" size="small" @click="addMusic(music)"
+              >点歌</el-button
             >
           </div>
-          <el-button size="small" @click="addMusic(music)">点歌</el-button>
-        </div>
-        <div
-          v-for="item in searchPlaylists"
-          :key="item.type + item.id"
-          class="music-room-search-music">
-          <img :src="item.image || LogoImage" />
-          <div class="text-overflow-1">
-            <b class="text-overflow-1">{{ item.name }}</b
-            ><span>{{ item.creator }} · {{ item.trackCount }} 首</span>
-          </div>
-          <el-button size="small" @click="openPlaylist(item)">查看</el-button>
-        </div>
-      </el-scrollbar>
+          <template v-if="!playlistTitle">
+            <div
+              v-for="item in searchPlaylists"
+              :key="item.type + item.id"
+              class="music-room-search-music">
+              <img :src="item.image || LogoImage" />
+              <div class="text-overflow-1">
+                <b class="text-overflow-1">{{ item.name }}</b
+                ><span v-if="item.creator || item.trackCount"
+                  >{{ item.creator }} · {{ item.trackCount }} 首</span
+                >
+              </div>
+              <el-button type="primary" size="small" @click="openPlaylist(item)"
+                >查看</el-button
+              >
+            </div>
+          </template>
+        </el-scrollbar>
+      </div>
     </el-drawer>
   </div>
 </template>
@@ -1237,7 +1557,7 @@ onUnmounted(() => {
     overflow: auto;
   }
   &-card {
-    background: var(--music-side-background);
+    background: var(--music-button-info-background);
     border: 1px solid var(--music-side-divider-color);
     border-radius: var(--music-border-radius);
     padding: 18px;
@@ -1247,7 +1567,7 @@ onUnmounted(() => {
     height: 180px;
     transition: transform 0.2s;
     &:hover {
-      transform: translateY(-2px);
+      background: var(--music-button-info-background-hover);
     }
     &-title {
       font-weight: bold;
@@ -1302,8 +1622,10 @@ onUnmounted(() => {
     &-main {
       flex: 1;
       height: 0;
+      min-height: 0;
       display: grid;
       grid-template-columns: minmax(310px, 39%) 1fr;
+      overflow: hidden;
     }
     &-error {
       padding: 0 var(--music-page-padding-horizontal);
@@ -1326,12 +1648,14 @@ onUnmounted(() => {
   }
   &-queue {
     height: 100%;
+    min-height: 0;
     overflow: auto;
     display: flex;
     flex-direction: column;
     border-right: 1px solid var(--music-side-divider-color);
     &-list {
       flex: 1;
+      min-height: 0;
     }
   }
   &-panel-title {
@@ -1357,7 +1681,6 @@ onUnmounted(() => {
     }
     &:hover {
       background-color: var(--music-background-hover);
-      // border-radius: var(--music-border-radius);
     }
   }
   &-current-row {
@@ -1372,6 +1695,7 @@ onUnmounted(() => {
       }
       span {
         font-size: 13px;
+        display: inline-block;
       }
     }
   }
@@ -1380,10 +1704,6 @@ onUnmounted(() => {
       width: 22px;
       font-size: 12px;
       opacity: 0.5;
-    }
-    &:hover &-actions,
-    &:focus-within &-actions {
-      opacity: 1;
     }
     &-info {
       min-width: 0;
@@ -1408,6 +1728,7 @@ onUnmounted(() => {
       margin-left: auto;
       opacity: 0;
       transition: opacity 0.15s ease;
+      cursor: pointer;
       .music-icon {
         cursor: pointer;
         opacity: 0.75;
@@ -1416,12 +1737,22 @@ onUnmounted(() => {
       .music-icon:hover {
         opacity: 1;
       }
+      & + & {
+        margin-left: 10px;
+      }
+    }
+    &:hover &-actions,
+    &:focus-within &-actions {
+      opacity: 1;
     }
   }
   &-control {
+    height: 100%;
+    min-height: 0;
     min-width: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
   &-player {
     padding: 26px;
@@ -1460,9 +1791,11 @@ onUnmounted(() => {
       h2 {
         margin: 0;
         font-size: 23px;
+        max-width: 400px;
       }
       p {
         opacity: 0.6;
+        max-width: 400px;
       }
     }
     &-lyric {
@@ -1481,6 +1814,13 @@ onUnmounted(() => {
       .el-slider {
         flex: 1;
       }
+      .music-room-progress-slider {
+        flex: 1;
+        min-width: 0;
+        .el-slider {
+          width: 100%;
+        }
+      }
     }
     &-actions {
       display: flex;
@@ -1492,7 +1832,6 @@ onUnmounted(() => {
         font-size: 13px;
       }
       .el-button {
-        width: 37px;
         .music-icon {
           margin-right: 0;
         }
@@ -1511,27 +1850,60 @@ onUnmounted(() => {
   }
   &-chat {
     height: 0;
-    flex: 1;
+    min-height: 0;
+    flex: 1 1 auto;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
     &-list {
-      flex: 1;
+      min-height: 0;
+      flex: 1 1 auto;
+      overflow: hidden;
       padding: 0 20px;
-      p {
+      .music-room-chat-message {
         margin: 0 0 10px;
         display: flex;
+        align-items: flex-start;
         gap: 8px;
         font-size: 13px;
+        --music-room-chat-avatar-size: 34px;
+        .music-room-chat-avatar {
+          width: var(--music-room-chat-avatar-size);
+          height: var(--music-room-chat-avatar-size);
+          flex: 0 0 var(--music-room-chat-avatar-size);
+          border-radius: 10px;
+          object-fit: cover;
+        }
+        .music-room-chat-body {
+          min-width: 0;
+          max-width: calc(100% - 82px);
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 3px;
+        }
         b {
           opacity: 0.75;
+          font-size: 12px;
           flex-shrink: 0;
-        }
-        .music-room-chat-self {
-          color: var(--music-primary-color);
-          opacity: 1;
         }
         span {
           word-break: break-word;
+        }
+        .music-room-chat-text {
+          width: fit-content;
+          max-width: 100%;
+          padding: 7px 10px;
+          border-radius: 12px;
+          background: var(--music-button-info-border-color);
+          line-height: 1.4;
+          text-align: left;
+          cursor: text;
+          user-select: text;
+          min-height: var(--music-room-chat-avatar-size);
+          display: inline-flex;
+          align-items: center;
+          justify-content: flex-start;
         }
         .music-room-chat-content {
           min-width: 0;
@@ -1543,10 +1915,25 @@ onUnmounted(() => {
         .music-room-chat-image {
           display: block;
           width: auto;
-          max-width: 100px;
-          max-height: 100px;
-          border-radius: 6px;
+          max-width: 200px;
+          max-height: 200px;
+          border-radius: var(--music-border-radius);
           object-fit: contain;
+        }
+      }
+      .music-room-chat-self {
+        flex-direction: row-reverse;
+        .music-room-chat-body {
+          align-items: flex-end;
+          text-align: right;
+        }
+        b {
+          color: var(--music-primary-color);
+          opacity: 1;
+        }
+        .music-room-chat-text {
+          background: var(--music-button-primary-background);
+          color: white;
         }
       }
     }
@@ -1563,9 +1950,14 @@ onUnmounted(() => {
     }
   }
   &-emoji-trigger {
+    width: var(--el-button-size);
     flex-shrink: 0;
-    padding: 8px 10px;
     font-size: 18px;
+    padding: 0;
+    --el-button-text-color: var(--music-text-color);
+    & > span {
+      line-height: var(--el-button-size);
+    }
   }
   &-emoji-panel {
     display: grid;
@@ -1584,14 +1976,14 @@ onUnmounted(() => {
       background: var(--music-button-info-border-color);
     }
   }
-  &-search-trigger {
+  &-trigger {
     position: fixed;
     right: 0;
     top: 50%;
     transform: translateY(-50%);
     border: 0;
     padding: 15px 10px;
-    border-radius: 12px 0 0 12px;
+    border-radius: 12px 0 0 12px !important;
     background: var(--music-button-primary-background);
     color: white;
     cursor: pointer;
@@ -1601,6 +1993,10 @@ onUnmounted(() => {
     align-items: center;
     box-shadow: 0 4px 16px #0003;
     cursor: pointer;
+    transform: none !important;
+    &:hover {
+      color: white;
+    }
   }
   &-dialog-tip {
     margin: 6px 0 0;
@@ -1609,69 +2005,129 @@ onUnmounted(() => {
     opacity: 0.65;
   }
   &-cookie-row {
-    display: grid;
-    grid-template-columns: 70px 50px 1fr auto auto;
-    gap: 8px;
+    display: flex;
+    grid-template-columns: 70px 90px 1fr auto;
+    gap: 20px;
     align-items: center;
     margin: 10px 0;
     font-size: 12px;
-  }
-  &-search-head {
-    padding: 0 20px;
-    height: 62px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    h2 {
-      margin: 0;
+    & > b {
+      width: 60px;
     }
   }
-  &-search-switch {
-    display: flex;
-    justify-content: space-between;
-    margin: 14px 0;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  &-search-results {
-    height: calc(100% - 125px);
-    padding: 0 20px;
-  }
-  &-search-input {
-    display: flex;
-    gap: 8px;
-    padding: 0 20px;
-    :deep(.el-radio-group) {
-      margin-left: 0;
-    }
-  }
-  &-search-music {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 2px;
-    border-bottom: 1px solid var(--music-side-divider-color);
-    img {
-      width: 45px;
-      height: 45px;
-      object-fit: cover;
-      border-radius: var(--music-border-radius);
-    }
-    > div {
-      min-width: 0;
-      flex: 1;
+  &-search {
+    &-drawer-content {
+      height: 100%;
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      b,
-      span {
+    }
+    &-head {
+      padding: 0 20px;
+      height: 62px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      h2 {
+        min-width: 0;
+        flex: 1;
+        margin: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      span {
-        opacity: 0.6;
-        font-size: 12px;
+    }
+    &-back {
+      flex-shrink: 0;
+      color: var(--music-primary-color);
+      font-size: 13px;
+    }
+    &-switch {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    &-results {
+      flex: 1;
+      min-height: 0;
+      height: auto;
+      margin-top: 10px;
+    }
+    &-input {
+      display: flex;
+      gap: 8px;
+      padding: 0 20px;
+      justify-content: space-between;
+      :deep(.el-radio-group) {
+        margin-left: 0;
+      }
+      & + & {
+        margin-top: 10px;
+      }
+      .el-button {
+        --el-button-size: 32px;
+      }
+    }
+    &-shortcuts {
+      padding: 0 20px;
+      margin-top: 10px;
+      .el-dropdown,
+      .music-room-shortcut-button {
+        width: 100%;
+      }
+      .music-room-shortcut-button {
+        justify-content: space-between;
+      }
+    }
+    &-shortcut-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      .music-icon {
+        width: 20px;
+        text-align: center;
+      }
+    }
+    &-music {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--music-side-divider-color);
+      img {
+        width: 45px;
+        height: 45px;
+        object-fit: cover;
+        border-radius: var(--music-border-radius);
+      }
+
+      .el-button {
+        opacity: 0;
+      }
+
+      &:hover {
+        background-color: var(--music-background-hover);
+        .el-button {
+          opacity: 1;
+        }
+      }
+      > div {
+        min-width: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        b,
+        span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        span {
+          opacity: 0.6;
+          font-size: 12px;
+        }
       }
     }
   }
@@ -1695,6 +2151,7 @@ onUnmounted(() => {
     }
     &-control {
       min-height: 550px;
+      overflow: visible;
     }
     &-active {
       height: auto;
@@ -1749,10 +2206,7 @@ onUnmounted(() => {
       display: none;
     }
     &-cookie-row {
-      grid-template-columns: 60px 45px 1fr auto;
-      .el-button:last-child {
-        grid-column: 3/5;
-      }
+      grid-template-columns: 60px 90px 1fr auto;
     }
   }
 }

@@ -163,6 +163,9 @@ func (s *server) admin(w http.ResponseWriter, r *http.Request, room *Room) {
 	version := room.config.AdminVersion
 	roomID := room.config.ID
 	room.mu.RUnlock()
+	if !matched && s.store.config.SuperAdminPassword != "" {
+		matched = constantTimeStringEqual(s.store.config.SuperAdminPassword, request.AdminPassword)
+	}
 	if !memberExists || !matched {
 		writeError(w, http.StatusForbidden, "管理员密码错误")
 		return
@@ -171,12 +174,13 @@ func (s *server) admin(w http.ResponseWriter, r *http.Request, room *Room) {
 }
 
 type SettingRequest struct {
-	Name          *string `json:"name"`
-	EntryPassword *string `json:"entryPassword"`
-	AdminPassword *string `json:"adminPassword"`
-	VisitorID     string  `json:"visitorId"`
-	Fingerprint   string  `json:"fingerprint"`
-	AdminToken    string  `json:"adminToken"`
+	Name            *string `json:"name"`
+	EntryPassword   *string `json:"entryPassword"`
+	AdminPassword   *string `json:"adminPassword"`
+	AllowGuestQueue *bool   `json:"allowGuestQueue"`
+	VisitorID       string  `json:"visitorId"`
+	Fingerprint     string  `json:"fingerprint"`
+	AdminToken      string  `json:"adminToken"`
 }
 
 func (s *server) settings(w http.ResponseWriter, r *http.Request, room *Room) {
@@ -187,14 +191,15 @@ func (s *server) settings(w http.ResponseWriter, r *http.Request, room *Room) {
 	}
 	memberID := fingerprintHash(request.VisitorID, request.Fingerprint)
 	room.mu.Lock()
-	defer room.mu.Unlock()
 	if !verifyAdminToken(s.store.config.TokenSecret, request.AdminToken, room.config.ID, memberID, room.config.AdminVersion) {
+		room.mu.Unlock()
 		writeError(w, 403, "需要管理员权限")
 		return
 	}
 	if request.Name != nil {
 		value := sanitizeName(*request.Name, 30)
 		if value == "" {
+			room.mu.Unlock()
 			writeError(w, 400, "房间名不能为空")
 			return
 		}
@@ -205,6 +210,7 @@ func (s *server) settings(w http.ResponseWriter, r *http.Request, room *Room) {
 		if value == "" {
 			room.config.EntryPasswordHash = ""
 		} else if len(value) < 4 {
+			room.mu.Unlock()
 			writeError(w, 400, "房间密码至少 4 位")
 			return
 		} else {
@@ -214,20 +220,27 @@ func (s *server) settings(w http.ResponseWriter, r *http.Request, room *Room) {
 	if request.AdminPassword != nil {
 		value := strings.TrimSpace(*request.AdminPassword)
 		if len(value) < 6 {
+			room.mu.Unlock()
 			writeError(w, 400, "管理员密码至少 6 位")
 			return
 		}
 		room.config.AdminPasswordHash = hashPassword(value)
 		room.config.AdminVersion++
 	}
+	if request.AllowGuestQueue != nil {
+		room.config.GuestQueueDisabled = !*request.AllowGuestQueue
+	}
 	if err := room.saveConfigLocked(); err != nil {
+		room.mu.Unlock()
 		writeError(w, 500, "保存设置失败")
 		return
 	}
 	member := room.config.Members[memberID]
 	token := issueAdminToken(s.store.config.TokenSecret, room.config.ID, member.ID, room.config.AdminVersion)
 	snapshot := room.snapshotLocked(memberID, token, s.store.config.TokenSecret)
+	room.mu.Unlock()
 	writeJSONResponse(w, 200, map[string]any{"snapshot": snapshot, "adminToken": token})
+	broadcastRoomSnapshot(room)
 }
 
 func (s *server) dissolve(w http.ResponseWriter, r *http.Request, room *Room) {
@@ -310,6 +323,10 @@ func (s *server) credentials(w http.ResponseWriter, r *http.Request, room *Room,
 	}
 	if strings.TrimSpace(request.Cookie) == "" {
 		writeError(w, 400, "Cookie 不能为空")
+		return
+	}
+	if err := s.store.resolver.validateCredential(source, request.Cookie); err != nil {
+		writeError(w, 400, err.Error())
 		return
 	}
 	encrypted, err := encrypt(s.store.config.CookieKey, []byte(request.Cookie))

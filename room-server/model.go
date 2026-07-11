@@ -29,15 +29,16 @@ func (value *StringValue) UnmarshalJSON(data []byte) error {
 }
 
 type RoomConfig struct {
-	ID                string                `json:"id"`
-	Name              string                `json:"name"`
-	EntryPasswordHash string                `json:"entryPasswordHash,omitempty"`
-	AdminPasswordHash string                `json:"adminPasswordHash"`
-	AdminVersion      int                   `json:"adminVersion"`
-	MaxMembers        int                   `json:"maxMembers"`
-	CreatedAt         time.Time             `json:"createdAt"`
-	Members           map[string]Member     `json:"members"`
-	Credentials       map[string]SecretInfo `json:"credentials,omitempty"`
+	ID                 string                `json:"id"`
+	Name               string                `json:"name"`
+	EntryPasswordHash  string                `json:"entryPasswordHash,omitempty"`
+	AdminPasswordHash  string                `json:"adminPasswordHash"`
+	AdminVersion       int                   `json:"adminVersion"`
+	MaxMembers         int                   `json:"maxMembers"`
+	GuestQueueDisabled bool                  `json:"guestQueueDisabled,omitempty"`
+	CreatedAt          time.Time             `json:"createdAt"`
+	Members            map[string]Member     `json:"members"`
+	Credentials        map[string]SecretInfo `json:"credentials,omitempty"`
 }
 
 type Member struct {
@@ -91,7 +92,6 @@ type QueueItem struct {
 	RequestedBy   string    `json:"requestedBy"`
 	RequestedName string    `json:"requestedName"`
 	RequestedAt   time.Time `json:"requestedAt"`
-	Pinned        bool      `json:"pinned,omitempty"`
 }
 
 type ChatMessage struct {
@@ -117,6 +117,7 @@ type Snapshot struct {
 	Room              RoomSummary `json:"room"`
 	State             RoomState   `json:"state"`
 	IsAdmin           bool        `json:"isAdmin"`
+	AllowGuestQueue   bool        `json:"allowGuestQueue"`
 	MemberID          string      `json:"memberId"`
 	Nickname          string      `json:"nickname"`
 	CredentialSources []string    `json:"credentialSources"`

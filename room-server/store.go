@@ -308,7 +308,7 @@ func (r *Room) snapshotLocked(memberID, token string, secret []byte) Snapshot {
 	for source := range r.config.Credentials {
 		sources = append(sources, source)
 	}
-	return Snapshot{Room: r.summaryLocked(), State: r.state, IsAdmin: verifyAdminToken(secret, token, r.config.ID, memberID, r.config.AdminVersion), MemberID: memberID, Nickname: member.Nickname, CredentialSources: sources}
+	return Snapshot{Room: r.summaryLocked(), State: r.state, IsAdmin: verifyAdminToken(secret, token, r.config.ID, memberID, r.config.AdminVersion), AllowGuestQueue: !r.config.GuestQueueDisabled, MemberID: memberID, Nickname: member.Nickname, CredentialSources: sources}
 }
 
 func (r *Room) saveLocked() error {
