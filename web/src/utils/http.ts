@@ -1,4 +1,5 @@
 import { AudioPlayer } from './audio';
+import { StorageKey } from './storage';
 import { ProxyRequestData } from './type';
 const history = `${
   import.meta.env.BASE_URL != '/' ? import.meta.env.BASE_URL : ''
@@ -8,7 +9,7 @@ export const httpAddress = import.meta.env.DEV
   ? '127.0.0.1:54621'
   : location.host;
 let proxyAddress =
-  localStorage.getItem('musiche-proxy-address') || `//${httpAddress}/proxy`;
+  localStorage.getItem(StorageKey.ProxyAddress) || `//${httpAddress}/proxy`;
 let useHuaweiCloud = proxyAddress.includes('huawei');
 let useLocalAudio = true;
 var localAudio: AudioPlayer | null = null;

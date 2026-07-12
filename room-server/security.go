@@ -118,45 +118,59 @@ func decrypt(key, encrypted []byte) ([]byte, error) {
 	return gcm.Open(nil, encrypted[:gcm.NonceSize()], encrypted[gcm.NonceSize():], nil)
 }
 
-func issueAdminToken(secret []byte, roomID, memberID string, version int) string {
-	expires := time.Now().Add(24 * time.Hour).Unix()
-	payload := fmt.Sprintf("%s|%s|%d|%d", roomID, memberID, version, expires)
+func issueAdminToken(secret []byte, roomID, adminPasswordHash string, version int) string {
 	mac := hmac.New(sha256.New, secret)
-	mac.Write([]byte(payload))
-	return base64.RawURLEncoding.EncodeToString([]byte(payload)) + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	mac.Write([]byte(fmt.Sprintf("room-admin|%s|%d|%s", roomID, version, adminPasswordHash)))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
-func verifyAdminToken(secret []byte, token, roomID, memberID string, version int) bool {
+func verifyAdminToken(secret []byte, token, roomID, adminPasswordHash string, version int) bool {
+	if token == "" || adminPasswordHash == "" {
+		return false
+	}
+	expected := issueAdminToken(secret, roomID, adminPasswordHash, version)
+	return subtle.ConstantTimeCompare([]byte(expected), []byte(token)) == 1
+}
+
+// Member tokens are issued after the HTTP join/current-member check. They let
+// the WebSocket authenticate a member without putting visitorId or the
+// browser fingerprint in the connection URL.
+func issueMemberToken(secret []byte, roomID, memberID string) string {
+	expires := time.Now().Add(24 * time.Hour).Unix()
+	payload := fmt.Sprintf("%s|%s|%d", roomID, memberID, expires)
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte(payload))
+	return base64.RawURLEncoding.EncodeToString([]byte(payload)) + "." +
+		base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func verifyMemberToken(secret []byte, token, roomID string) (string, bool) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 2 {
-		return false
+		return "", false
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
-		return false
+		return "", false
 	}
 	signature, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return false
+		return "", false
 	}
 	mac := hmac.New(sha256.New, secret)
 	mac.Write(payload)
 	if subtle.ConstantTimeCompare(signature, mac.Sum(nil)) != 1 {
-		return false
+		return "", false
 	}
 	values := strings.Split(string(payload), "|")
-	if len(values) != 4 || values[0] != roomID || values[1] != memberID {
-		return false
+	if len(values) != 3 || values[0] != roomID || values[1] == "" {
+		return "", false
 	}
-	var tokenVersion int
 	var expires int64
-	if _, err := fmt.Sscanf(values[2], "%d", &tokenVersion); err != nil || tokenVersion != version {
-		return false
+	if _, err := fmt.Sscanf(values[2], "%d", &expires); err != nil || time.Now().Unix() > expires {
+		return "", false
 	}
-	if _, err := fmt.Sscanf(values[3], "%d", &expires); err != nil || time.Now().Unix() > expires {
-		return false
-	}
-	return true
+	return values[1], true
 }
 
 func fingerprintHash(visitorID, fingerprint string) string {

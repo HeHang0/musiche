@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -32,13 +33,14 @@ func TestRoomHTTPFlow(t *testing.T) {
 		t.Fatalf("create status: %d, body: %s", create.Code, create.Body.String())
 	}
 	var created struct {
-		Snapshot   Snapshot `json:"snapshot"`
-		AdminToken string   `json:"adminToken"`
+		Snapshot    Snapshot `json:"snapshot"`
+		AdminToken  string   `json:"adminToken"`
+		MemberToken string   `json:"memberToken"`
 	}
 	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
-	if created.Snapshot.Room.Name != "接口测试" || created.AdminToken == "" {
+	if created.Snapshot.Room.Name != "接口测试" || created.AdminToken == "" || created.MemberToken == "" {
 		t.Fatal("unexpected create response")
 	}
 
@@ -48,11 +50,34 @@ func TestRoomHTTPFlow(t *testing.T) {
 		t.Fatalf("list response: %s", list.Body.String())
 	}
 
+	missingBody, _ := json.Marshal(MissingRoomsRequest{IDs: []string{
+		created.Snapshot.Room.ID,
+		strings.ToLower(created.Snapshot.Room.ID),
+		"MISSING",
+	}})
+	missing := httptest.NewRecorder()
+	handler.ServeHTTP(missing, httptest.NewRequest(http.MethodPost, "/api/v1/rooms/missing", bytes.NewReader(missingBody)))
+	if missing.Code != http.StatusOK {
+		t.Fatalf("missing rooms status: %d, body: %s", missing.Code, missing.Body.String())
+	}
+	var missingResult struct {
+		MissingIDs []string `json:"missingIds"`
+	}
+	if err := json.Unmarshal(missing.Body.Bytes(), &missingResult); err != nil || len(missingResult.MissingIDs) != 1 || missingResult.MissingIDs[0] != "MISSING" {
+		t.Fatalf("unexpected missing rooms response: %s", missing.Body.String())
+	}
+
 	joinBody, _ := json.Marshal(JoinRequest{Nickname: "小红", VisitorID: "visitor-two", Fingerprint: "fingerprint-two"})
 	join := httptest.NewRecorder()
 	handler.ServeHTTP(join, httptest.NewRequest(http.MethodPost, "/api/v1/rooms/"+created.Snapshot.Room.ID+"/join", bytes.NewReader(joinBody)))
 	if join.Code != http.StatusOK {
 		t.Fatalf("join status: %d, body: %s", join.Code, join.Body.String())
+	}
+	var joined struct {
+		MemberToken string `json:"memberToken"`
+	}
+	if err := json.Unmarshal(join.Body.Bytes(), &joined); err != nil || joined.MemberToken == "" {
+		t.Fatalf("join response did not return a member token: %s", join.Body.String())
 	}
 
 	adminBody, _ := json.Marshal(AdminRequest{AdminPassword: "administrator-password", VisitorID: "visitor-two", Fingerprint: "fingerprint-two"})
@@ -60,6 +85,12 @@ func TestRoomHTTPFlow(t *testing.T) {
 	handler.ServeHTTP(admin, httptest.NewRequest(http.MethodPost, "/api/v1/rooms/"+created.Snapshot.Room.ID+"/admin", bytes.NewReader(adminBody)))
 	if admin.Code != http.StatusOK {
 		t.Fatalf("admin status: %d, body: %s", admin.Code, admin.Body.String())
+	}
+	var granted struct {
+		AdminToken string `json:"adminToken"`
+	}
+	if err := json.Unmarshal(admin.Body.Bytes(), &granted); err != nil || granted.AdminToken != created.AdminToken {
+		t.Fatalf("room members did not receive the same administrator token: %s", admin.Body.String())
 	}
 	superAdminBody, _ := json.Marshal(AdminRequest{AdminPassword: "super-room-password", VisitorID: "visitor-one", Fingerprint: "fingerprint-one"})
 	superAdmin := httptest.NewRecorder()
@@ -83,6 +114,54 @@ func TestRoomHTTPFlow(t *testing.T) {
 	if resolve.Code != http.StatusOK || !bytes.Contains(resolve.Body.Bytes(), []byte("https://example.com/music.mp3")) {
 		t.Fatalf("resolve cache response: %s", resolve.Body.String())
 	}
+
+	newAdminPassword := "new-administrator-password"
+	settingsBody, _ := json.Marshal(SettingRequest{
+		AdminPassword: &newAdminPassword,
+		VisitorID:     "visitor-one",
+		Fingerprint:   "fingerprint-one",
+		AdminToken:    created.AdminToken,
+	})
+	settings := httptest.NewRecorder()
+	handler.ServeHTTP(settings, httptest.NewRequest(http.MethodPut, "/api/v1/rooms/"+created.Snapshot.Room.ID+"/settings", bytes.NewReader(settingsBody)))
+	if settings.Code != http.StatusOK {
+		t.Fatalf("settings status: %d, body: %s", settings.Code, settings.Body.String())
+	}
+	var updated struct {
+		AdminToken string `json:"adminToken"`
+	}
+	if err := json.Unmarshal(settings.Body.Bytes(), &updated); err != nil || updated.AdminToken == "" || updated.AdminToken == created.AdminToken {
+		t.Fatalf("administrator password change did not rotate the token: %s", settings.Body.String())
+	}
+	oldTokenBody, _ := json.Marshal(SettingRequest{
+		VisitorID:   "visitor-one",
+		Fingerprint: "fingerprint-one",
+		AdminToken:  created.AdminToken,
+	})
+	oldTokenRequest := httptest.NewRecorder()
+	handler.ServeHTTP(oldTokenRequest, httptest.NewRequest(http.MethodPut, "/api/v1/rooms/"+created.Snapshot.Room.ID+"/settings", bytes.NewReader(oldTokenBody)))
+	if oldTokenRequest.Code != http.StatusForbidden {
+		t.Fatalf("old administrator token remained valid after password change: %d %s", oldTokenRequest.Code, oldTokenRequest.Body.String())
+	}
+}
+
+func TestProxyRoute(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("proxy-ok"))
+	}))
+	defer upstream.Close()
+	store, err := newRoomStore(Config{DataDir: t.TempDir(), TokenSecret: []byte("proxy-test-secret")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder := httptest.NewRecorder()
+	handler := (&server{store: store}).routes()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/proxy?url="+url.QueryEscape(upstream.URL), nil)
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK || recorder.Body.String() != "proxy-ok" {
+		t.Fatalf("proxy response: %d %q", recorder.Code, recorder.Body.String())
+	}
 }
 
 func TestWebSocketQueueCommand(t *testing.T) {
@@ -94,13 +173,25 @@ func TestWebSocketQueueCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	room, _, err := store.createRoom(CreateRoomRequest{Name: "WebSocket 测试", Nickname: "小明", VisitorID: "visitor", Fingerprint: "fingerprint", AdminPassword: "administrator-password"})
+	room, adminToken, err := store.createRoom(CreateRoomRequest{Name: "WebSocket 测试", Nickname: "小明", VisitorID: "visitor", Fingerprint: "fingerprint", AdminPassword: "administrator-password"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	httpServer := httptest.NewServer((&server{store: store}).routes())
 	defer httpServer.Close()
-	url := "ws" + strings.TrimPrefix(httpServer.URL, "http") + "/ws?roomId=" + room.config.ID + "&visitorId=visitor&fingerprint=fingerprint"
+	invalidConfig, err := websocket.NewConfig(
+		"ws"+strings.TrimPrefix(httpServer.URL, "http")+"/ws?roomId="+room.config.ID+"&memberToken=invalid",
+		httpServer.URL,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if invalidConnection, err := websocket.DialConfig(invalidConfig); err == nil {
+		_ = invalidConnection.Close()
+		t.Fatal("an invalid member token must be rejected during the WebSocket handshake")
+	}
+	memberToken := issueMemberToken(store.config.TokenSecret, room.config.ID, fingerprintHash("visitor", "fingerprint"))
+	url := "ws" + strings.TrimPrefix(httpServer.URL, "http") + "/ws?roomId=" + room.config.ID + "&memberToken=" + memberToken
 	config, err := websocket.NewConfig(url, httpServer.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -116,6 +207,19 @@ func TestWebSocketQueueCommand(t *testing.T) {
 			t.Fatalf("initial event: %v", err)
 		}
 	}
+	if err := websocket.Message.Send(connection, `{"action":"auth_admin","adminToken":"`+adminToken+`"}`); err != nil {
+		t.Fatal(err)
+	}
+	var authEvent Event
+	if err := websocket.JSON.Receive(connection, &authEvent); err != nil {
+		t.Fatalf("admin auth response: %v", err)
+	}
+	if authEvent.Type != "snapshot" {
+		t.Fatalf("expected snapshot after admin auth, got %s", authEvent.Type)
+	}
+	if data, ok := authEvent.Data.(map[string]interface{}); !ok || data["isAdmin"] != true {
+		t.Fatalf("admin auth did not update websocket privileges: %#v", authEvent.Data)
+	}
 	// 网易云 search results carry numeric song and album IDs. The browser sends
 	// those values as JSON numbers, so this uses a raw browser-equivalent frame.
 	if err := websocket.Message.Send(connection, `{"action":"queue_add","music":{"id":123456,"albumId":654321,"name":"测试歌曲","singer":"测试歌手","type":"cloud"}}`); err != nil {
@@ -128,12 +232,40 @@ func TestWebSocketQueueCommand(t *testing.T) {
 	if event.Type != "snapshot" {
 		t.Fatalf("expected snapshot after queue command, got %s", event.Type)
 	}
+	var queueChat Event
+	if err := websocket.JSON.Receive(connection, &queueChat); err != nil {
+		t.Fatalf("queue chat response: %v", err)
+	}
+	if queueChat.Type != "chat" {
+		t.Fatalf("expected chat after queue command, got %s", queueChat.Type)
+	}
 	room.mu.RLock()
 	if len(room.state.Queue) != 0 || room.state.Current == nil || room.state.Current.Music.ID != "123456" || !room.state.Playback.Playing {
 		room.mu.RUnlock()
 		t.Fatal("first queue command did not start playback")
 	}
+	currentQueueID := room.state.Current.ID
 	room.mu.RUnlock()
+	if err := websocket.JSON.Send(connection, ClientCommand{Action: "track_ended", QueueID: currentQueueID}); err != nil {
+		t.Fatal(err)
+	}
+	var unauthorizedEnded Event
+	if err := websocket.JSON.Receive(connection, &unauthorizedEnded); err != nil {
+		t.Fatalf("unauthorized track-ended response: %v", err)
+	}
+	if unauthorizedEnded.Type != "error" {
+		t.Fatalf("track-ended without an administrator token was not rejected: %#v", unauthorizedEnded)
+	}
+	if err := websocket.JSON.Send(connection, ClientCommand{Action: "track_ended", QueueID: currentQueueID, AdminToken: adminToken}); err != nil {
+		t.Fatal(err)
+	}
+	var authorizedEnded Event
+	if err := websocket.JSON.Receive(connection, &authorizedEnded); err != nil {
+		t.Fatalf("authorized track-ended response: %v", err)
+	}
+	if authorizedEnded.Type != "snapshot" {
+		t.Fatalf("track-ended with the administrator token did not update playback: %#v", authorizedEnded)
+	}
 	_ = connection.Close()
 	deadline := time.Now().Add(time.Second)
 	for time.Now().Before(deadline) {

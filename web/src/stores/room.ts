@@ -15,7 +15,7 @@ import {
   type RoomSummary
 } from '../utils/room';
 
-const currentRoomKey = 'musiche-room-current-id';
+export const currentRoomKey = 'musiche-room-current-id';
 const adminTokensKey = 'musiche-room-admin-tokens';
 const roomVolumeKey = 'musiche-room-volume';
 const title = useTitle();
@@ -26,6 +26,18 @@ function readAdminTokens(): Record<string, string> {
   } catch {
     return {};
   }
+}
+
+function writeAdminTokens(tokens: Record<string, string>) {
+  if (Object.keys(tokens).length === 0) localStorage.removeItem(adminTokensKey);
+  else localStorage.setItem(adminTokensKey, JSON.stringify(tokens));
+}
+
+function deleteAdminToken(roomId: string) {
+  const tokens = readAdminTokens();
+  if (!(roomId in tokens)) return;
+  delete tokens[roomId];
+  writeAdminTokens(tokens);
 }
 
 export const useRoomStore = defineStore('room', {
@@ -39,6 +51,7 @@ export const useRoomStore = defineStore('room', {
     heartbeatTimer: null as ReturnType<typeof setInterval> | null,
     socket: null as WebSocket | null,
     identity: createRoomIdentity() as RoomIdentity,
+    memberToken: '',
     config: null as RoomServiceConfig | null,
     snapshot: null as RoomSnapshot | null,
     lastError: '',
@@ -94,16 +107,15 @@ export const useRoomStore = defineStore('room', {
     },
     async initialize() {
       if (this.initialized) return;
+      this.initialized = true;
       title.value = '在线歌房 - Musiche';
       this.loading = true;
       try {
         if (!(await this.checkAvailability())) return;
-        const roomId = localStorage.getItem(currentRoomKey);
-        if (roomId) await this.open(roomId);
       } catch (error: any) {
+        this.initialized = false;
         this.lastError = error?.message || '无法连接歌房服务';
       } finally {
-        this.initialized = true;
         this.loading = false;
       }
     },
@@ -121,6 +133,17 @@ export const useRoomStore = defineStore('room', {
         pageSize: number;
       }>('/api/v1/rooms?' + query);
     },
+    async missingRoomIds(roomIds: string[]) {
+      if (roomIds.length === 0) return [];
+      const response = await roomRequest<{ missingIds: string[] }>(
+        '/api/v1/rooms/missing',
+        {
+          method: 'POST',
+          body: JSON.stringify({ ids: roomIds })
+        }
+      );
+      return response.missingIds;
+    },
     async create(payload: {
       name: string;
       entryPassword: string;
@@ -130,10 +153,12 @@ export const useRoomStore = defineStore('room', {
       const response = await roomRequest<{
         snapshot: RoomSnapshot;
         adminToken: string;
+        memberToken: string;
       }>('/api/v1/rooms', {
         method: 'POST',
         body: JSON.stringify({ ...payload, ...this.identity })
       });
+      this.memberToken = response.memberToken;
       this.saveAdminToken(response.snapshot.room.id, response.adminToken);
       this.setSnapshot(response.snapshot);
       this.connect();
@@ -142,13 +167,20 @@ export const useRoomStore = defineStore('room', {
       roomId: string,
       payload: { nickname: string; entryPassword: string }
     ) {
-      const response = await roomRequest<{ snapshot: RoomSnapshot }>(
-        `/api/v1/rooms/${encodeURIComponent(roomId)}/join`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ ...payload, ...this.identity })
-        }
-      );
+      const token = readAdminTokens()[roomId] || '';
+      const response = await roomRequest<{
+        snapshot: RoomSnapshot;
+        memberToken: string;
+      }>(`/api/v1/rooms/${encodeURIComponent(roomId)}/join`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...payload,
+          ...this.identity,
+          adminToken: token
+        })
+      });
+      if (token && !response.snapshot.isAdmin) deleteAdminToken(roomId);
+      this.memberToken = response.memberToken;
       this.setSnapshot(response.snapshot);
       this.connect();
     },
@@ -159,10 +191,16 @@ export const useRoomStore = defineStore('room', {
         fingerprint: this.identity.fingerprint,
         adminToken: token
       });
-      const snapshot = await roomRequest<RoomSnapshot>(
-        `/api/v1/rooms/${encodeURIComponent(roomId)}?${query}`
-      );
-      this.setSnapshot(snapshot);
+      const response = await roomRequest<{
+        snapshot: RoomSnapshot;
+        memberToken: string;
+      }>(`/api/v1/rooms/${encodeURIComponent(roomId)}?${query}`);
+      // A cached token may have been issued for an older administrator
+      // password or token format. The HTTP snapshot is authoritative, so
+      // discard an invalid token before opening the WebSocket.
+      if (token && !response.snapshot.isAdmin) deleteAdminToken(roomId);
+      this.memberToken = response.memberToken;
+      this.setSnapshot(response.snapshot);
       if (connect) this.connect();
     },
     setSnapshot(snapshot: RoomSnapshot) {
@@ -172,8 +210,8 @@ export const useRoomStore = defineStore('room', {
       this.snapshot = snapshot;
       this.lastError = '';
       localStorage.setItem(currentRoomKey, snapshot.room.id);
-      if (snapshot.isAdmin) this.syncAdminCookies();
-      this.syncAudio();
+      if (snapshot.isAdmin) void this.syncAdminCookies();
+      void this.syncAudio();
     },
     connect() {
       if (!this.snapshot) return;
@@ -182,9 +220,7 @@ export const useRoomStore = defineStore('room', {
       this.socket?.close();
       const query = new URLSearchParams({
         roomId: this.snapshot.room.id,
-        visitorId: this.identity.visitorId,
-        fingerprint: this.identity.fingerprint,
-        adminToken: this.adminToken
+        memberToken: this.memberToken
       });
       const socket = new WebSocket(roomWebSocketAddress('/ws?' + query));
       this.socket = socket;
@@ -192,6 +228,19 @@ export const useRoomStore = defineStore('room', {
         if (this.socket !== socket) return;
         this.connected = true;
         this.startHeartbeat(socket);
+        // Establish administrator privileges after the normal member
+        // connection is ready. This keeps the admin credential out of the
+        // WebSocket URL and also lets a guest become an administrator later.
+        const adminToken = this.adminToken;
+        if (adminToken) {
+          socket.send(
+            JSON.stringify({
+              type: 'command',
+              action: 'auth_admin',
+              adminToken
+            })
+          );
+        }
       };
       socket.onmessage = event => this.handleEvent(event.data);
       socket.onclose = () => {
@@ -250,7 +299,11 @@ export const useRoomStore = defineStore('room', {
           this.lastError = event.data || '房间已解散';
           this.leave(false);
         } else if (event.type === 'error') {
-          this.lastError = event.data || '歌房操作失败';
+          const message = event.data || '歌房操作失败';
+          if (message === '管理员凭证无效' && this.snapshot) {
+            deleteAdminToken(this.snapshot.room.id);
+          }
+          this.lastError = message;
         }
       } catch {
         this.lastError = '歌房消息解析失败';
@@ -284,7 +337,9 @@ export const useRoomStore = defineStore('room', {
     },
     togglePlayerAction() {
       if (this.snapshot?.state.playback.playing && !this.localPlaying) {
-        this.resumeAudio();
+        void this.resumeAudio().catch(error => {
+          this.lastError = error?.message || '恢复本地播放失败';
+        });
         return;
       }
       this.togglePlay();
@@ -301,15 +356,27 @@ export const useRoomStore = defineStore('room', {
     },
     async becomeAdmin(password: string) {
       if (!this.snapshot) return;
+      const roomId = this.snapshot.room.id;
       const response = await roomRequest<{ adminToken: string }>(
-        `/api/v1/rooms/${this.snapshot.room.id}/admin`,
+        `/api/v1/rooms/${roomId}/admin`,
         {
           method: 'POST',
           body: JSON.stringify({ adminPassword: password, ...this.identity })
         }
       );
-      this.saveAdminToken(this.snapshot.room.id, response.adminToken);
-      await this.open(this.snapshot.room.id);
+      this.saveAdminToken(roomId, response.adminToken);
+      const socket = this.socket;
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.send(
+          JSON.stringify({
+            type: 'command',
+            action: 'auth_admin',
+            adminToken: response.adminToken
+          })
+        );
+      } else if (!socket || socket.readyState === WebSocket.CLOSED) {
+        await this.open(roomId);
+      }
     },
     async updateSettings(payload: {
       name?: string;
@@ -321,6 +388,7 @@ export const useRoomStore = defineStore('room', {
       const response = await roomRequest<{
         snapshot: RoomSnapshot;
         adminToken: string;
+        memberToken: string;
       }>(`/api/v1/rooms/${this.snapshot.room.id}/settings`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -329,6 +397,7 @@ export const useRoomStore = defineStore('room', {
           adminToken: this.adminToken
         })
       });
+      this.memberToken = response.memberToken;
       this.saveAdminToken(this.snapshot.room.id, response.adminToken);
       this.setSnapshot(response.snapshot);
       this.connect();
@@ -425,6 +494,8 @@ export const useRoomStore = defineStore('room', {
         for (const source of ['cloud', 'qq', 'migu'] as const) {
           await this.uploadLocalCookieIfMissing(source);
         }
+      } catch (error) {
+        console.warn('[在线歌房] 自动同步 Cookie 失败', error);
       } finally {
         this.adminCookieSyncing = false;
       }
@@ -441,7 +512,23 @@ export const useRoomStore = defineStore('room', {
     saveAdminToken(roomId: string, token: string) {
       const tokens = readAdminTokens();
       tokens[roomId] = token;
-      localStorage.setItem(adminTokensKey, JSON.stringify(tokens));
+      writeAdminTokens(tokens);
+    },
+    cachedAdminTokenRoomIds() {
+      return Object.keys(readAdminTokens());
+    },
+    removeAdminTokenCache(roomIds: string[]) {
+      const removed = new Set(
+        roomIds.map(roomId => String(roomId).toUpperCase())
+      );
+      const tokens = readAdminTokens();
+      let changed = false;
+      for (const roomId of Object.keys(tokens)) {
+        if (!removed.has(roomId.toUpperCase())) continue;
+        delete tokens[roomId];
+        changed = true;
+      }
+      if (changed) writeAdminTokens(tokens);
     },
     setVolume(value: number) {
       this.volume = Math.max(0, Math.min(100, value));
@@ -457,7 +544,7 @@ export const useRoomStore = defineStore('room', {
           this.scheduleAudioSync(250);
           return;
         }
-        this.syncAudio();
+        void this.syncAudio();
       }, delay);
     },
     async syncAudio() {
@@ -492,7 +579,8 @@ export const useRoomStore = defineStore('room', {
           });
           this.audio.addEventListener('ended', () => {
             const item = this.snapshot?.state.current;
-            if (item) this.command('track_ended', { queueId: item.id });
+            if (item && this.isAdmin)
+              this.command('track_ended', { queueId: item.id });
           });
         }
         if (this.loadedMusicKey !== expectedKey) {
@@ -538,7 +626,7 @@ export const useRoomStore = defineStore('room', {
           if (this.audioResolveTimer) clearTimeout(this.audioResolveTimer);
           this.audioResolveTimer = setTimeout(() => {
             this.loadedMusicKey = '';
-            this.syncAudio();
+            void this.syncAudio();
           }, 305000);
           navigator.mediaSession.metadata = new MediaMetadata({
             title: `${music.name} - ${music.singer} - Musiche`,
@@ -582,6 +670,11 @@ export const useRoomStore = defineStore('room', {
           this.localPlaying = false;
           this.audioNeedsGesture = false;
         }
+      } catch (error: any) {
+        this.audio?.pause();
+        this.localPlaying = false;
+        this.audioNeedsGesture = true;
+        this.lastError = error?.message || '房间音频同步失败';
       } finally {
         this.syncingAudio = false;
       }
@@ -595,6 +688,7 @@ export const useRoomStore = defineStore('room', {
       this.audio?.pause();
       this.localPlaying = false;
       this.audioNeedsGesture = false;
+      this.memberToken = '';
       this.snapshot = null;
       this.chatMessages = [];
       this.loadedMusicKey = '';

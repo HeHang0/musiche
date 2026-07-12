@@ -37,7 +37,7 @@ jobs:
           mkdir -p ../artifacts/web-app
           cp -R dist/. ../artifacts/web-app/
           yarn build:musiche
-          echo '<html><head><script>if(!localStorage.getItem("musiche-proxy-address"))localStorage.setItem("musiche-proxy-address","https://music.picapico.top/proxy");let pathname=location.pathname.substring(9);let redirect=pathname?`${(location.search?"&":"?")}redirect=${pathname}`:"";location.href="/musiche"+location.search+redirect;</script></head></html>' > dist/404.html
+          echo '<html><head><script>let pathname=location.pathname.substring(9);let redirect=pathname?`${(location.search?"&":"?")}redirect=${pathname}`:"";location.href="/musiche"+location.search+redirect;</script></head></html>' > dist/404.html
 
       - name: Upload web app dist
         uses: actions/upload-artifact@v7
@@ -56,6 +56,15 @@ jobs:
         with:
           name: pages-dist
           path: web/dist
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: 'web/dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
 
   build-on-macos:
     runs-on: macos-26-intel

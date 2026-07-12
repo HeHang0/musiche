@@ -3,7 +3,6 @@ import { StorageKey, storage } from '../utils/storage';
 import { Config, ShortcutKey, ShortcutType } from '../utils/type';
 import { usePlayStore } from './play';
 import { useSettingStore } from './setting';
-import { useRoomStore } from './room';
 import { registerServiceWorker } from '../sw/register';
 import { LyricManager } from '../utils/lyric';
 import * as local from '../utils/api/local';
@@ -14,7 +13,6 @@ export class MusicConnection {
   webSocketClient?: http.CommunicationClient;
   play = usePlayStore();
   setting = useSettingStore();
-  room = useRoomStore();
   public config: Config = {
     remote: false,
     storage: false,
@@ -61,7 +59,6 @@ export class MusicConnection {
     await import('../style/main.css');
     document.documentElement.style.opacity = '1';
     console.log('musiche loaded');
-    this.room.checkAvailability();
     this.webSocketClient = http.wsClient(
       this.wsMessage.bind(this),
       this.wsClose.bind(this)

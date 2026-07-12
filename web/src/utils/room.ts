@@ -1,4 +1,5 @@
 import type { Music } from './type';
+import CryptoJS from 'crypto-js';
 
 const addressKey = 'musiche-room-server-address';
 
@@ -74,6 +75,16 @@ export interface RoomIdentity {
   fingerprint: string;
 }
 
+export class RoomRequestError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'RoomRequestError';
+    this.status = status;
+  }
+}
+
 export function getRoomServerAddress() {
   const saved = localStorage.getItem(addressKey)?.trim();
   if (saved) return saved.replace(/\/+$/, '');
@@ -103,7 +114,12 @@ export async function roomRequest<T>(
     }
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || '歌房服务请求失败');
+  if (!response.ok) {
+    throw new RoomRequestError(
+      response.status,
+      data.error || '歌房服务请求失败'
+    );
+  }
   return data as T;
 }
 
@@ -120,12 +136,20 @@ export function createRoomIdentity(): RoomIdentity {
     visitorId = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
     localStorage.setItem(idKey, visitorId);
   }
-  const fingerprint = [
+  const rawFingerprint = [
     navigator.userAgent,
     navigator.language,
     Intl.DateTimeFormat().resolvedOptions().timeZone,
     `${screen.width}x${screen.height}`,
     navigator.hardwareConcurrency || ''
   ].join('|');
+  // The raw browser characteristics are only used as input. Keep the value
+  // sent to the room server short and URL-safe so it does not expose the full
+  // fingerprint in WebSocket URLs or access logs.
+  const digest = CryptoJS.SHA256(rawFingerprint);
+  const fingerprint = CryptoJS.enc.Base64.stringify(digest)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
   return { visitorId, fingerprint };
 }

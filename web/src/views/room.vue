@@ -13,7 +13,7 @@ import {
   Unlock,
   Upload
 } from '@element-plus/icons-vue';
-import { useRoomStore } from '../stores/room';
+import { currentRoomKey, useRoomStore } from '../stores/room';
 import { usePlayStore } from '../stores/play';
 import { useSettingStore } from '../stores/setting';
 import * as api from '../utils/api/api';
@@ -27,6 +27,7 @@ import type {
   PlaylistSearchItem
 } from '../utils/type';
 import { LogoImage } from '../utils/logo';
+import { RoomRequestError } from '../utils/room';
 import {
   messageOption,
   millisecond2Duration,
@@ -61,6 +62,48 @@ function saveRoomCredential(roomId: string, credential: RoomCredential) {
     entryPassword: credential.entryPassword
   };
   localStorage.setItem(roomCredentialsKey, JSON.stringify(credentials));
+}
+
+function clearRoomEntryPassword(roomId: string) {
+  const credentials = readRoomCredentials();
+  const credential = credentials[roomId];
+  if (!credential) return;
+  credentials[roomId] = { ...credential, entryPassword: '' };
+  localStorage.setItem(roomCredentialsKey, JSON.stringify(credentials));
+}
+
+function cachedRoomCredentialIds() {
+  return Object.keys(readRoomCredentials());
+}
+
+function removeRoomCredentialCache(roomIds: string[]) {
+  const removed = new Set(roomIds.map(roomId => String(roomId).toUpperCase()));
+  const credentials = readRoomCredentials();
+  let changed = false;
+  for (const roomId of Object.keys(credentials)) {
+    if (!removed.has(roomId.toUpperCase())) continue;
+    delete credentials[roomId];
+    changed = true;
+  }
+  if (!changed) return;
+  if (Object.keys(credentials).length === 0)
+    localStorage.removeItem(roomCredentialsKey);
+  else localStorage.setItem(roomCredentialsKey, JSON.stringify(credentials));
+}
+
+function isEntryPasswordError(error: any) {
+  return error?.message === '房间密码错误';
+}
+
+function isRoomRequestStatus(error: unknown, status: number) {
+  return error instanceof RoomRequestError && error.status === status;
+}
+
+function clearMissingRoomCache(roomId: string) {
+  if (localStorage.getItem(currentRoomKey) === roomId)
+    localStorage.removeItem(currentRoomKey);
+  removeRoomCredentialCache([roomId]);
+  roomStore.removeAdminTokenCache([roomId]);
 }
 
 const rooms = ref<any[]>([]);
@@ -189,7 +232,7 @@ let clockTimer: ReturnType<typeof setInterval> | null = null;
 watch(
   () => musicSources.map(source => settingStore.userInfo[source]?.id || ''),
   () => {
-    if (roomStore.isAdmin) roomStore.syncAdminCookies();
+    if (roomStore.isAdmin) void roomStore.syncAdminCookies();
   }
 );
 
@@ -310,6 +353,8 @@ watch(
       const text = await api.lyric(music);
       if (key !== roomLyricKey.value || !text) return;
       roomLyricLines.value = parseLyric(text, music.length || 1);
+    } catch (error) {
+      console.warn('[在线歌房] 歌词加载失败', error);
     } finally {
       if (key === roomLyricKey.value) roomLyricLoading.value = false;
     }
@@ -323,12 +368,45 @@ async function loadRooms() {
     const result = await roomStore.list(keyword.value, page.value);
     rooms.value = result.items;
     total.value = result.total;
+    await cleanupRoomCaches(result.items);
   } catch (error: any) {
     roomStore.lastError;
     const err = error?.message || '无法加载歌房列表';
     ElMessage(messageOption(err));
   } finally {
     loadingList.value = false;
+  }
+}
+
+async function cleanupRoomCaches(currentPageRooms: Array<{ id: string }>) {
+  const currentPageIds = new Set(
+    currentPageRooms.map(room => String(room.id).toUpperCase())
+  );
+  const cachedRoomIds = new Set([
+    ...cachedRoomCredentialIds(),
+    ...roomStore.cachedAdminTokenRoomIds()
+  ]);
+  const idsToCheck = [...cachedRoomIds].filter(
+    roomId => !currentPageIds.has(String(roomId).toUpperCase())
+  );
+  if (idsToCheck.length === 0) return;
+  try {
+    const missingRoomIds = await roomStore.missingRoomIds(idsToCheck);
+    removeRoomCredentialCache(missingRoomIds);
+    roomStore.removeAdminTokenCache(missingRoomIds);
+  } catch (error) {
+    // Cache cleanup is best-effort. Never delete local credentials when the
+    // server could not verify which cached rooms have been dissolved.
+    console.warn('[在线歌房] 清理已解散房间缓存失败', error);
+  }
+}
+
+async function cleanupRoomCachesFromFirstPage() {
+  try {
+    const result = await roomStore.list('', 1);
+    await cleanupRoomCaches(result.items);
+  } catch (error) {
+    console.warn('[在线歌房] 获取房间列表以清理本地缓存失败', error);
   }
 }
 
@@ -352,6 +430,16 @@ async function copyRoomLink() {
   }
 }
 
+async function pauseOriginalPlayer() {
+  if (!playStore.playStatus.playing) return;
+  try {
+    await playStore.pause();
+  } catch {
+    // Entering a room should not be blocked if the original player is already
+    // unavailable; the room player can still continue to synchronize.
+  }
+}
+
 async function createRoom() {
   if (!nickname.value.trim()) {
     ElMessage(messageOption('请先填写昵称'));
@@ -360,6 +448,7 @@ async function createRoom() {
   createLoading.value = true;
   try {
     await roomStore.create({ ...createForm.value, nickname: nickname.value });
+    await pauseOriginalPlayer();
     localStorage.setItem('musiche-room-nickname', nickname.value.trim());
     if (roomStore.room) {
       saveRoomCredential(roomStore.room.id, {
@@ -384,7 +473,7 @@ async function openJoin(room: any) {
     joinPassword.value = saved.entryPassword;
     routeRoomLoading.value = true;
     try {
-      await joinRoom();
+      await joinRoom({ automatic: true });
     } finally {
       routeRoomLoading.value = false;
     }
@@ -394,10 +483,10 @@ async function openJoin(room: any) {
   joinVisible.value = true;
 }
 
-async function joinRoom() {
+async function joinRoom(options: { automatic?: boolean } = {}) {
   if (!nickname.value.trim()) {
-    ElMessage(messageOption('请先填写昵称'));
-    return;
+    if (!options.automatic) ElMessage(messageOption('请先填写昵称'));
+    return false;
   }
   joinLoading.value = true;
   try {
@@ -405,6 +494,7 @@ async function joinRoom() {
       nickname: nickname.value,
       entryPassword: joinPassword.value
     });
+    await pauseOriginalPlayer();
     localStorage.setItem('musiche-room-nickname', nickname.value.trim());
     saveRoomCredential(targetRoomId.value, {
       nickname: nickname.value,
@@ -412,8 +502,16 @@ async function joinRoom() {
     });
     joinVisible.value = false;
     router.replace('/room');
+    return true;
   } catch (error: any) {
-    ElMessage(messageOption(error?.message || '进入歌房失败'));
+    if (options.automatic && isEntryPasswordError(error)) {
+      clearRoomEntryPassword(targetRoomId.value);
+      joinPassword.value = '';
+      joinVisible.value = true;
+    } else {
+      ElMessage(messageOption(error?.message || '进入歌房失败'));
+    }
+    return false;
   } finally {
     joinLoading.value = false;
   }
@@ -425,21 +523,42 @@ async function openRouteRoom() {
   routeRoomLoading.value = true;
   try {
     await roomStore.open(id);
-  } catch {
+    await pauseOriginalPlayer();
+  } catch (error) {
+    if (isRoomRequestStatus(error, 404)) {
+      clearMissingRoomCache(id);
+      ElMessage(messageOption('房间不存在或已解散'));
+      await router.replace('/room');
+      return;
+    }
     const saved = getRoomCredential(id);
+    let savedPasswordRejected = false;
     if (saved) {
       nickname.value = saved.nickname;
       joinPassword.value = saved.entryPassword;
       try {
         await roomStore.join(id, saved);
+        await pauseOriginalPlayer();
         localStorage.setItem('musiche-room-nickname', saved.nickname);
         return;
-      } catch {
+      } catch (error: any) {
+        if (isRoomRequestStatus(error, 404)) {
+          clearMissingRoomCache(id);
+          ElMessage(messageOption('房间不存在或已解散'));
+          await router.replace('/room');
+          return;
+        }
+        if (isEntryPasswordError(error)) {
+          clearRoomEntryPassword(id);
+          savedPasswordRejected = true;
+        }
         // Ask for updated credentials below.
       }
     }
     targetRoomId.value = id;
-    joinPassword.value = saved?.entryPassword || '';
+    joinPassword.value = savedPasswordRejected
+      ? ''
+      : saved?.entryPassword || '';
     joinVisible.value = true;
   } finally {
     routeRoomLoading.value = false;
@@ -687,6 +806,8 @@ async function searchMusic() {
       searchPlaylists.value = result.list;
       searchMusics.value = [];
     }
+  } catch (error: any) {
+    ElMessage(messageOption(error?.message || '搜索失败'));
   } finally {
     searchLoading.value = false;
   }
@@ -730,6 +851,8 @@ async function openPlaylist(item: RoomPlaylistItem) {
     const result = await api.playlistDetail(item.type, String(item.id), 0);
     playlistMusics.value = filterRoomMusic(result.list);
     playlistTitle.value = item.name;
+  } catch (error: any) {
+    ElMessage(messageOption(error?.message || '歌单加载失败'));
   } finally {
     searchLoading.value = false;
   }
@@ -769,6 +892,8 @@ async function loadShortcut(value: ShortcutKey) {
         break;
     }
     searchPlaylists.value = playlists.map(toRoomPlaylistItem);
+  } catch (error: any) {
+    ElMessage(messageOption(error?.message || '快捷歌单加载失败'));
   } finally {
     searchLoading.value = false;
   }
@@ -841,15 +966,64 @@ function addMusic(music: Music) {
   // A failed or disconnected command should not leave watchers alive forever.
   timeout = setTimeout(cleanup, 5000);
 }
+
+function startPlayCheck() {
+  // Browsers may block an audio element created after a page refresh until a
+  // real user gesture occurs.  The room playback state remains authoritative,
+  // so only resume the local audio here; never toggle the room's playback.
+  const playback = snapshot.value?.state.playback;
+  if (!playback?.playing) return;
+  if (roomStore.localPlaying && !roomStore.audioNeedsGesture) return;
+
+  void roomStore.resumeAudio().catch(error => {
+    console.warn('[在线歌房] 用户手势恢复播放失败', error);
+  });
+}
+
+const musicCollapsedClass = 'music-aside-collapsed';
+
+function setBodyClass(set?: boolean) {
+  if (set) {
+    !document.body.className.includes(musicCollapsedClass) &&
+      document.body.classList.add(musicCollapsedClass);
+  } else {
+    document.body.classList.remove(musicCollapsedClass);
+  }
+}
+
 let stopSearchWatch = () => {};
 let stopRoomWatch = () => {};
 let stopErrorWatch = () => {};
 let stopGuestQueueWatch = () => {};
 onMounted(async () => {
-  await roomStore.initialize();
-  await openRouteRoom();
-  if (!roomStore.room) await loadRooms();
-  loaded.value = true;
+  setBodyClass(true);
+  try {
+    await roomStore.initialize();
+    const roomId = localStorage.getItem(currentRoomKey);
+    if (roomId) {
+      try {
+        await roomStore.open(roomId);
+      } catch (error: any) {
+        if (isRoomRequestStatus(error, 404)) {
+          clearMissingRoomCache(roomId);
+        } else if (isRoomRequestStatus(error, 403)) {
+          // The room still exists, but this browser is no longer a recognized
+          // member. Keep its saved nickname/password so it can join again.
+          localStorage.removeItem(currentRoomKey);
+        } else {
+          ElMessage(messageOption(error?.message || '进入歌房失败'));
+        }
+      }
+    }
+    if (roomStore.room) await pauseOriginalPlayer();
+    await openRouteRoom();
+    if (!roomStore.room) await loadRooms();
+    else await cleanupRoomCachesFromFirstPage();
+  } catch (error: any) {
+    ElMessage(messageOption(error?.message || '在线歌房初始化失败'));
+  } finally {
+    loaded.value = true;
+  }
   clockTimer = setInterval(() => (clock.value = Date.now()), 500);
 
   stopSearchWatch = watch(keyword, () => {
@@ -879,6 +1053,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  setBodyClass(false);
   if (searchTimer) clearTimeout(searchTimer);
   if (clockTimer) clearInterval(clockTimer);
   stopSearchWatch();
@@ -967,13 +1142,14 @@ onUnmounted(() => {
     </template>
 
     <template v-else-if="snapshot">
-      <section class="music-room-active">
+      <section class="music-room-active" @click="startPlayCheck">
         <header class="music-room-active-header">
           <div class="music-room-active-header-title">
             <span class="music-icon" @click="leaveRoom">左</span>
             <span class="text-overflow-1">{{ snapshot.room.name }}</span>
-            <small
-              >{{ snapshot.room.locked ? '锁' : '开' }}
+            <small>
+              <el-icon v-if="snapshot.room.locked"><Lock /></el-icon>
+              <el-icon v-else><Unlock /></el-icon>
               {{ snapshot.room.onlineCount }} /
               {{ snapshot.room.maxMembers }} 人</small
             >
@@ -1288,7 +1464,7 @@ onUnmounted(() => {
       ></el-form>
       <template #footer
         ><el-button @click="joinVisible = false">取消</el-button
-        ><el-button type="primary" :loading="joinLoading" @click="joinRoom"
+        ><el-button type="primary" :loading="joinLoading" @click="joinRoom()"
           >进入</el-button
         ></template
       >
@@ -1300,13 +1476,13 @@ onUnmounted(() => {
       width="380px"
       append-to-body>
       <p class="music-room-dialog-tip">
-        输入管理员密码后，可以控制播放、管理歌曲和修改房间设置。服务端配置超级房间密码时，也可以使用超级密码。
+        输入管理员密码后，可以控制播放、管理歌曲和修改房间设置。
       </p>
       <el-input
         v-model="adminPassword"
         type="password"
         show-password
-        placeholder="管理员密码或超级房间密码"
+        placeholder="管理员密码"
         @keyup.enter="enterAdmin" />
       <template #footer
         ><el-button @click="adminVisible = false">取消</el-button
@@ -1413,7 +1589,7 @@ onUnmounted(() => {
       append-to-body
       class="music-room-search-drawer"
       @close="backToPlaylistSearch">
-      <div class="music-room-search-drawer-content">
+      <div class="music-room-search-drawer-content" @click="startPlayCheck">
         <div class="music-room-search-head">
           <h2>{{ playlistTitle || '点歌' }}</h2>
           <span class="music-icon" @click="closeSearchDrawer">关</span>

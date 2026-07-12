@@ -577,11 +577,11 @@ function onRemoteClientChanged(client: RemoteClient) {
 
 function onProxyAddressChanged(value: string) {
   if (!value || value.startsWith(location.origin)) {
-    localStorage.removeItem('musiche-proxy-address');
+    storage.removeKey(StorageKey.ProxyAddress);
     return;
   }
   if (value.startsWith('http://') || value.startsWith('https://')) {
-    localStorage.setItem('musiche-proxy-address', value);
+    storage.setValue(StorageKey.ProxyAddress, value);
   }
 }
 
@@ -622,7 +622,7 @@ function setAppTheme(theme: AppTheme) {
   cancelAutoAppTheme();
   setting.setAppTheme(theme);
 }
-var observer = null;
+var observer: IntersectionObserver | null = null;
 const viewElements: {
   id: string;
   visible: boolean;
@@ -682,7 +682,10 @@ onMounted(() => {
       });
   });
 });
-onUnmounted(unWatch);
+onUnmounted(() => {
+  unWatch();
+  observer?.disconnect();
+});
 </script>
 <template>
   <AnimalPage>
@@ -897,6 +900,7 @@ onUnmounted(unWatch);
                   :readonly="defaultProxyAddressReadonly"
                   @dblclick="defaultProxyAddressReadonly = false"
                   @change="onProxyAddressChanged"
+                  :title="defaultProxyAddressReadonly ? '双击修改' : void 0"
                   style="padding: 10px 50px 0 0" />
                 <span style="font-weight: bold; margin-top: 10px"
                   >歌房服务地址</span
@@ -906,6 +910,7 @@ onUnmounted(unWatch);
                   :readonly="roomServerAddressReadonly"
                   @dblclick="roomServerAddressReadonly = false"
                   @change="onRoomServerAddressChanged"
+                  :title="roomServerAddressReadonly ? '双击修改' : void 0"
                   style="padding: 10px 50px 0 0" />
                 <div
                   v-if="isWindows && setting.config.remote"

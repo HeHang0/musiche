@@ -36,7 +36,7 @@ function toHome() {
   push('/');
 }
 const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
-onMounted(() => room.checkAvailability());
+onMounted(() => room.initialize());
 </script>
 
 <template>
@@ -429,7 +429,8 @@ onMounted(() => room.checkAvailability());
 :deep(.el-dialog__body) {
   padding: 0;
 }
-@media (max-width: 800px) and (orientation: portrait) {
+
+.portrait-aside-style() {
   .music-aside {
     width: calc(50px + var(--safe-area-left));
     &-title {
@@ -478,12 +479,20 @@ onMounted(() => room.checkAvailability());
         width: calc(100% - 20px);
       }
     }
-  }
-  .el-sub-menu {
-    :deep(.el-sub-menu__icon-arrow) {
-      right: 5px !important;
+    .el-sub-menu {
+      :deep(.el-sub-menu__icon-arrow) {
+        right: 5px !important;
+      }
     }
   }
+}
+
+.music-aside-collapsed {
+  .portrait-aside-style();
+}
+
+@media (max-width: 800px) and (orientation: portrait) {
+  .portrait-aside-style();
 }
 @media (max-width: 800px) and (orientation: landscape) {
   .music-aside {

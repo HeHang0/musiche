@@ -32,6 +32,12 @@ type Config struct {
 }
 
 func loadConfig() Config {
+	superAdminPassword := envString("ROOM_SUPER_ADMIN_PASSWORD", "")
+	if superAdminPassword == "" {
+		// Keep the shorter alias for deployments that configured the first
+		// development name before ROOM_SUPER_ADMIN_PASSWORD was documented.
+		superAdminPassword = envString("ROOM_SUPER_PASSWORD", "")
+	}
 	c := Config{
 		Address:             envString("ROOM_ADDR", ":8738"),
 		DataDir:             envString("ROOM_DATA_DIR", "./room-data"),
@@ -46,7 +52,7 @@ func loadConfig() Config {
 		MaxChatMessageBytes: envInt("ROOM_MAX_CHAT_MESSAGE_BYTES", 600),
 		MaxChatImageBytes:   envInt("ROOM_MAX_CHAT_IMAGE_BYTES", 512*1024),
 		AudioCacheTTL:       time.Duration(envInt("ROOM_AUDIO_CACHE_SECONDS", 300)) * time.Second,
-		SuperAdminPassword:  envString("ROOM_SUPER_ADMIN_PASSWORD", ""),
+		SuperAdminPassword:  superAdminPassword,
 	}
 	secret := envString("ROOM_TOKEN_SECRET", "123456")
 	if secret == "" {

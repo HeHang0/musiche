@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -20,9 +21,21 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("/health", s.health)
 	mux.HandleFunc("/api/v1/config", s.config)
 	mux.HandleFunc("/api/v1/rooms", s.rooms)
+	mux.HandleFunc("/api/v1/rooms/missing", s.missingRooms)
 	mux.HandleFunc("/api/v1/rooms/", s.room)
 	mux.HandleFunc("/api/v1/current", s.current)
-	mux.Handle("/ws", websocket.Server{Handler: websocket.Handler(s.store.serveWebSocket), Handshake: func(_ *websocket.Config, _ *http.Request) error { return nil }})
+	mux.HandleFunc("/api/v1/proxy", s.proxy)
+	mux.Handle("/ws", websocket.Server{
+		Handler: websocket.Handler(s.store.serveWebSocket),
+		Handshake: func(_ *websocket.Config, request *http.Request) error {
+			roomID := strings.ToUpper(strings.TrimSpace(request.URL.Query().Get("roomId")))
+			memberToken := request.URL.Query().Get("memberToken")
+			if _, valid := s.store.memberIDForToken(roomID, memberToken); !valid {
+				return errors.New("成员连接凭证无效或已过期")
+			}
+			return nil
+		},
+	})
 	return cors(mux)
 }
 
@@ -30,7 +43,7 @@ func (s *server) health(w http.ResponseWriter, _ *http.Request) {
 	writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true})
 }
 func (s *server) config(w http.ResponseWriter, _ *http.Request) {
-	writeJSONResponse(w, http.StatusOK, map[string]any{"maxRooms": s.store.config.MaxRooms, "maxMembersPerRoom": s.store.config.MaxMembersPerRoom, "maxQueueItems": s.store.config.MaxQueueItems, "listPageSize": s.store.config.ListPageSize, "listMaxPageSize": s.store.config.ListMaxPageSize, "credentialUploadEnabled": len(s.store.config.CookieKey) > 0})
+	writeJSONResponse(w, http.StatusOK, map[string]any{"maxRooms": s.store.config.MaxRooms, "maxMembersPerRoom": s.store.config.MaxMembersPerRoom, "maxQueueItems": s.store.config.MaxQueueItems, "listPageSize": s.store.config.ListPageSize, "listMaxPageSize": s.store.config.ListMaxPageSize, "credentialUploadEnabled": len(s.store.config.CookieKey) > 0, "superAdminEnabled": s.store.config.SuperAdminPassword != ""})
 }
 
 func (s *server) rooms(w http.ResponseWriter, r *http.Request) {
@@ -59,10 +72,50 @@ func (s *server) rooms(w http.ResponseWriter, r *http.Request) {
 		room.mu.RLock()
 		snapshot := room.snapshotLocked(memberID, token, s.store.config.TokenSecret)
 		room.mu.RUnlock()
-		writeJSONResponse(w, http.StatusCreated, map[string]any{"snapshot": snapshot, "adminToken": token})
+		writeJSONResponse(w, http.StatusCreated, map[string]any{
+			"snapshot":    snapshot,
+			"adminToken":  token,
+			"memberToken": issueMemberToken(s.store.config.TokenSecret, room.config.ID, memberID),
+		})
 		return
 	}
 	writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
+}
+
+type MissingRoomsRequest struct {
+	IDs []string `json:"ids"`
+}
+
+func (s *server) missingRooms(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
+		return
+	}
+	request := MissingRoomsRequest{}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+	if len(request.IDs) > 500 {
+		writeError(w, http.StatusBadRequest, "一次最多检查 500 个房间")
+		return
+	}
+	ids := make([]string, 0, len(request.IDs))
+	seen := make(map[string]struct{}, len(request.IDs))
+	for _, value := range request.IDs {
+		id := strings.ToUpper(strings.TrimSpace(value))
+		if id == "" {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	writeJSONResponse(w, http.StatusOK, map[string]any{
+		"missingIds": s.store.missingRoomIDs(ids),
+	})
 }
 
 func (s *server) current(w http.ResponseWriter, r *http.Request) {
@@ -125,6 +178,7 @@ type JoinRequest struct {
 	Nickname      string `json:"nickname"`
 	VisitorID     string `json:"visitorId"`
 	Fingerprint   string `json:"fingerprint"`
+	AdminToken    string `json:"adminToken"`
 }
 
 func (s *server) join(w http.ResponseWriter, r *http.Request, room *Room) {
@@ -139,9 +193,12 @@ func (s *server) join(w http.ResponseWriter, r *http.Request, room *Room) {
 		return
 	}
 	room.mu.RLock()
-	snapshot := room.snapshotLocked(memberID, "", s.store.config.TokenSecret)
+	snapshot := room.snapshotLocked(memberID, request.AdminToken, s.store.config.TokenSecret)
 	room.mu.RUnlock()
-	writeJSONResponse(w, 200, map[string]any{"snapshot": snapshot})
+	writeJSONResponse(w, 200, map[string]any{
+		"snapshot":    snapshot,
+		"memberToken": issueMemberToken(s.store.config.TokenSecret, room.config.ID, memberID),
+	})
 }
 
 type AdminRequest struct {
@@ -160,6 +217,7 @@ func (s *server) admin(w http.ResponseWriter, r *http.Request, room *Room) {
 	room.mu.RLock()
 	memberExists := room.config.Members[memberID].ID != ""
 	matched := verifyPassword(room.config.AdminPasswordHash, request.AdminPassword)
+	adminPasswordHash := room.config.AdminPasswordHash
 	version := room.config.AdminVersion
 	roomID := room.config.ID
 	room.mu.RUnlock()
@@ -170,7 +228,7 @@ func (s *server) admin(w http.ResponseWriter, r *http.Request, room *Room) {
 		writeError(w, http.StatusForbidden, "管理员密码错误")
 		return
 	}
-	writeJSONResponse(w, 200, map[string]any{"adminToken": issueAdminToken(s.store.config.TokenSecret, roomID, memberID, version)})
+	writeJSONResponse(w, 200, map[string]any{"adminToken": issueAdminToken(s.store.config.TokenSecret, roomID, adminPasswordHash, version)})
 }
 
 type SettingRequest struct {
@@ -191,7 +249,8 @@ func (s *server) settings(w http.ResponseWriter, r *http.Request, room *Room) {
 	}
 	memberID := fingerprintHash(request.VisitorID, request.Fingerprint)
 	room.mu.Lock()
-	if !verifyAdminToken(s.store.config.TokenSecret, request.AdminToken, room.config.ID, memberID, room.config.AdminVersion) {
+	member := room.config.Members[memberID]
+	if member.ID == "" || !verifyAdminToken(s.store.config.TokenSecret, request.AdminToken, room.config.ID, room.config.AdminPasswordHash, room.config.AdminVersion) {
 		room.mu.Unlock()
 		writeError(w, 403, "需要管理员权限")
 		return
@@ -235,11 +294,15 @@ func (s *server) settings(w http.ResponseWriter, r *http.Request, room *Room) {
 		writeError(w, 500, "保存设置失败")
 		return
 	}
-	member := room.config.Members[memberID]
-	token := issueAdminToken(s.store.config.TokenSecret, room.config.ID, member.ID, room.config.AdminVersion)
+	member = room.config.Members[memberID]
+	token := issueAdminToken(s.store.config.TokenSecret, room.config.ID, room.config.AdminPasswordHash, room.config.AdminVersion)
 	snapshot := room.snapshotLocked(memberID, token, s.store.config.TokenSecret)
 	room.mu.Unlock()
-	writeJSONResponse(w, 200, map[string]any{"snapshot": snapshot, "adminToken": token})
+	writeJSONResponse(w, 200, map[string]any{
+		"snapshot":    snapshot,
+		"adminToken":  token,
+		"memberToken": issueMemberToken(s.store.config.TokenSecret, room.config.ID, member.ID),
+	})
 	broadcastRoomSnapshot(room)
 }
 
@@ -252,7 +315,8 @@ func (s *server) dissolve(w http.ResponseWriter, r *http.Request, room *Room) {
 	adminToken := r.Header.Get("X-Room-Admin")
 	memberID := fingerprintHash(request.VisitorID, request.Fingerprint)
 	room.mu.RLock()
-	authorized := verifyAdminToken(s.store.config.TokenSecret, adminToken, room.config.ID, memberID, room.config.AdminVersion)
+	memberExists := room.config.Members[memberID].ID != ""
+	authorized := memberExists && verifyAdminToken(s.store.config.TokenSecret, adminToken, room.config.ID, room.config.AdminPasswordHash, room.config.AdminVersion)
 	roomID := room.config.ID
 	path := room.path
 	room.mu.RUnlock()
@@ -302,7 +366,8 @@ func (s *server) credentials(w http.ResponseWriter, r *http.Request, room *Room,
 	memberID := fingerprintHash(request.VisitorID, request.Fingerprint)
 	room.mu.Lock()
 	defer room.mu.Unlock()
-	if !verifyAdminToken(s.store.config.TokenSecret, request.AdminToken, room.config.ID, memberID, room.config.AdminVersion) {
+	memberExists := room.config.Members[memberID].ID != ""
+	if !memberExists || !verifyAdminToken(s.store.config.TokenSecret, request.AdminToken, room.config.ID, room.config.AdminPasswordHash, room.config.AdminVersion) {
 		writeError(w, 403, "需要管理员权限")
 		return
 	}
@@ -358,7 +423,10 @@ func (s *server) snapshot(w http.ResponseWriter, r *http.Request, room *Room) {
 		writeError(w, 403, "请先进入房间")
 		return
 	}
-	writeJSONResponse(w, 200, room.snapshotLocked(memberID, r.URL.Query().Get("adminToken"), s.store.config.TokenSecret))
+	writeJSONResponse(w, 200, map[string]any{
+		"snapshot":    room.snapshotLocked(memberID, r.URL.Query().Get("adminToken"), s.store.config.TokenSecret),
+		"memberToken": issueMemberToken(s.store.config.TokenSecret, room.config.ID, memberID),
+	})
 }
 
 type ResolveRequest struct {
@@ -404,7 +472,8 @@ func (s *server) resolved(w http.ResponseWriter, r *http.Request, room *Room) {
 	}
 	memberID := fingerprintHash(request.VisitorID, request.Fingerprint)
 	room.mu.RLock()
-	authorized := verifyAdminToken(s.store.config.TokenSecret, request.AdminToken, room.config.ID, memberID, room.config.AdminVersion)
+	memberExists := room.config.Members[memberID].ID != ""
+	authorized := memberExists && verifyAdminToken(s.store.config.TokenSecret, request.AdminToken, room.config.ID, room.config.AdminPasswordHash, room.config.AdminVersion)
 	room.mu.RUnlock()
 	if !authorized {
 		writeError(w, 403, "需要管理员权限")

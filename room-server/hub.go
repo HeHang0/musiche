@@ -118,12 +118,28 @@ func broadcastRoomSnapshot(room *Room) <-chan struct{} {
 	}
 }
 
+func (s *RoomStore) memberIDForToken(roomID, token string) (string, bool) {
+	memberID, valid := verifyMemberToken(s.config.TokenSecret, token, roomID)
+	if !valid {
+		return "", false
+	}
+	room, ok := s.get(roomID)
+	if !ok {
+		return "", false
+	}
+	room.mu.RLock()
+	memberExists := room.config.Members[memberID].ID != ""
+	room.mu.RUnlock()
+	if !memberExists {
+		return "", false
+	}
+	return memberID, true
+}
+
 func (s *RoomStore) serveWebSocket(ws *websocket.Conn) {
 	request := ws.Request()
 	roomID := strings.ToUpper(strings.TrimSpace(request.URL.Query().Get("roomId")))
-	visitorID := request.URL.Query().Get("visitorId")
-	fingerprint := request.URL.Query().Get("fingerprint")
-	adminToken := request.URL.Query().Get("adminToken")
+	memberToken := request.URL.Query().Get("memberToken")
 	room, ok := s.get(roomID)
 	if !ok {
 		_ = websocket.JSON.Send(ws, Event{Type: "error", Data: "房间不存在或已解散"})
@@ -134,12 +150,17 @@ func (s *RoomStore) serveWebSocket(ws *websocket.Conn) {
 		return
 	}
 	defer s.releaseConnection()
-	memberID, err := room.join(visitorID, fingerprint, "访客", request.URL.Query().Get("entryPassword"))
+	memberID, valid := s.memberIDForToken(roomID, memberToken)
+	if !valid {
+		_ = websocket.JSON.Send(ws, Event{Type: "error", Data: "成员连接凭证无效或已过期"})
+		return
+	}
+	memberID, err := room.connectMember(memberID)
 	if err != nil {
 		_ = websocket.JSON.Send(ws, Event{Type: "error", Data: err.Error()})
 		return
 	}
-	connection := &RoomConnection{ws: ws, room: room, memberID: memberID, store: s, adminToken: adminToken}
+	connection := &RoomConnection{ws: ws, room: room, memberID: memberID, store: s}
 	room.mu.Lock()
 	if len(room.connections) >= room.config.MaxMembers {
 		room.mu.Unlock()
@@ -182,12 +203,17 @@ func roomSummary(room *Room) RoomSummary {
 func (c *RoomConnection) isAdmin(token string) bool {
 	c.room.mu.RLock()
 	defer c.room.mu.RUnlock()
-	return verifyAdminToken(c.store.config.TokenSecret, token, c.room.config.ID, c.memberID, c.room.config.AdminVersion)
+	return verifyAdminToken(c.store.config.TokenSecret, token, c.room.config.ID, c.room.config.AdminPasswordHash, c.room.config.AdminVersion)
 }
 
 func (c *RoomConnection) handle(command ClientCommand) error {
 	c.setToken(command.AdminToken)
 	switch command.Action {
+	case "auth_admin":
+		if !c.isAdmin(command.AdminToken) {
+			return errors.New("管理员凭证无效")
+		}
+		return c.send(Event{Type: "snapshot", Data: c.snapshot()})
 	case "heartbeat":
 		return c.send(Event{Type: "pong", Data: time.Now().UTC()})
 	case "queue_add":
@@ -195,7 +221,7 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 			return errors.New("无效的歌曲")
 		}
 		c.room.mu.Lock()
-		admin := verifyAdminToken(c.store.config.TokenSecret, command.AdminToken, c.room.config.ID, c.memberID, c.room.config.AdminVersion)
+		admin := verifyAdminToken(c.store.config.TokenSecret, command.AdminToken, c.room.config.ID, c.room.config.AdminPasswordHash, c.room.config.AdminVersion)
 		if c.room.config.GuestQueueDisabled && !admin {
 			c.room.mu.Unlock()
 			return errors.New("管理员已关闭游客点歌")
@@ -233,7 +259,7 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 		return err
 	case "queue_remove":
 		c.room.mu.Lock()
-		admin := verifyAdminToken(c.store.config.TokenSecret, command.AdminToken, c.room.config.ID, c.memberID, c.room.config.AdminVersion)
+		admin := verifyAdminToken(c.store.config.TokenSecret, command.AdminToken, c.room.config.ID, c.room.config.AdminPasswordHash, c.room.config.AdminVersion)
 		index := -1
 		for i, item := range c.room.state.Queue {
 			if item.ID == command.QueueID && (admin || item.RequestedBy == c.memberID) {
@@ -323,6 +349,9 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 		}
 		return err
 	case "track_ended":
+		if !c.isAdmin(command.AdminToken) {
+			return errors.New("请输入管理员密码后再操作")
+		}
 		c.room.mu.Lock()
 		if c.room.state.Current == nil || c.room.state.Current.ID != command.QueueID {
 			c.room.mu.Unlock()

@@ -186,7 +186,7 @@ func (s *RoomStore) createRoom(request CreateRoomRequest) (*Room, string, error)
 		return nil, "", err
 	}
 	s.rooms[roomID] = room
-	return room, issueAdminToken(s.config.TokenSecret, roomID, memberID, room.config.AdminVersion), nil
+	return room, issueAdminToken(s.config.TokenSecret, roomID, room.config.AdminPasswordHash, room.config.AdminVersion), nil
 }
 
 func (s *RoomStore) get(id string) (*Room, bool) {
@@ -228,6 +228,18 @@ func (s *RoomStore) roomList(keyword string, page, pageSize int) ([]RoomSummary,
 		end = total
 	}
 	return items[start:end], total
+}
+
+func (s *RoomStore) missingRoomIDs(ids []string) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	missing := make([]string, 0)
+	for _, id := range ids {
+		if _, exists := s.rooms[id]; !exists {
+			missing = append(missing, id)
+		}
+	}
+	return missing
 }
 
 func (s *RoomStore) findCurrent(visitorID, fingerprint string) *RoomSummary {
@@ -275,10 +287,10 @@ func (r *Room) join(visitorID, fingerprint, nickname, entryPassword string) (str
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	member, known := r.config.Members[memberID]
+	if r.config.EntryPasswordHash != "" && !verifyPassword(r.config.EntryPasswordHash, entryPassword) {
+		return "", errors.New("房间密码错误")
+	}
 	if !known {
-		if r.config.EntryPasswordHash != "" && !verifyPassword(r.config.EntryPasswordHash, entryPassword) {
-			return "", errors.New("房间密码错误")
-		}
 		now := time.Now().UTC()
 		member = Member{ID: memberID, Nickname: nickname, FingerprintHash: fingerprintHash("", fingerprint), FirstJoinedAt: now, LastJoinedAt: now}
 		r.config.Members[memberID] = member
@@ -289,6 +301,28 @@ func (r *Room) join(visitorID, fingerprint, nickname, entryPassword string) (str
 	r.state.EmptySince = nil
 	if err := r.saveLocked(); err != nil {
 		return "", err
+	}
+	return memberID, nil
+}
+
+// connectMember authenticates an already joined member for a WebSocket
+// connection. The HTTP join endpoint has already checked the entry password;
+// the socket handshake only needs to verify the browser identity and must not
+// require sending the password again in the WebSocket URL.
+func (r *Room) connectMember(memberID string) (string, error) {
+	if strings.TrimSpace(memberID) == "" {
+		return "", errors.New("请先进入房间")
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.config.Members[memberID].ID == "" {
+		return "", errors.New("请先进入房间")
+	}
+	if r.state.EmptySince != nil {
+		r.state.EmptySince = nil
+		if err := r.saveStateLocked(); err != nil {
+			return "", err
+		}
 	}
 	return memberID, nil
 }
@@ -308,7 +342,7 @@ func (r *Room) snapshotLocked(memberID, token string, secret []byte) Snapshot {
 	for source := range r.config.Credentials {
 		sources = append(sources, source)
 	}
-	return Snapshot{Room: r.summaryLocked(), State: r.state, IsAdmin: verifyAdminToken(secret, token, r.config.ID, memberID, r.config.AdminVersion), AllowGuestQueue: !r.config.GuestQueueDisabled, MemberID: memberID, Nickname: member.Nickname, CredentialSources: sources}
+	return Snapshot{Room: r.summaryLocked(), State: r.state, IsAdmin: verifyAdminToken(secret, token, r.config.ID, r.config.AdminPasswordHash, r.config.AdminVersion), AllowGuestQueue: !r.config.GuestQueueDisabled, MemberID: memberID, Nickname: member.Nickname, CredentialSources: sources}
 }
 
 func (r *Room) saveLocked() error {

@@ -370,7 +370,6 @@ export const useSettingStore = defineStore('setting', {
       } else {
         this.userInfo[type].cookie = cookie;
       }
-      console.log('refreshCookie', type, cookie, this.userInfo[type].cookie);
       storage.setValue(StorageKey.UserInfo, this.userInfo);
     },
     setFadeIn(_value?: boolean, noSave?: boolean) {

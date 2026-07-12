@@ -42,7 +42,11 @@ Useful settings: `ROOM_DATA_DIR`, `ROOM_MAX_COUNT` (50),
 cookies. Cookie values are AES-GCM encrypted at rest. The service resolves and
 caches 网易云、咪咕与 QQ 音乐的 room playback URLs for five minutes. Room
 state, permissions, chat, and sync events never depend on a platform resolver.
+The same service also exposes the existing generic proxy behavior at
+`/api/v1/proxy`, so the separate `proxy-server` process is not required for
+the Musiche deployment.
 
 `ROOM_SUPER_ADMIN_PASSWORD` is optional. When non-empty, a member who has
 already entered a room can use it in the administrator dialog to obtain
 administrator control for that room. It is never sent to the Web client.
+`ROOM_SUPER_PASSWORD` is accepted as a compatibility alias.
