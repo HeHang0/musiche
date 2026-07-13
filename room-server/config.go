@@ -15,6 +15,10 @@ import (
 type Config struct {
 	Address             string
 	DataDir             string
+	LogFile             string
+	LogViewToken        string
+	LogMaxBytes         int64
+	LogBackups          int
 	MaxRooms            int
 	MaxMembersPerRoom   int
 	MaxQueueItems       int
@@ -41,6 +45,9 @@ func loadConfig() Config {
 	c := Config{
 		Address:             envString("ROOM_ADDR", ":8738"),
 		DataDir:             envString("ROOM_DATA_DIR", "./room-data"),
+		LogViewToken:        envString("ROOM_LOG_TOKEN", ""),
+		LogMaxBytes:         int64(envInt("ROOM_LOG_MAX_MB", 20)) * 1024 * 1024,
+		LogBackups:          envInt("ROOM_LOG_BACKUPS", 5),
 		MaxRooms:            envInt("ROOM_MAX_COUNT", 50),
 		MaxMembersPerRoom:   envInt("ROOM_MAX_MEMBERS_PER_ROOM", 30),
 		MaxQueueItems:       envInt("ROOM_MAX_QUEUE_ITEMS", 100),
@@ -67,6 +74,12 @@ func loadConfig() Config {
 		c.CookieKey = cookieSum[:]
 	}
 	c.DataDir = filepath.Clean(c.DataDir)
+	c.LogFile = strings.TrimSpace(os.Getenv("ROOM_LOG_FILE"))
+	if c.LogFile == "" {
+		c.LogFile = filepath.Join(c.DataDir, "logs", "room-server.log")
+	} else {
+		c.LogFile = filepath.Clean(c.LogFile)
+	}
 	return c
 }
 

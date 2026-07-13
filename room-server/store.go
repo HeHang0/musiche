@@ -26,6 +26,7 @@ type Room struct {
 
 type RoomStore struct {
 	config      Config
+	logger      *appLogger
 	mu          sync.RWMutex
 	rooms       map[string]*Room
 	connections int
@@ -48,6 +49,12 @@ func (s *RoomStore) releaseConnection() {
 		s.connections--
 	}
 	s.mu.Unlock()
+}
+
+func (s *RoomStore) logf(format string, values ...interface{}) {
+	if s.logger != nil {
+		s.logger.Printf(format, values...)
+	}
 }
 
 func newRoomStore(config Config) (*RoomStore, error) {
@@ -273,7 +280,11 @@ func (s *RoomStore) removeExpiredRooms() {
 		room.mu.RUnlock()
 		if expired {
 			delete(s.rooms, id)
-			_ = os.RemoveAll(path)
+			if err := os.RemoveAll(path); err != nil {
+				s.logf("room_expire_failed room_id=%s error=%q", id, err)
+			} else {
+				s.logf("room_expired room_id=%s empty_ttl=%s", id, s.config.EmptyTTL)
+			}
 		}
 	}
 }

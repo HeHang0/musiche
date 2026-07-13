@@ -9,6 +9,7 @@ cd room-server
 $env:ROOM_TOKEN_SECRET = "replace-with-a-long-random-secret"
 $env:ROOM_COOKIE_KEY = "replace-with-a-different-long-random-secret"
 $env:ROOM_SUPER_ADMIN_PASSWORD = "" # optional; empty disables it
+$env:ROOM_LOG_TOKEN = "replace-with-a-log-view-token" # optional; empty disables the log API
 go run .
 ```
 
@@ -26,6 +27,7 @@ docker run -d --name musiche-room-server `
   -e ROOM_TOKEN_SECRET="replace-with-a-long-random-secret" `
   -e ROOM_COOKIE_KEY="replace-with-a-different-long-random-secret" `
   -e ROOM_SUPER_ADMIN_PASSWORD="" `
+  -e ROOM_LOG_TOKEN="replace-with-a-log-view-token" `
   musiche-room-server
 ```
 
@@ -50,3 +52,33 @@ the Musiche deployment.
 already entered a room can use it in the administrator dialog to obtain
 administrator control for that room. It is never sent to the Web client.
 `ROOM_SUPER_PASSWORD` is accepted as a compatibility alias.
+
+## Logs and WebSocket diagnostics
+
+The service writes UTC logs to both stdout and a file. The default file is
+`ROOM_DATA_DIR/logs/room-server.log` (`/data/logs/room-server.log` in the
+Docker image). Files rotate at 20 MiB and keep five backups. Override these
+values with `ROOM_LOG_FILE`, `ROOM_LOG_MAX_MB`, and `ROOM_LOG_BACKUPS`.
+
+Set a non-empty `ROOM_LOG_TOKEN` to enable `GET /api/v1/logs`. It returns the
+latest 256 KiB as plain text and accepts up to 2 MiB through the `bytes` query
+parameter. Prefer the authorization header so the token does not appear in
+browser history:
+
+```powershell
+Invoke-WebRequest `
+  -Headers @{ Authorization = "Bearer replace-with-a-log-view-token" } `
+  "https://example.com/api/v1/logs?bytes=524288"
+```
+
+For direct browser viewing, `/api/v1/logs?token=...` is also supported. Request
+logs deliberately omit the query string, member token, cookies, and
+authorization headers.
+
+Each WebSocket attempt records a `request_id` and `connection_id`, proxy/TLS
+headers, origin, user agent, authentication rejection code, connection time,
+and disconnect reason. If a failed browser attempt produces neither an HTTP
+`path="/ws"` entry nor `ws_connect_attempt`, the request did not reach the Go
+service and the TLS/CDN or reverse-proxy WebSocket upgrade configuration should
+be checked first. An HTTP `/ws` entry without `ws_connect_attempt` means the
+WebSocket protocol handshake failed before application authentication.

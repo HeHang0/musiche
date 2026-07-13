@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"time"
@@ -11,6 +12,7 @@ import (
 )
 
 type RoomConnection struct {
+	id         string
 	ws         *websocket.Conn
 	room       *Room
 	memberID   string
@@ -49,7 +51,9 @@ func broadcastRoomEvent(room *Room, event Event) {
 	}
 	room.mu.RUnlock()
 	for _, connection := range connections {
-		_ = connection.send(event)
+		if err := connection.send(event); err != nil {
+			connection.store.logf("ws_send_failed connection_id=%s room_id=%q member_id=%s event=%q error=%q", connection.id, room.config.ID, shortLogID(connection.memberID), event.Type, err)
+		}
 	}
 }
 
@@ -98,7 +102,9 @@ func broadcastRoomSnapshot(room *Room) <-chan struct{} {
 		}
 		room.mu.RUnlock()
 		for _, connection := range connections {
-			_ = connection.send(Event{Type: "snapshot", Data: connection.snapshot()})
+			if err := connection.send(Event{Type: "snapshot", Data: connection.snapshot()}); err != nil {
+				connection.store.logf("ws_send_failed connection_id=%s room_id=%q member_id=%s event=snapshot error=%q", connection.id, room.config.ID, shortLogID(connection.memberID), err)
+			}
 		}
 
 		room.snapshotMu.Lock()
@@ -138,39 +144,66 @@ func (s *RoomStore) memberIDForToken(roomID, token string) (string, bool) {
 
 func (s *RoomStore) serveWebSocket(ws *websocket.Conn) {
 	request := ws.Request()
+	connectionID := randomID(6)
+	requestID := requestIDFrom(request)
+	if requestID == "" {
+		requestID = randomID(6)
+	}
 	roomID := strings.ToUpper(strings.TrimSpace(request.URL.Query().Get("roomId")))
 	memberToken := request.URL.Query().Get("memberToken")
+	s.logf(
+		"ws_connect_attempt request_id=%s connection_id=%s room_id=%q remote=%q forwarded_for=%q forwarded_proto=%q origin=%q user_agent=%q",
+		requestID, connectionID, roomID, cleanLogValue(request.RemoteAddr, 160),
+		cleanLogValue(request.Header.Get("X-Forwarded-For"), 240), cleanLogValue(request.Header.Get("X-Forwarded-Proto"), 32),
+		cleanLogValue(request.Header.Get("Origin"), 240), cleanLogValue(request.UserAgent(), 300),
+	)
+	if roomID == "" {
+		s.rejectWebSocket(ws, requestID, connectionID, roomID, "missing_room_id", "缺少房间号")
+		return
+	}
+	if strings.TrimSpace(memberToken) == "" {
+		s.rejectWebSocket(ws, requestID, connectionID, roomID, "missing_member_token", "缺少成员连接凭证")
+		return
+	}
 	room, ok := s.get(roomID)
 	if !ok {
-		_ = websocket.JSON.Send(ws, Event{Type: "error", Data: "房间不存在或已解散"})
+		s.rejectWebSocket(ws, requestID, connectionID, roomID, "room_not_found", "房间不存在或已解散")
 		return
 	}
 	if !s.reserveConnection() {
-		_ = websocket.JSON.Send(ws, Event{Type: "error", Data: "歌房服务连接数已达上限"})
+		s.rejectWebSocket(ws, requestID, connectionID, roomID, "connection_limit_reached", "歌房服务连接数已达上限")
 		return
 	}
 	defer s.releaseConnection()
 	memberID, valid := s.memberIDForToken(roomID, memberToken)
 	if !valid {
-		_ = websocket.JSON.Send(ws, Event{Type: "error", Data: "成员连接凭证无效或已过期"})
+		s.rejectWebSocket(ws, requestID, connectionID, roomID, "invalid_member_token", "成员连接凭证无效或已过期")
 		return
 	}
 	memberID, err := room.connectMember(memberID)
 	if err != nil {
-		_ = websocket.JSON.Send(ws, Event{Type: "error", Data: err.Error()})
+		s.rejectWebSocket(ws, requestID, connectionID, roomID, "member_connect_failed", err.Error())
 		return
 	}
-	connection := &RoomConnection{ws: ws, room: room, memberID: memberID, store: s}
+	connection := &RoomConnection{id: connectionID, ws: ws, room: room, memberID: memberID, store: s}
 	room.mu.Lock()
 	if len(room.connections) >= room.config.MaxMembers {
 		room.mu.Unlock()
-		_ = websocket.JSON.Send(ws, Event{Type: "error", Data: "房间人数已满"})
+		s.rejectWebSocket(ws, requestID, connectionID, roomID, "room_full", "房间人数已满")
 		return
 	}
 	room.connections[connection] = struct{}{}
 	snapshot := room.snapshotLocked(memberID, connection.token(), s.config.TokenSecret)
+	onlineCount := len(room.connections)
 	room.mu.Unlock()
-	_ = connection.send(Event{Type: "snapshot", Data: snapshot})
+	connectedAt := time.Now()
+	disconnectReason := "handler_returned"
+	s.logf("ws_connected request_id=%s connection_id=%s room_id=%q member_id=%s online=%d", requestID, connectionID, roomID, shortLogID(memberID), onlineCount)
+	if err := connection.send(Event{Type: "snapshot", Data: snapshot}); err != nil {
+		disconnectReason = "initial_snapshot_failed"
+		s.logf("ws_send_failed request_id=%s connection_id=%s room_id=%q member_id=%s event=snapshot error=%q", requestID, connectionID, roomID, shortLogID(memberID), err)
+		return
+	}
 	connection.broadcast(Event{Type: "presence", Data: roomSummary(room)})
 	defer func() {
 		room.mu.Lock()
@@ -182,16 +215,38 @@ func (s *RoomStore) serveWebSocket(ws *websocket.Conn) {
 		}
 		room.mu.Unlock()
 		connection.broadcast(Event{Type: "presence", Data: roomSummary(room)})
+		s.logf("ws_disconnected request_id=%s connection_id=%s room_id=%q member_id=%s duration_ms=%d reason=%s", requestID, connectionID, roomID, shortLogID(memberID), time.Since(connectedAt).Milliseconds(), disconnectReason)
 	}()
 	for {
 		command := ClientCommand{}
 		if err := websocket.JSON.Receive(ws, &command); err != nil {
+			if errors.Is(err, io.EOF) {
+				disconnectReason = "peer_closed"
+				return
+			}
+			disconnectReason = "receive_error"
+			s.logf("ws_receive_failed request_id=%s connection_id=%s room_id=%q member_id=%s error=%q", requestID, connectionID, roomID, shortLogID(memberID), err)
+			_ = connection.send(Event{Type: "error", Code: "invalid_message", Data: "WebSocket 消息格式错误"})
 			return
 		}
 		if err := connection.handle(command); err != nil {
-			_ = connection.send(Event{Type: "error", Data: err.Error()})
+			s.logf("ws_command_rejected request_id=%s connection_id=%s room_id=%q member_id=%s action=%q error=%q", requestID, connectionID, roomID, shortLogID(memberID), command.Action, err)
+			_ = connection.send(Event{Type: "error", Code: "command_rejected", Data: err.Error()})
 		}
 	}
+}
+
+func (s *RoomStore) rejectWebSocket(ws *websocket.Conn, requestID, connectionID, roomID, code, message string) {
+	sendErr := websocket.JSON.Send(ws, Event{Type: "error", Code: code, Data: message})
+	s.logf("ws_rejected request_id=%s connection_id=%s room_id=%q code=%s message=%q send_ok=%t send_error=%q", requestID, connectionID, roomID, code, message, sendErr == nil, logError(sendErr))
+	_ = ws.Close()
+}
+
+func shortLogID(value string) string {
+	if len(value) <= 12 {
+		return value
+	}
+	return value[:12]
 }
 
 func roomSummary(room *Room) RoomSummary {

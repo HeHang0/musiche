@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -186,10 +188,22 @@ func TestWebSocketQueueCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if invalidConnection, err := websocket.DialConfig(invalidConfig); err == nil {
-		_ = invalidConnection.Close()
-		t.Fatal("an invalid member token must be rejected during the WebSocket handshake")
+	invalidConnection, err := websocket.DialConfig(invalidConfig)
+	if err != nil {
+		t.Fatalf("application authentication errors must be sent after the WebSocket upgrade: %v", err)
 	}
+	_ = invalidConnection.SetDeadline(time.Now().Add(3 * time.Second))
+	var invalidEvent Event
+	if err := websocket.JSON.Receive(invalidConnection, &invalidEvent); err != nil {
+		t.Fatalf("invalid member token response: %v", err)
+	}
+	if invalidEvent.Type != "error" || invalidEvent.Code != "invalid_member_token" || invalidEvent.Data != "成员连接凭证无效或已过期" {
+		t.Fatalf("unexpected invalid member token response: %#v", invalidEvent)
+	}
+	if err := websocket.JSON.Receive(invalidConnection, &Event{}); !errors.Is(err, io.EOF) {
+		t.Fatalf("the server must close a rejected WebSocket after sending the error, got: %v", err)
+	}
+	_ = invalidConnection.Close()
 	memberToken := issueMemberToken(store.config.TokenSecret, room.config.ID, fingerprintHash("visitor", "fingerprint"))
 	url := "ws" + strings.TrimPrefix(httpServer.URL, "http") + "/ws?roomId=" + room.config.ID + "&memberToken=" + memberToken
 	config, err := websocket.NewConfig(url, httpServer.URL)

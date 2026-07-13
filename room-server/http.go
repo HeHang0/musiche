@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -14,29 +13,26 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-type server struct{ store *RoomStore }
+type server struct {
+	store  *RoomStore
+	logger *appLogger
+}
 
 func (s *server) routes() http.Handler {
+	if s.store.logger == nil {
+		s.store.logger = s.logger
+	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", s.health)
 	mux.HandleFunc("/api/v1/config", s.config)
+	mux.HandleFunc("/api/v1/logs", s.logs)
 	mux.HandleFunc("/api/v1/rooms", s.rooms)
 	mux.HandleFunc("/api/v1/rooms/missing", s.missingRooms)
 	mux.HandleFunc("/api/v1/rooms/", s.room)
 	mux.HandleFunc("/api/v1/current", s.current)
 	mux.HandleFunc("/api/v1/proxy", s.proxy)
-	mux.Handle("/ws", websocket.Server{
-		Handler: websocket.Handler(s.store.serveWebSocket),
-		Handshake: func(_ *websocket.Config, request *http.Request) error {
-			roomID := strings.ToUpper(strings.TrimSpace(request.URL.Query().Get("roomId")))
-			memberToken := request.URL.Query().Get("memberToken")
-			if _, valid := s.store.memberIDForToken(roomID, memberToken); !valid {
-				return errors.New("成员连接凭证无效或已过期")
-			}
-			return nil
-		},
-	})
-	return cors(mux)
+	mux.Handle("/ws", websocket.Server{Handler: websocket.Handler(s.store.serveWebSocket)})
+	return s.requestLogger(cors(mux))
 }
 
 func (s *server) health(w http.ResponseWriter, _ *http.Request) {
@@ -44,6 +40,47 @@ func (s *server) health(w http.ResponseWriter, _ *http.Request) {
 }
 func (s *server) config(w http.ResponseWriter, _ *http.Request) {
 	writeJSONResponse(w, http.StatusOK, map[string]any{"maxRooms": s.store.config.MaxRooms, "maxMembersPerRoom": s.store.config.MaxMembersPerRoom, "maxQueueItems": s.store.config.MaxQueueItems, "listPageSize": s.store.config.ListPageSize, "listMaxPageSize": s.store.config.ListMaxPageSize, "credentialUploadEnabled": len(s.store.config.CookieKey) > 0, "superAdminEnabled": s.store.config.SuperAdminPassword != ""})
+}
+
+func (s *server) logs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "不支持的请求方法")
+		return
+	}
+	if s.store.config.LogViewToken == "" {
+		writeError(w, http.StatusNotFound, "日志查看接口未启用")
+		return
+	}
+	token := strings.TrimSpace(r.Header.Get("X-Room-Log-Token"))
+	if authorization := strings.TrimSpace(r.Header.Get("Authorization")); strings.HasPrefix(strings.ToLower(authorization), "bearer ") {
+		token = strings.TrimSpace(authorization[len("Bearer "):])
+	}
+	if token == "" {
+		token = r.URL.Query().Get("token")
+	}
+	if !constantTimeStringEqual(s.store.config.LogViewToken, token) {
+		w.Header().Set("WWW-Authenticate", "Bearer")
+		writeError(w, http.StatusUnauthorized, "日志查看口令错误")
+		return
+	}
+	maxBytes := positiveInt(r.URL.Query().Get("bytes"), 256*1024)
+	if maxBytes > 2*1024*1024 {
+		maxBytes = 2 * 1024 * 1024
+	}
+	data, err := readLogTail(s.store.config.LogFile, int64(maxBytes))
+	if err != nil {
+		if os.IsNotExist(err) {
+			writeError(w, http.StatusNotFound, "日志文件不存在")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "读取日志失败")
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
 }
 
 func (s *server) rooms(w http.ResponseWriter, r *http.Request) {
@@ -509,7 +546,7 @@ func writeError(w http.ResponseWriter, status int, message string) {
 func cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Room-Admin")
+		w.Header().Set("Access-Control-Allow-Headers", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
