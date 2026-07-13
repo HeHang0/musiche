@@ -50,6 +50,7 @@ export const useRoomStore = defineStore('room', {
     reconnectTimer: null as ReturnType<typeof setTimeout> | null,
     heartbeatTimer: null as ReturnType<typeof setInterval> | null,
     socket: null as WebSocket | null,
+    socketFailureCode: '',
     identity: createRoomIdentity() as RoomIdentity,
     memberToken: '',
     config: null as RoomServiceConfig | null,
@@ -224,9 +225,14 @@ export const useRoomStore = defineStore('room', {
       });
       const socket = new WebSocket(roomWebSocketAddress('/ws?' + query));
       this.socket = socket;
+      this.socketFailureCode = '';
+      let opened = false;
+      let rejectionCode = '';
       socket.onopen = () => {
         if (this.socket !== socket) return;
+        opened = true;
         this.connected = true;
+        this.socketFailureCode = '';
         this.startHeartbeat(socket);
         // Establish administrator privileges after the normal member
         // connection is ready. This keeps the admin credential out of the
@@ -242,18 +248,73 @@ export const useRoomStore = defineStore('room', {
           );
         }
       };
-      socket.onmessage = event => this.handleEvent(event.data);
-      socket.onclose = () => {
+      socket.onmessage = event => {
+        const code = this.handleEvent(event.data);
+        if (code) rejectionCode = code;
+      };
+      socket.onclose = event => {
         // Closing an old socket while switching administrator credentials must
         // never mark the newer socket as disconnected.
         if (this.socket !== socket) return;
         this.connected = false;
         this.stopHeartbeat();
-        if (this.snapshot) {
-          this.reconnectTimer = setTimeout(() => this.connect(), 2000);
+        if (
+          !rejectionCode &&
+          event.code !== 1000 &&
+          this.socketFailureCode !== 'transport_error'
+        ) {
+          this.socketFailureCode = 'transport_error';
+          this.lastError = opened
+            ? '歌房 WebSocket 连接意外断开'
+            : '无法建立歌房 WebSocket 连接，请检查反向代理是否支持 WebSocket';
+          console.error('[在线歌房] WebSocket 非正常关闭', {
+            code: event.code,
+            reason: event.reason,
+            opened
+          });
+        }
+        const roomId = this.snapshot?.room.id;
+        if (
+          roomId &&
+          (rejectionCode === 'missing_member_token' ||
+            rejectionCode === 'invalid_member_token')
+        ) {
+          this.memberToken = '';
+          this.reconnectTimer = setTimeout(() => {
+            if (this.snapshot?.room.id !== roomId) return;
+            void this.open(roomId).catch((error: any) => {
+              this.lastError = error?.message || '刷新歌房连接凭证失败';
+            });
+          }, 300);
+        } else if (
+          this.snapshot &&
+          ![
+            'missing_room_id',
+            'room_not_found',
+            'member_connect_failed',
+            'invalid_message'
+          ].includes(rejectionCode)
+        ) {
+          const delay = ['room_full', 'connection_limit_reached'].includes(
+            rejectionCode
+          )
+            ? 10000
+            : 2000;
+          this.reconnectTimer = setTimeout(() => this.connect(), delay);
         }
       };
-      socket.onerror = () => socket.close();
+      socket.onerror = () => {
+        if (this.socket !== socket || rejectionCode) return;
+        this.socketFailureCode = 'transport_error';
+        this.lastError = opened
+          ? '歌房 WebSocket 连接异常'
+          : '无法建立歌房 WebSocket 连接，请检查反向代理是否支持 WebSocket';
+        console.error('[在线歌房] WebSocket 连接失败', {
+          address: roomWebSocketAddress('/ws'),
+          opened
+        });
+        socket.close();
+      };
     },
     stopReconnect() {
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
@@ -299,15 +360,39 @@ export const useRoomStore = defineStore('room', {
           this.lastError = event.data || '房间已解散';
           this.leave(false);
         } else if (event.type === 'error') {
-          const message = event.data || '歌房操作失败';
+          const message =
+            typeof event.data === 'string'
+              ? event.data
+              : event.data?.message || '歌房操作失败';
+          const code = String(event.code || event.data?.code || '');
           if (message === '管理员凭证无效' && this.snapshot) {
             deleteAdminToken(this.snapshot.room.id);
           }
           this.lastError = message;
+          if (
+            [
+              'missing_room_id',
+              'missing_member_token',
+              'room_not_found',
+              'connection_limit_reached',
+              'invalid_member_token',
+              'member_connect_failed',
+              'room_full',
+              'invalid_message'
+            ].includes(code)
+          ) {
+            this.socketFailureCode = code;
+            console.error('[在线歌房] WebSocket 服务端拒绝连接', {
+              code,
+              message
+            });
+            return code;
+          }
         }
       } catch {
         this.lastError = '歌房消息解析失败';
       }
+      return '';
     },
     command(action: string, data: Record<string, any> = {}) {
       if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
@@ -685,6 +770,7 @@ export const useRoomStore = defineStore('room', {
       this.socket?.close();
       this.socket = null;
       this.connected = false;
+      this.socketFailureCode = '';
       this.audio?.pause();
       this.localPlaying = false;
       this.audioNeedsGesture = false;

@@ -1039,7 +1039,6 @@ export async function userInfo(cookies: string): Promise<UserInfo | null> {
     uin: cookieObj.uin || '',
     qm_keyst: cookieObj.qm_keyst || ''
   };
-  console.log('生效了cookieNew', cookies, cookieObj, cookieNewObject);
   if (cookieNewObject) {
     qqCookie = formatCookies(cookieNewObject);
   }

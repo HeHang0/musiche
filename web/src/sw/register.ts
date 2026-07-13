@@ -4,7 +4,9 @@ export function getServiceWorkerRegistration(): ServiceWorkerRegistration | null
 }
 
 function sendMessageToServiceWorker(registration: ServiceWorkerRegistration) {
-  const proxyAddress = localStorage.getItem('musiche-proxy-address') || '';
+  const proxyAddress =
+    localStorage.getItem('musiche-proxy-address')?.replace(/"/g, '').trim() ||
+    '';
   proxyAddress &&
     registration.active?.postMessage({
       type: 'MESSAGE_PROXY_ADDRESS',

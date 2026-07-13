@@ -1,7 +1,6 @@
+import { StorageKey } from './storage';
 import type { Music } from './type';
 import CryptoJS from 'crypto-js';
-
-const addressKey = 'musiche-room-server-address';
 
 export interface RoomSummary {
   id: string;
@@ -85,8 +84,9 @@ export class RoomRequestError extends Error {
   }
 }
 
+const roomServiceConfigKey = 'musiche-' + StorageKey.RoomServerAddress;
 export function getRoomServerAddress() {
-  const saved = localStorage.getItem(addressKey)?.trim();
+  const saved = localStorage.getItem(roomServiceConfigKey)?.trim();
   if (saved) return saved.replace(/\/+$/, '');
   if (import.meta.env.DEV) return 'http://127.0.0.1:8738';
   return `${location.protocol}//${location.hostname}`;
@@ -98,8 +98,8 @@ export function hasRoomServerAddressConfigured() {
 
 export function setRoomServerAddress(value: string) {
   const normalized = value.trim().replace(/\/+$/, '');
-  if (!normalized) localStorage.removeItem(addressKey);
-  else localStorage.setItem(addressKey, normalized);
+  if (!normalized) localStorage.removeItem(roomServiceConfigKey);
+  else localStorage.setItem(roomServiceConfigKey, normalized);
 }
 
 export async function roomRequest<T>(

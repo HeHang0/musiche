@@ -56,13 +56,13 @@ function fixWorkerJS(): string {
   return '';
 }
 
-function fixRemoteAddress() {}
-
 function transformIndexHtmlHandler(html: string) {
   const workerJS = fixWorkerJS();
   const replaceList = [`  <script>${workerJS}</script>`];
   if (process.env.ROUTER_PREFIX === 'musiche') {
-    replaceList.push(`    <script src="/js/address.js"></script>`);
+    replaceList.push(
+      `    <script src="/js/address.js?_t=${new Date().getTime()}"></script>`
+    );
   }
   replaceList.push('  </head>');
   html = html.replace('</head>', replaceList.join('\n'));

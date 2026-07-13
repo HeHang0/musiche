@@ -1156,7 +1156,9 @@ onUnmounted(() => {
             <span v-if="roomStore.connected" class="music-room-connected"
               >已连接</span
             >
-            <span v-else class="music-room-disconnected">重连中</span>
+            <span v-else class="music-room-disconnected">
+              {{ roomStore.socketFailureCode ? '连接失败' : '重连中' }}
+            </span>
           </div>
           <div class="music-room-active-header-actions">
             <el-button :icon="Share" type="success" @click="copyRoomLink"
