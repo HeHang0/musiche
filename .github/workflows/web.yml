@@ -63,14 +63,17 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
+          name: github-pages-web-${{ github.run_attempt }}
           path: 'web/dist'
 
       - name: Deploy to GitHub Pages First
         id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-web-${{ github.run_attempt }}
 
   build-on-macos:
-    runs-on: macos-26-intel
+    runs-on: macos-15-intel
     needs: build-web
     continue-on-error: true
     steps:
@@ -94,22 +97,25 @@ jobs:
           name: web-app-dist
           path: web/dist
 
-      - name: Build macOS and iOS packages
+      - name: Build macOS packages
         run: |
           sw_vers -productVersion
           xcodebuild -version
-          npm install -g appdmg
-          cd mobile
-          flutter pub get
-          flutter build ios --release --no-codesign || true
-          flutter build macos --release || true
-          appdmg dmg.json musiche.dmg || true
-          mkdir -p Payload
-          if ls build/ios/Release-iphoneos/*.app >/dev/null 2>&1; then
-            mv build/ios/Release-iphoneos/*.app Payload/musiche.app
-            zip -r musiche.zip Payload
-            mv musiche.zip musiche.ipa
-          fi
+          
+      - name: Install appdmg
+        run: npm install -g appdmg
+
+      - name: Get Flutter dependencies
+        working-directory: mobile
+        run: flutter pub get || true
+
+      - name: Build Intel macOS package
+        working-directory: mobile
+        run: flutter build macos --release || true
+
+      - name: Build DMG
+        working-directory: mobile
+        run: appdmg dmg.json musiche.dmg || true
 
       - name: Upload macOS package
         uses: actions/upload-artifact@v7
@@ -118,6 +124,47 @@ jobs:
           if-no-files-found: warn
           path: |
             mobile/musiche.dmg
+
+  build-on-ios:
+    runs-on: macos-26
+    needs: build-web
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.0
+
+      - name: Download web app dist
+        uses: actions/download-artifact@v8
+        with:
+          name: web-app-dist
+          path: web/dist
+
+      - name: Build iOS packages
+        run: |
+          sw_vers -productVersion
+          xcodebuild -version
+          cd mobile
+          flutter pub get
+          flutter build ios --release --no-codesign || true
+          mkdir -p Payload
+          if ls build/ios/Release-iphoneos/*.app >/dev/null 2>&1; then
+            mv build/ios/Release-iphoneos/*.app Payload/musiche.app
+            zip -r musiche.zip Payload
+            mv musiche.zip musiche.ipa
+          fi
+
+      - name: Upload iOS package
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-package
+          if-no-files-found: warn
+          path: |
             mobile/musiche.ipa
 
   build-on-windows:
@@ -192,10 +239,10 @@ jobs:
           path: web/dist
 
       - name: Prepare assets
-        shell: pwsh
+        shell: bash
         run: |
-          Remove-Item mobile\assets -Force -Recurse -ErrorAction SilentlyContinue
-          Copy-Item web\dist mobile\assets -Force -Recurse
+          rm -rf mobile/assets || true
+          cp -r web/dist/* mobile/assets/ || true
           
       - name: Build Android package
         run: |
@@ -204,10 +251,10 @@ jobs:
         working-directory: mobile
 
       - name: Stage Android package
-        shell: pwsh
+        shell: bash
         run: |
-          New-Item -ItemType Directory -Force artifacts\android | Out-Null
-          Copy-Item mobile\build\app\outputs\flutter-apk\app-release.apk artifacts\android\Musiche.apk -Force
+          mkdir -p artifacts/android || true
+          cp mobile/build/app/outputs/flutter-apk/app-release.apk artifacts/android/Musiche.apk || true
 
       - name: Upload Android package
         uses: actions/upload-artifact@v7
@@ -219,10 +266,11 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     needs:
       - build-web
       - build-on-macos
+      - build-on-ios
       - build-on-windows
       - build-on-android
     steps:
@@ -257,36 +305,46 @@ jobs:
           name: macos-package
           path: packages/macos
 
+      - name: Download iOS package
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: ios-package
+          path: packages/ios
+
       - name: Merge release files
-        shell: pwsh
+        shell: bash
         run: |
-          Copy-Item packages\web\web.zip web\dist\web.zip -Force -ErrorAction SilentlyContinue
-          Copy-Item packages\windows\Musiche.exe web\dist\Musiche.exe -Force -ErrorAction SilentlyContinue
-          Copy-Item packages\windows\Musiche.net6.exe web\dist\Musiche.net6.exe -Force -ErrorAction SilentlyContinue
-          Copy-Item packages\windows\ProxyServer.exe web\dist\ProxyServer.exe -Force -ErrorAction SilentlyContinue
-          Copy-Item packages\android\Musiche.apk web\dist\Musiche.apk -Force -ErrorAction SilentlyContinue
-          Copy-Item packages\macos\musiche.dmg web\dist\Musiche.dmg -Force -ErrorAction SilentlyContinue
-          Copy-Item packages\macos\musiche.ipa web\dist\Musiche.ipa -Force -ErrorAction SilentlyContinue
-          Get-ChildItem web\dist
+          cp packages/web/web.zip web/dist/web.zip || true
+          cp packages/windows/Musiche.exe web/dist/Musiche.exe || true
+          cp packages/windows/Musiche.net6.exe web/dist/Musiche.net6.exe || true
+          cp packages/windows/ProxyServer.exe web/dist/ProxyServer.exe || true
+          cp packages/android/Musiche.apk web/dist/Musiche.apk || true
+          cp packages/macos/musiche.dmg web/dist/Musiche.dmg || true
+          cp packages/ios/musiche.ipa web/dist/Musiche.ipa || true
+          ls -la web/dist
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
+          name: github-pages-complete-${{ github.run_attempt }}
           path: 'web/dist'
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-complete-${{ github.run_attempt }}
 
       - name: Release
         uses: softprops/action-gh-release@v3
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            web\dist\web.zip
-            web\dist\Musiche.exe
-            web\dist\Musiche.net6.exe
-            web\dist\Musiche.apk
-            web\dist\Musiche.ipa
-            web\dist\Musiche.dmg
-            web\dist\ProxyServer.exe
+            web/dist/web.zip
+            web/dist/Musiche.exe
+            web/dist/Musiche.net6.exe
+            web/dist/Musiche.apk
+            web/dist/Musiche.ipa
+            web/dist/Musiche.dmg
+            web/dist/ProxyServer.exe

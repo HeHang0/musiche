@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { markRaw } from 'vue';
 import { useTitle } from '@vueuse/core';
 import * as musicAPI from '../utils/api/api';
 import { useSettingStore } from './setting';
@@ -7,13 +8,13 @@ import {
   createRoomIdentity,
   hasRoomServerAddressConfigured,
   roomRequest,
-  roomWebSocketAddress,
   type RoomChatMessage,
   type RoomIdentity,
   type RoomServiceConfig,
   type RoomSnapshot,
   type RoomSummary
 } from '../utils/room';
+import { RoomRealtimeTransport } from '../utils/room-transport';
 
 export const currentRoomKey = 'musiche-room-current-id';
 const adminTokensKey = 'musiche-room-admin-tokens';
@@ -48,9 +49,8 @@ export const useRoomStore = defineStore('room', {
     serviceChecking: false,
     connected: false,
     reconnectTimer: null as ReturnType<typeof setTimeout> | null,
-    heartbeatTimer: null as ReturnType<typeof setInterval> | null,
-    socket: null as WebSocket | null,
-    socketFailureCode: '',
+    transport: null as RoomRealtimeTransport | null,
+    transportFailureCode: '',
     identity: createRoomIdentity() as RoomIdentity,
     memberToken: '',
     config: null as RoomServiceConfig | null,
@@ -198,7 +198,7 @@ export const useRoomStore = defineStore('room', {
       }>(`/api/v1/rooms/${encodeURIComponent(roomId)}?${query}`);
       // A cached token may have been issued for an older administrator
       // password or token format. The HTTP snapshot is authoritative, so
-      // discard an invalid token before opening the WebSocket.
+      // discard an invalid token before opening the realtime connection.
       if (token && !response.snapshot.isAdmin) deleteAdminToken(roomId);
       this.memberToken = response.memberToken;
       this.setSnapshot(response.snapshot);
@@ -217,120 +217,91 @@ export const useRoomStore = defineStore('room', {
     connect() {
       if (!this.snapshot) return;
       this.stopReconnect();
-      this.stopHeartbeat();
-      this.socket?.close();
-      const query = new URLSearchParams({
-        roomId: this.snapshot.room.id,
-        memberToken: this.memberToken
-      });
-      const socket = new WebSocket(roomWebSocketAddress('/ws?' + query));
-      this.socket = socket;
-      this.socketFailureCode = '';
-      let opened = false;
+      this.transport?.close();
+      this.transport = null;
+      this.connected = false;
+      this.transportFailureCode = '';
       let rejectionCode = '';
-      socket.onopen = () => {
-        if (this.socket !== socket) return;
-        opened = true;
-        this.connected = true;
-        this.socketFailureCode = '';
-        this.startHeartbeat(socket);
-        // Establish administrator privileges after the normal member
-        // connection is ready. This keeps the admin credential out of the
-        // WebSocket URL and also lets a guest become an administrator later.
-        const adminToken = this.adminToken;
-        if (adminToken) {
-          socket.send(
-            JSON.stringify({
-              type: 'command',
-              action: 'auth_admin',
-              adminToken
-            })
-          );
+      const transport = new RoomRealtimeTransport(
+        this.snapshot.room.id,
+        this.memberToken,
+        {
+          onConnecting: () => {
+            if (this.transport !== transport) return;
+            this.connected = false;
+          },
+          onOpen: () => {
+            if (this.transport !== transport) return;
+            this.connected = true;
+            this.transportFailureCode = '';
+            // Establish administrator privileges after the realtime channel
+            // is ready. A guest can still become an administrator later.
+            const adminToken = this.adminToken;
+            if (adminToken)
+              transport.send({
+                type: 'command',
+                action: 'auth_admin',
+                adminToken
+              });
+          },
+          onMessage: raw => {
+            if (this.transport !== transport) return;
+            const code = this.handleEvent(raw);
+            if (code) rejectionCode = code;
+          },
+          onError: event => {
+            if (this.transport !== transport) return;
+            this.transportFailureCode = event.code;
+            this.lastError = event.message;
+            console.error('[在线歌房] 实时连接错误', event);
+          },
+          onClose: event => {
+            // Closing an older channel while credentials change must not mark
+            // the replacement channel as disconnected.
+            if (this.transport !== transport) return;
+            this.connected = false;
+            const code = rejectionCode || event.code;
+            this.transportFailureCode = code;
+            const roomId = this.snapshot?.room.id;
+            if (
+              roomId &&
+              (code === 'missing_member_token' ||
+                code === 'invalid_member_token')
+            ) {
+              this.memberToken = '';
+              this.reconnectTimer = setTimeout(() => {
+                if (this.snapshot?.room.id !== roomId) return;
+                void this.open(roomId).catch((error: any) => {
+                  this.lastError =
+                    error?.message || '刷新歌房连接凭证失败';
+                });
+              }, 300);
+            } else if (
+              this.snapshot &&
+              ![
+                'missing_room_id',
+                'room_not_found',
+                'member_connect_failed',
+                'invalid_message'
+              ].includes(code)
+            ) {
+              const delay = [
+                'room_full',
+                'connection_limit_reached'
+              ].includes(code)
+                ? 10000
+                : 2000;
+              this.reconnectTimer = setTimeout(() => this.connect(), delay);
+            }
+          }
         }
-      };
-      socket.onmessage = event => {
-        const code = this.handleEvent(event.data);
-        if (code) rejectionCode = code;
-      };
-      socket.onclose = event => {
-        // Closing an old socket while switching administrator credentials must
-        // never mark the newer socket as disconnected.
-        if (this.socket !== socket) return;
-        this.connected = false;
-        this.stopHeartbeat();
-        if (
-          !rejectionCode &&
-          event.code !== 1000 &&
-          this.socketFailureCode !== 'transport_error'
-        ) {
-          this.socketFailureCode = 'transport_error';
-          this.lastError = opened
-            ? '歌房 WebSocket 连接意外断开'
-            : '无法建立歌房 WebSocket 连接，请检查反向代理是否支持 WebSocket';
-          console.error('[在线歌房] WebSocket 非正常关闭', {
-            code: event.code,
-            reason: event.reason,
-            opened
-          });
-        }
-        const roomId = this.snapshot?.room.id;
-        if (
-          roomId &&
-          (rejectionCode === 'missing_member_token' ||
-            rejectionCode === 'invalid_member_token')
-        ) {
-          this.memberToken = '';
-          this.reconnectTimer = setTimeout(() => {
-            if (this.snapshot?.room.id !== roomId) return;
-            void this.open(roomId).catch((error: any) => {
-              this.lastError = error?.message || '刷新歌房连接凭证失败';
-            });
-          }, 300);
-        } else if (
-          this.snapshot &&
-          ![
-            'missing_room_id',
-            'room_not_found',
-            'member_connect_failed',
-            'invalid_message'
-          ].includes(rejectionCode)
-        ) {
-          const delay = ['room_full', 'connection_limit_reached'].includes(
-            rejectionCode
-          )
-            ? 10000
-            : 2000;
-          this.reconnectTimer = setTimeout(() => this.connect(), delay);
-        }
-      };
-      socket.onerror = () => {
-        if (this.socket !== socket || rejectionCode) return;
-        this.socketFailureCode = 'transport_error';
-        this.lastError = opened
-          ? '歌房 WebSocket 连接异常'
-          : '无法建立歌房 WebSocket 连接，请检查反向代理是否支持 WebSocket';
-        console.error('[在线歌房] WebSocket 连接失败', {
-          address: roomWebSocketAddress('/ws'),
-          opened
-        });
-        socket.close();
-      };
+      );
+      this.transport = markRaw(transport);
+      transport.start();
     },
     stopReconnect() {
       if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
-    },
-    startHeartbeat(socket: WebSocket) {
-      this.stopHeartbeat();
-      this.heartbeatTimer = setInterval(() => {
-        if (this.socket !== socket || socket.readyState !== WebSocket.OPEN)
-          return;
-        socket.send(JSON.stringify({ type: 'command', action: 'heartbeat' }));
-      }, 20000);
-    },
-    stopHeartbeat() {
-      if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
     },
     handleEvent(raw: string) {
       try {
@@ -378,11 +349,16 @@ export const useRoomStore = defineStore('room', {
               'invalid_member_token',
               'member_connect_failed',
               'room_full',
-              'invalid_message'
+              'invalid_message',
+              'connection_id_conflict',
+              'realtime_connection_not_found',
+              'invalid_connection_id',
+              'invalid_connection',
+              'streaming_unsupported'
             ].includes(code)
           ) {
-            this.socketFailureCode = code;
-            console.error('[在线歌房] WebSocket 服务端拒绝连接', {
+            this.transportFailureCode = code;
+            console.error('[在线歌房] 实时服务端拒绝连接', {
               code,
               message
             });
@@ -395,18 +371,19 @@ export const useRoomStore = defineStore('room', {
       return '';
     },
     command(action: string, data: Record<string, any> = {}) {
-      if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      if (!this.transport?.isOpen()) {
         this.lastError = '正在连接歌房服务';
         return;
       }
-      this.socket.send(
-        JSON.stringify({
+      if (
+        !this.transport.send({
           type: 'command',
           action,
           adminToken: this.adminToken,
           ...data
         })
-      );
+      )
+        this.lastError = '歌房实时消息发送失败';
     },
     addQueue(music: Music) {
       this.command('queue_add', { music: { ...music, url: '', lyricUrl: '' } });
@@ -450,16 +427,13 @@ export const useRoomStore = defineStore('room', {
         }
       );
       this.saveAdminToken(roomId, response.adminToken);
-      const socket = this.socket;
-      if (socket?.readyState === WebSocket.OPEN) {
-        socket.send(
-          JSON.stringify({
-            type: 'command',
-            action: 'auth_admin',
-            adminToken: response.adminToken
-          })
-        );
-      } else if (!socket || socket.readyState === WebSocket.CLOSED) {
+      if (this.transport?.isOpen()) {
+        this.transport.send({
+          type: 'command',
+          action: 'auth_admin',
+          adminToken: response.adminToken
+        });
+      } else {
         await this.open(roomId);
       }
     },
@@ -501,7 +475,7 @@ export const useRoomStore = defineStore('room', {
         }
       );
       // Refresh only the credential metadata. Reopening the room here would
-      // unnecessarily replace the active WebSocket connection.
+      // unnecessarily replace the active realtime connection.
       this.snapshot.credentialSources = [
         ...new Set([...this.snapshot.credentialSources, source])
       ];
@@ -563,7 +537,7 @@ export const useRoomStore = defineStore('room', {
           }
         );
         // Keep the current snapshot in sync without reopening the room and
-        // creating another WebSocket connection while audio is being loaded.
+        // creating another realtime connection while audio is being loaded.
         this.snapshot.credentialSources = [
           ...new Set([...this.snapshot.credentialSources, source])
         ];
@@ -766,11 +740,10 @@ export const useRoomStore = defineStore('room', {
     },
     leave(clearCurrent = true) {
       this.stopReconnect();
-      this.stopHeartbeat();
-      this.socket?.close();
-      this.socket = null;
+      this.transport?.close();
+      this.transport = null;
       this.connected = false;
-      this.socketFailureCode = '';
+      this.transportFailureCode = '';
       this.audio?.pause();
       this.localPlaying = false;
       this.audioNeedsGesture = false;

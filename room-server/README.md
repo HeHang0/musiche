@@ -48,6 +48,24 @@ The same service also exposes the existing generic proxy behavior at
 `/api/v1/proxy`, so the separate `proxy-server` process is not required for
 the Musiche deployment.
 
+## Realtime transport fallback
+
+The Web client normally connects through `/ws`. If the browser, CDN, or
+reverse proxy blocks WebSocket, it automatically falls back to an HTTP NDJSON
+stream at `GET /api/v1/realtime/stream` and sends room commands through
+`POST /api/v1/realtime/command`. Both HTTP endpoints carry `memberToken` in
+`Authorization: Bearer ...`; the token is not included in their URLs.
+
+The fallback preference is stored per room-service address in browser local
+storage. While an HTTP stream is active, the client performs a lightweight
+`/ws?probe=1` check. A successful probe clears the preference so the next
+connection uses WebSocket again. Probe connections do not join the room or
+change its online member count.
+
+The stream response sets `X-Accel-Buffering: no` and sends heartbeat events.
+When adding another reverse proxy, keep streaming responses unbuffered and do
+not impose a short read timeout on `/api/v1/realtime/stream`.
+
 `ROOM_SUPER_ADMIN_PASSWORD` is optional. When non-empty, a member who has
 already entered a room can use it in the administrator dialog to obtain
 administrator control for that room. It is never sent to the Web client.

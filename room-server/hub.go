@@ -13,13 +13,38 @@ import (
 
 type RoomConnection struct {
 	id         string
-	ws         *websocket.Conn
+	sender     roomEventSender
 	room       *Room
 	memberID   string
 	store      *RoomStore
-	writeMu    sync.Mutex
 	adminToken string
 	tokenMu    sync.RWMutex
+}
+
+type roomEventSender interface {
+	Send(Event) error
+	Close() error
+	Kind() string
+}
+
+type websocketEventSender struct {
+	ws      *websocket.Conn
+	writeMu sync.Mutex
+}
+
+func (s *websocketEventSender) Send(event Event) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return websocket.JSON.Send(s.ws, event)
+}
+
+func (s *websocketEventSender) Close() error { return s.ws.Close() }
+func (s *websocketEventSender) Kind() string { return "websocket" }
+
+type connectionFailure struct {
+	Status  int
+	Code    string
+	Message string
 }
 
 type ClientCommand struct {
@@ -34,10 +59,10 @@ type ClientCommand struct {
 }
 
 func (c *RoomConnection) send(event Event) error {
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
-	return websocket.JSON.Send(c.ws, event)
+	return c.sender.Send(event)
 }
+
+func (c *RoomConnection) transportKind() string { return c.sender.Kind() }
 
 func (c *RoomConnection) broadcast(event Event) {
 	broadcastRoomEvent(c.room, event)
@@ -52,7 +77,7 @@ func broadcastRoomEvent(room *Room, event Event) {
 	room.mu.RUnlock()
 	for _, connection := range connections {
 		if err := connection.send(event); err != nil {
-			connection.store.logf("ws_send_failed connection_id=%s room_id=%q member_id=%s event=%q error=%q", connection.id, room.config.ID, shortLogID(connection.memberID), event.Type, err)
+			connection.store.logf("realtime_send_failed transport=%s connection_id=%s room_id=%q member_id=%s event=%q error=%q", connection.transportKind(), connection.id, room.config.ID, shortLogID(connection.memberID), event.Type, err)
 		}
 	}
 }
@@ -103,7 +128,7 @@ func broadcastRoomSnapshot(room *Room) <-chan struct{} {
 		room.mu.RUnlock()
 		for _, connection := range connections {
 			if err := connection.send(Event{Type: "snapshot", Data: connection.snapshot()}); err != nil {
-				connection.store.logf("ws_send_failed connection_id=%s room_id=%q member_id=%s event=snapshot error=%q", connection.id, room.config.ID, shortLogID(connection.memberID), err)
+				connection.store.logf("realtime_send_failed transport=%s connection_id=%s room_id=%q member_id=%s event=snapshot error=%q", connection.transportKind(), connection.id, room.config.ID, shortLogID(connection.memberID), err)
 			}
 		}
 
@@ -122,6 +147,74 @@ func broadcastRoomSnapshot(room *Room) <-chan struct{} {
 		}
 		return done
 	}
+}
+
+func (s *RoomStore) registerRoomConnection(roomID, memberToken, connectionID string, sender roomEventSender) (*RoomConnection, Snapshot, *connectionFailure) {
+	if roomID == "" {
+		return nil, Snapshot{}, &connectionFailure{Status: 400, Code: "missing_room_id", Message: "缺少房间号"}
+	}
+	if strings.TrimSpace(memberToken) == "" {
+		return nil, Snapshot{}, &connectionFailure{Status: 401, Code: "missing_member_token", Message: "缺少成员连接凭证"}
+	}
+	room, ok := s.get(roomID)
+	if !ok {
+		return nil, Snapshot{}, &connectionFailure{Status: 404, Code: "room_not_found", Message: "房间不存在或已解散"}
+	}
+	if !s.reserveConnection() {
+		return nil, Snapshot{}, &connectionFailure{Status: 503, Code: "connection_limit_reached", Message: "歌房服务连接数已达上限"}
+	}
+	releaseReserved := true
+	defer func() {
+		if releaseReserved {
+			s.releaseConnection()
+		}
+	}()
+	memberID, valid := s.memberIDForToken(roomID, memberToken)
+	if !valid {
+		return nil, Snapshot{}, &connectionFailure{Status: 401, Code: "invalid_member_token", Message: "成员连接凭证无效或已过期"}
+	}
+	memberID, err := room.connectMember(memberID)
+	if err != nil {
+		return nil, Snapshot{}, &connectionFailure{Status: 403, Code: "member_connect_failed", Message: err.Error()}
+	}
+	connection := &RoomConnection{id: connectionID, sender: sender, room: room, memberID: memberID, store: s}
+	room.mu.Lock()
+	if len(room.connections) >= room.config.MaxMembers {
+		room.mu.Unlock()
+		return nil, Snapshot{}, &connectionFailure{Status: 429, Code: "room_full", Message: "房间人数已满"}
+	}
+	for existing := range room.connections {
+		if existing.id == connectionID {
+			room.mu.Unlock()
+			return nil, Snapshot{}, &connectionFailure{Status: 409, Code: "connection_id_conflict", Message: "实时连接标识已被占用"}
+		}
+	}
+	room.connections[connection] = struct{}{}
+	snapshot := room.snapshotLocked(memberID, connection.token(), s.config.TokenSecret)
+	onlineCount := len(room.connections)
+	room.mu.Unlock()
+	releaseReserved = false
+	s.logf("realtime_connected transport=%s connection_id=%s room_id=%q member_id=%s online=%d", connection.transportKind(), connectionID, roomID, shortLogID(memberID), onlineCount)
+	return connection, snapshot, nil
+}
+
+func (s *RoomStore) unregisterRoomConnection(connection *RoomConnection, requestID, reason string, connectedAt time.Time) {
+	room := connection.room
+	room.mu.Lock()
+	delete(room.connections, connection)
+	if len(room.connections) == 0 {
+		now := time.Now().UTC()
+		room.state.EmptySince = &now
+		if err := room.saveStateLocked(); err != nil {
+			s.logf("room_empty_state_save_failed room_id=%q error=%q", room.config.ID, err)
+		}
+	}
+	roomID := room.config.ID
+	room.mu.Unlock()
+	s.releaseConnection()
+	connection.broadcast(Event{Type: "presence", Data: roomSummary(room)})
+	_ = connection.sender.Close()
+	s.logf("realtime_disconnected transport=%s request_id=%s connection_id=%s room_id=%q member_id=%s duration_ms=%d reason=%s", connection.transportKind(), requestID, connection.id, roomID, shortLogID(connection.memberID), time.Since(connectedAt).Milliseconds(), reason)
 }
 
 func (s *RoomStore) memberIDForToken(roomID, token string) (string, bool) {
@@ -165,58 +258,45 @@ func (s *RoomStore) serveWebSocket(ws *websocket.Conn) {
 		s.rejectWebSocket(ws, requestID, connectionID, roomID, "missing_member_token", "缺少成员连接凭证")
 		return
 	}
-	room, ok := s.get(roomID)
-	if !ok {
+	if _, ok := s.get(roomID); !ok {
 		s.rejectWebSocket(ws, requestID, connectionID, roomID, "room_not_found", "房间不存在或已解散")
 		return
 	}
-	if !s.reserveConnection() {
-		s.rejectWebSocket(ws, requestID, connectionID, roomID, "connection_limit_reached", "歌房服务连接数已达上限")
+	if request.URL.Query().Get("probe") == "1" {
+		if !s.reserveConnection() {
+			s.rejectWebSocket(ws, requestID, connectionID, roomID, "connection_limit_reached", "歌房服务连接数已达上限")
+			return
+		}
+		defer s.releaseConnection()
+		if _, valid := s.memberIDForToken(roomID, memberToken); !valid {
+			s.rejectWebSocket(ws, requestID, connectionID, roomID, "invalid_member_token", "成员连接凭证无效或已过期")
+			return
+		}
+		if err := websocket.JSON.Send(ws, Event{Type: "probe", Data: "ok"}); err != nil {
+			s.logf("ws_probe_failed request_id=%s connection_id=%s room_id=%q error=%q", requestID, connectionID, roomID, err)
+		} else {
+			s.logf("ws_probe_succeeded request_id=%s connection_id=%s room_id=%q", requestID, connectionID, roomID)
+		}
+		_ = ws.Close()
 		return
 	}
-	defer s.releaseConnection()
-	memberID, valid := s.memberIDForToken(roomID, memberToken)
-	if !valid {
-		s.rejectWebSocket(ws, requestID, connectionID, roomID, "invalid_member_token", "成员连接凭证无效或已过期")
+	sender := &websocketEventSender{ws: ws}
+	connection, snapshot, failure := s.registerRoomConnection(roomID, memberToken, connectionID, sender)
+	if failure != nil {
+		s.rejectWebSocket(ws, requestID, connectionID, roomID, failure.Code, failure.Message)
 		return
 	}
-	memberID, err := room.connectMember(memberID)
-	if err != nil {
-		s.rejectWebSocket(ws, requestID, connectionID, roomID, "member_connect_failed", err.Error())
-		return
-	}
-	connection := &RoomConnection{id: connectionID, ws: ws, room: room, memberID: memberID, store: s}
-	room.mu.Lock()
-	if len(room.connections) >= room.config.MaxMembers {
-		room.mu.Unlock()
-		s.rejectWebSocket(ws, requestID, connectionID, roomID, "room_full", "房间人数已满")
-		return
-	}
-	room.connections[connection] = struct{}{}
-	snapshot := room.snapshotLocked(memberID, connection.token(), s.config.TokenSecret)
-	onlineCount := len(room.connections)
-	room.mu.Unlock()
 	connectedAt := time.Now()
 	disconnectReason := "handler_returned"
-	s.logf("ws_connected request_id=%s connection_id=%s room_id=%q member_id=%s online=%d", requestID, connectionID, roomID, shortLogID(memberID), onlineCount)
+	defer func() {
+		s.unregisterRoomConnection(connection, requestID, disconnectReason, connectedAt)
+	}()
 	if err := connection.send(Event{Type: "snapshot", Data: snapshot}); err != nil {
 		disconnectReason = "initial_snapshot_failed"
-		s.logf("ws_send_failed request_id=%s connection_id=%s room_id=%q member_id=%s event=snapshot error=%q", requestID, connectionID, roomID, shortLogID(memberID), err)
+		s.logf("realtime_send_failed transport=websocket request_id=%s connection_id=%s room_id=%q member_id=%s event=snapshot error=%q", requestID, connectionID, roomID, shortLogID(connection.memberID), err)
 		return
 	}
-	connection.broadcast(Event{Type: "presence", Data: roomSummary(room)})
-	defer func() {
-		room.mu.Lock()
-		delete(room.connections, connection)
-		if len(room.connections) == 0 {
-			now := time.Now().UTC()
-			room.state.EmptySince = &now
-			_ = room.saveStateLocked()
-		}
-		room.mu.Unlock()
-		connection.broadcast(Event{Type: "presence", Data: roomSummary(room)})
-		s.logf("ws_disconnected request_id=%s connection_id=%s room_id=%q member_id=%s duration_ms=%d reason=%s", requestID, connectionID, roomID, shortLogID(memberID), time.Since(connectedAt).Milliseconds(), disconnectReason)
-	}()
+	connection.broadcast(Event{Type: "presence", Data: roomSummary(connection.room)})
 	for {
 		command := ClientCommand{}
 		if err := websocket.JSON.Receive(ws, &command); err != nil {
@@ -225,12 +305,12 @@ func (s *RoomStore) serveWebSocket(ws *websocket.Conn) {
 				return
 			}
 			disconnectReason = "receive_error"
-			s.logf("ws_receive_failed request_id=%s connection_id=%s room_id=%q member_id=%s error=%q", requestID, connectionID, roomID, shortLogID(memberID), err)
+			s.logf("ws_receive_failed request_id=%s connection_id=%s room_id=%q member_id=%s error=%q", requestID, connectionID, roomID, shortLogID(connection.memberID), err)
 			_ = connection.send(Event{Type: "error", Code: "invalid_message", Data: "WebSocket 消息格式错误"})
 			return
 		}
 		if err := connection.handle(command); err != nil {
-			s.logf("ws_command_rejected request_id=%s connection_id=%s room_id=%q member_id=%s action=%q error=%q", requestID, connectionID, roomID, shortLogID(memberID), command.Action, err)
+			s.logf("realtime_command_rejected transport=websocket request_id=%s connection_id=%s room_id=%q member_id=%s action=%q error=%q", requestID, connectionID, roomID, shortLogID(connection.memberID), command.Action, err)
 			_ = connection.send(Event{Type: "error", Code: "command_rejected", Data: err.Error()})
 		}
 	}

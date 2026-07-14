@@ -31,6 +31,8 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("/api/v1/rooms/", s.room)
 	mux.HandleFunc("/api/v1/current", s.current)
 	mux.HandleFunc("/api/v1/proxy", s.proxy)
+	mux.HandleFunc("/api/v1/realtime/stream", s.realtimeStream)
+	mux.HandleFunc("/api/v1/realtime/command", s.realtimeCommand)
 	mux.Handle("/ws", websocket.Server{Handler: websocket.Handler(s.store.serveWebSocket)})
 	return s.requestLogger(cors(mux))
 }
@@ -546,8 +548,11 @@ func writeError(w http.ResponseWriter, status int, message string) {
 func cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
+		// Authorization is not covered reliably by the CORS wildcard, so list
+		// every header used by the Web client explicitly.
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Room-Admin, X-Room-Log-Token, X-Room-Member")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Max-Age", "600")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return

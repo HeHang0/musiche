@@ -123,12 +123,6 @@ export async function roomRequest<T>(
   return data as T;
 }
 
-export function roomWebSocketAddress(path: string) {
-  const address = getRoomServerAddress();
-  const protocol = address.startsWith('https://') ? 'wss://' : 'ws://';
-  return protocol + address.replace(/^https?:\/\//, '') + path;
-}
-
 export function createRoomIdentity(): RoomIdentity {
   const idKey = 'musiche-room-visitor-id';
   let visitorId = localStorage.getItem(idKey);

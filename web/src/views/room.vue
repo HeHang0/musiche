@@ -159,6 +159,9 @@ const shortcutOptions: Array<{
   { value: 'created', label: '创建的歌单', icon: '编' }
 ];
 const queueScrollbar = ref<any>(null);
+const chatScrollbar = ref<any>(null);
+const chatShouldStickToBottom = ref(true);
+const unreadChatCount = ref(0);
 const emojiList = [
   '😀',
   '😃',
@@ -243,6 +246,10 @@ const playbackLength = computed(() => current.value?.music.length || 1);
 const isRoomOpen = computed(() => Boolean(snapshot.value));
 const progressDragging = ref(false);
 const progressModelValue = ref(0);
+const playLoading = computed(
+  () =>
+    playback.value?.playing && !roomStore.localPlaying && roomStore.syncingAudio
+);
 const roomLyricLines = ref<LyricLine[]>([]);
 const roomLyricLoading = ref(false);
 const roomLyricKey = computed(() =>
@@ -339,6 +346,41 @@ function chatAvatar(memberId: string) {
   const dataURL = `data:image/svg+xml,${encodeURIComponent(svg)}`;
   chatAvatarCache.set(key, dataURL);
   return dataURL;
+}
+
+function updateChatScrollPosition() {
+  const wrap = chatScrollbar.value?.wrapRef as HTMLElement | undefined;
+  if (!wrap) return;
+  // Keep automatic scrolling enabled while the user is reading the latest
+  // messages, but do not pull them away from older messages they selected.
+  chatShouldStickToBottom.value =
+    wrap.scrollHeight - wrap.clientHeight - wrap.scrollTop <= 48;
+  if (chatShouldStickToBottom.value) unreadChatCount.value = 0;
+}
+
+function scrollChatToBottom(force = false, smooth = false) {
+  if (!force && !chatShouldStickToBottom.value) return;
+  nextTick(() => {
+    if (!force && !chatShouldStickToBottom.value) return;
+    const scrollbar = chatScrollbar.value;
+    const wrap = scrollbar?.wrapRef as HTMLElement | undefined;
+    if (!scrollbar || !wrap) return;
+    if (smooth) wrap.scrollTo({ top: wrap.scrollHeight, behavior: 'smooth' });
+    else scrollbar.setScrollTop(wrap.scrollHeight);
+    chatShouldStickToBottom.value = true;
+    unreadChatCount.value = 0;
+  });
+}
+
+function followLatestChat() {
+  chatShouldStickToBottom.value = true;
+  scrollChatToBottom(true, true);
+}
+
+function handleChatImageLoad() {
+  // An image changes the item height only after it loads, so align once more
+  // when the user was already following the newest messages.
+  scrollChatToBottom();
 }
 
 watch(
@@ -995,6 +1037,7 @@ let stopSearchWatch = () => {};
 let stopRoomWatch = () => {};
 let stopErrorWatch = () => {};
 let stopGuestQueueWatch = () => {};
+let stopChatWatch = () => {};
 onMounted(async () => {
   setBodyClass(true);
   try {
@@ -1050,6 +1093,19 @@ onMounted(async () => {
       }
     }
   );
+  stopChatWatch = watch(
+    () => roomStore.chatMessages.length,
+    (length, previousLength) => {
+      if (length === 0) {
+        unreadChatCount.value = 0;
+        return;
+      }
+      if (length <= previousLength) return;
+      if (chatShouldStickToBottom.value) scrollChatToBottom();
+      else unreadChatCount.value += length - previousLength;
+    },
+    { flush: 'post' }
+  );
 });
 
 onUnmounted(() => {
@@ -1060,6 +1116,7 @@ onUnmounted(() => {
   stopRoomWatch();
   stopErrorWatch();
   stopGuestQueueWatch();
+  stopChatWatch();
   roomStore.leave();
 });
 </script>
@@ -1157,7 +1214,7 @@ onUnmounted(() => {
               >已连接</span
             >
             <span v-else class="music-room-disconnected">
-              {{ roomStore.socketFailureCode ? '连接失败' : '重连中' }}
+              {{ roomStore.transportFailureCode ? '连接失败' : '重连中' }}
             </span>
           </div>
           <div class="music-room-active-header-actions">
@@ -1273,20 +1330,10 @@ onUnmounted(() => {
                     <el-button
                       circle
                       type="primary"
-                      :loading="
-                        playback?.playing &&
-                        !roomStore.localPlaying &&
-                        roomStore.syncingAudio
-                      "
+                      :loading="playLoading"
                       @click="roomStore.togglePlayerAction"
                       ><span
-                        v-if="
-                          !(
-                            playback?.playing &&
-                            !roomStore.localPlaying &&
-                            roomStore.syncingAudio
-                          )
-                        "
+                        v-if="!playLoading"
                         class="music-icon"
                         :title="roomStore.localPlaying ? '暂停' : '播放'">
                         {{ roomStore.localPlaying ? '停' : '播' }}
@@ -1331,8 +1378,22 @@ onUnmounted(() => {
               </div>
             </div>
             <div class="music-room-chat">
-              <div class="music-room-panel-title">聊天</div>
-              <el-scrollbar class="music-room-chat-list">
+              <div class="music-room-panel-title music-room-chat-title">
+                <span>聊天</span>
+                <button
+                  v-if="unreadChatCount"
+                  class="music-room-chat-unread"
+                  type="button"
+                  title="查看最新消息"
+                  @click="followLatestChat">
+                  {{ unreadChatCount > 99 ? '99+' : unreadChatCount }} 条新消息
+                  <el-icon><ArrowDown /></el-icon>
+                </button>
+              </div>
+              <el-scrollbar
+                ref="chatScrollbar"
+                class="music-room-chat-list"
+                @scroll="updateChatScrollPosition">
                 <div
                   v-for="message in roomStore.chatMessages"
                   :key="message.id"
@@ -1363,7 +1424,8 @@ onUnmounted(() => {
                         v-if="message.image"
                         class="music-room-chat-image"
                         :src="message.image"
-                        alt="聊天图片" />
+                        alt="聊天图片"
+                        @load="handleChatImageLoad" />
                     </div>
                   </div>
                 </div>
@@ -2010,6 +2072,10 @@ onUnmounted(() => {
         font-size: 13px;
       }
       .el-button {
+        &.is-circle {
+          width: 37px;
+          height: 37px;
+        }
         .music-icon {
           margin-right: 0;
         }
@@ -2033,6 +2099,32 @@ onUnmounted(() => {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    &-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    &-unread {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex: 0 0 auto;
+      padding: 4px 8px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--music-button-info-border-color);
+      color: var(--music-primary-color);
+      font-size: 12px;
+      font-weight: normal;
+      line-height: 1.2;
+      cursor: pointer;
+      &:hover {
+        background: var(--music-background-hover);
+      }
+      .el-icon {
+        font-size: 13px;
+      }
+    }
     &-list {
       min-height: 0;
       flex: 1 1 auto;
