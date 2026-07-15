@@ -62,10 +62,13 @@ export const useRoomStore = defineStore('room', {
     audioNeedsGesture: false,
     pendingSeekSeconds: null as number | null,
     loadedMusicKey: '',
+    loadedQueueId: '',
+    audioResolveAbort: null as AbortController | null,
     audioResolveTimer: null as ReturnType<typeof setTimeout> | null,
     audioRetryTimer: null as ReturnType<typeof setTimeout> | null,
     adminCookieSyncing: false,
     syncingAudio: false,
+    audioSyncPending: false,
     chatMessages: [] as RoomChatMessage[]
   }),
   getters: {
@@ -206,13 +209,18 @@ export const useRoomStore = defineStore('room', {
     },
     setSnapshot(snapshot: RoomSnapshot) {
       const previous = this.snapshot;
+      const previousQueueId = previous?.state.current?.id || '';
+      const nextQueueId = snapshot.state.current?.id || '';
+      // Do not let the old source continue while the new track is resolving.
+      // This also invalidates an in-flight result for a previous queue item.
+      if (previous && previousQueueId !== nextQueueId) this.resetLoadedAudio();
       if (previous && previous.room.id !== snapshot.room.id)
         this.chatMessages = [];
       this.snapshot = snapshot;
       this.lastError = '';
       localStorage.setItem(currentRoomKey, snapshot.room.id);
       if (snapshot.isAdmin) void this.syncAdminCookies();
-      void this.syncAudio();
+      this.scheduleAudioSync();
     },
     connect() {
       if (!this.snapshot) return;
@@ -437,6 +445,22 @@ export const useRoomStore = defineStore('room', {
         await this.open(roomId);
       }
     },
+    async updateNickname(nickname: string) {
+      if (!this.snapshot || !this.memberToken) return;
+      const response = await roomRequest<{ snapshot: RoomSnapshot }>(
+        `/api/v1/rooms/${this.snapshot.room.id}/nickname`,
+        {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${this.memberToken}` },
+          body: JSON.stringify({
+            nickname,
+            ...this.identity,
+            adminToken: this.adminToken
+          })
+        }
+      );
+      this.setSnapshot(response.snapshot);
+    },
     async updateSettings(payload: {
       name?: string;
       entryPassword?: string;
@@ -594,27 +618,45 @@ export const useRoomStore = defineStore('room', {
       localStorage.setItem(roomVolumeKey, this.volume.toString());
       if (this.audio) this.audio.volume = this.volume / 100;
     },
+    resetLoadedAudio() {
+      this.audioResolveAbort?.abort();
+      this.audioResolveAbort = null;
+      this.audio?.pause();
+      this.localPlaying = false;
+      this.loadedMusicKey = '';
+      this.loadedQueueId = '';
+      this.pendingSeekSeconds = null;
+      if (this.audioResolveTimer) clearTimeout(this.audioResolveTimer);
+      this.audioResolveTimer = null;
+    },
     scheduleAudioSync(delay = 0) {
+      this.audioSyncPending = true;
       if (this.audioRetryTimer) clearTimeout(this.audioRetryTimer);
       this.audioRetryTimer = setTimeout(() => {
         this.audioRetryTimer = null;
         if (!this.snapshot) return;
-        if (this.syncingAudio) {
-          this.scheduleAudioSync(250);
-          return;
-        }
         void this.syncAudio();
       }, delay);
     },
     async syncAudio() {
-      if (this.syncingAudio || !this.snapshot) return;
+      if (!this.snapshot) return;
+      if (this.syncingAudio) {
+        // A snapshot can arrive while an address is being resolved. Remember
+        // it so the follow-up track sync is never silently dropped.
+        this.audioSyncPending = true;
+        return;
+      }
       const current = this.snapshot.state.current;
       if (!current) {
-        this.audio?.pause();
+        this.resetLoadedAudio();
+        this.audioNeedsGesture = false;
         return;
       }
       this.syncingAudio = true;
-      const expectedKey = `${current.music.type}:${current.music.id}`;
+      this.audioSyncPending = false;
+      // Queue IDs are unique even when somebody queues the same song twice.
+      // A music ID alone therefore cannot identify the active audio source.
+      const expectedKey = `${current.id}:${current.music.type}:${current.music.id}`;
       try {
         if (!this.audio) {
           this.audio = new Audio();
@@ -623,10 +665,20 @@ export const useRoomStore = defineStore('room', {
             this.localPlaying = true;
             this.audioNeedsGesture = false;
           });
-          this.audio.addEventListener(
-            'pause',
-            () => (this.localPlaying = false)
-          );
+          this.audio.addEventListener('pause', () => {
+            const wasPlaying = this.localPlaying;
+            this.localPlaying = false;
+            // Recover from a transient local pause while the room is still
+            // playing. Intentional pauses either arrive with Playing=false or
+            // happen while a new source is being synchronized.
+            if (
+              wasPlaying &&
+              !this.syncingAudio &&
+              !this.audio?.ended &&
+              this.snapshot?.state.playback.playing
+            )
+              this.scheduleAudioSync(150);
+          });
           this.audio.addEventListener(
             'ended',
             () => (this.localPlaying = false)
@@ -638,43 +690,63 @@ export const useRoomStore = defineStore('room', {
           });
           this.audio.addEventListener('ended', () => {
             const item = this.snapshot?.state.current;
-            if (item && this.isAdmin)
+            // Ignore an end event from a source that no longer belongs to the
+            // current queue item, such as after a manual track switch.
+            if (item && item.id === this.loadedQueueId && this.isAdmin)
               this.command('track_ended', { queueId: item.id });
           });
         }
         if (this.loadedMusicKey !== expectedKey) {
+          if (this.audioResolveTimer) clearTimeout(this.audioResolveTimer);
+          this.audioResolveTimer = null;
           let music: Music | null = null;
+          const resolveAbort = new AbortController();
+          this.audioResolveAbort?.abort();
+          this.audioResolveAbort = resolveAbort;
           try {
-            const result = await roomRequest<{ music: Music }>(
-              `/api/v1/rooms/${this.snapshot.room.id}/resolve`,
-              {
-                method: 'POST',
-                body: JSON.stringify({ music: current.music, ...this.identity })
-              }
-            );
-            music = result.music;
-          } catch {
-            // Keep the existing Web resolver as a compatibility fallback if
-            // the server resolver is unavailable. An administrator also
-            // shares the short-lived URL with the room as a fallback.
-            music = await musicAPI.musicDetail({ ...current.music });
-            if (music?.url) {
-              console.log('[在线歌房] 本地解析成功', {
-                roomId: this.snapshot.room.id,
-                source: current.music.type,
-                id: current.music.id,
-                name: current.music.name,
-                url: music.url
-              });
-              if (this.isAdmin && current.music.type !== 'local') {
-                await this.uploadLocalCookieIfMissing(current.music.type);
-                this.reportResolvedMusic(music).catch(error =>
-                  console.warn('[在线歌房] 播放地址共享失败', error)
-                );
+            try {
+              const result = await roomRequest<{ music: Music }>(
+                `/api/v1/rooms/${this.snapshot.room.id}/resolve`,
+                {
+                  method: 'POST',
+                  signal: resolveAbort.signal,
+                  body: JSON.stringify({
+                    music: current.music,
+                    ...this.identity
+                  })
+                }
+              );
+              music = result.music;
+            } catch {
+              if (resolveAbort.signal.aborted) return;
+              // Keep the existing Web resolver as a compatibility fallback if
+              // the server resolver is unavailable. An administrator also
+              // shares the short-lived URL with the room as a fallback.
+              music = await musicAPI.musicDetail({ ...current.music });
+              if (music?.url) {
+                console.log('[在线歌房] 本地解析成功', {
+                  roomId: this.snapshot.room.id,
+                  source: current.music.type,
+                  id: current.music.id,
+                  name: current.music.name,
+                  url: music.url
+                });
+                if (this.isAdmin && current.music.type !== 'local') {
+                  await this.uploadLocalCookieIfMissing(current.music.type);
+                  this.reportResolvedMusic(music).catch(error =>
+                    console.warn('[在线歌房] 播放地址共享失败', error)
+                  );
+                }
               }
             }
+          } finally {
+            if (this.audioResolveAbort === resolveAbort)
+              this.audioResolveAbort = null;
           }
-          if (!music?.url || this.snapshot?.state.current?.id !== current.id) {
+          // The active track changed while this URL was resolving. Its result
+          // belongs to the old item and must not overwrite the current source.
+          if (this.snapshot?.state.current?.id !== current.id) return;
+          if (!music?.url) {
             this.audioNeedsGesture = true;
             this.lastError = '当前歌曲暂未取得可播放地址，请等待管理员解析完成';
             return;
@@ -682,11 +754,14 @@ export const useRoomStore = defineStore('room', {
           title.value = `${music.name} - ${music.singer} - Musiche`;
           this.audio.src = music.url;
           this.loadedMusicKey = expectedKey;
-          if (this.audioResolveTimer) clearTimeout(this.audioResolveTimer);
+          this.loadedQueueId = current.id;
           this.audioResolveTimer = setTimeout(() => {
             this.loadedMusicKey = '';
-            void this.syncAudio();
-          }, 305000);
+            // Keep the queue ID while refreshing. If the resolver has a
+            // transient failure, the already-playing URL can continue rather
+            // than being mistaken for an unrelated stale source.
+            this.scheduleAudioSync();
+          }, 300000);
           navigator.mediaSession.metadata = new MediaMetadata({
             title: `${music.name} - ${music.singer} - Musiche`,
             album: music.album || undefined,
@@ -730,12 +805,26 @@ export const useRoomStore = defineStore('room', {
           this.audioNeedsGesture = false;
         }
       } catch (error: any) {
-        this.audio?.pause();
-        this.localPlaying = false;
-        this.audioNeedsGesture = true;
+        if (this.snapshot?.state.current?.id !== current.id) return;
+        const activeQueueId = this.snapshot?.state.current?.id || '';
+        const canKeepPlaying = Boolean(
+          activeQueueId &&
+            activeQueueId === this.loadedQueueId &&
+            this.audio &&
+            !this.audio.paused
+        );
+        // A temporary URL refresh failure must not turn a working playback
+        // into a pause that requires the listener to click play again.
+        if (canKeepPlaying) this.audioNeedsGesture = false;
+        else {
+          this.audio?.pause();
+          this.localPlaying = false;
+          this.audioNeedsGesture = true;
+        }
         this.lastError = error?.message || '房间音频同步失败';
       } finally {
         this.syncingAudio = false;
+        if (this.audioSyncPending && this.snapshot) this.scheduleAudioSync();
       }
     },
     leave(clearCurrent = true) {
@@ -751,7 +840,11 @@ export const useRoomStore = defineStore('room', {
       this.snapshot = null;
       this.chatMessages = [];
       this.loadedMusicKey = '';
+      this.loadedQueueId = '';
+      this.audioResolveAbort?.abort();
+      this.audioResolveAbort = null;
       this.pendingSeekSeconds = null;
+      this.audioSyncPending = false;
       if (this.audioResolveTimer) clearTimeout(this.audioResolveTimer);
       this.audioResolveTimer = null;
       if (this.audioRetryTimer) clearTimeout(this.audioRetryTimer);

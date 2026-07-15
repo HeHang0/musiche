@@ -82,6 +82,19 @@ func TestRoomHTTPFlow(t *testing.T) {
 		t.Fatalf("join response did not return a member token: %s", join.Body.String())
 	}
 
+	renameBody, _ := json.Marshal(NicknameRequest{Nickname: "小红的新昵称", VisitorID: "visitor-two", Fingerprint: "fingerprint-two"})
+	rename := httptest.NewRecorder()
+	renameRequest := httptest.NewRequest(http.MethodPut, "/api/v1/rooms/"+created.Snapshot.Room.ID+"/nickname", bytes.NewReader(renameBody))
+	renameRequest.Header.Set("Authorization", "Bearer "+joined.MemberToken)
+	handler.ServeHTTP(rename, renameRequest)
+	if rename.Code != http.StatusOK || !bytes.Contains(rename.Body.Bytes(), []byte("小红的新昵称")) {
+		t.Fatalf("nickname response: %d %s", rename.Code, rename.Body.String())
+	}
+	room, ok := store.get(created.Snapshot.Room.ID)
+	if !ok || room.config.Members[fingerprintHash("visitor-two", "fingerprint-two")].Nickname != "小红的新昵称" {
+		t.Fatalf("nickname was not persisted in room config")
+	}
+
 	adminBody, _ := json.Marshal(AdminRequest{AdminPassword: "administrator-password", VisitorID: "visitor-two", Fingerprint: "fingerprint-two"})
 	admin := httptest.NewRecorder()
 	handler.ServeHTTP(admin, httptest.NewRequest(http.MethodPost, "/api/v1/rooms/"+created.Snapshot.Room.ID+"/admin", bytes.NewReader(adminBody)))

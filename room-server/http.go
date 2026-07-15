@@ -177,39 +177,28 @@ func (s *server) room(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "房间不存在或已解散")
 		return
 	}
-	if len(parts) == 1 && r.Method == http.MethodGet {
+	switch {
+	case len(parts) == 1 && r.Method == http.MethodGet:
 		s.snapshot(w, r, room)
-		return
-	}
-	if len(parts) == 2 && parts[1] == "join" && r.Method == http.MethodPost {
+	case len(parts) == 2 && parts[1] == "join" && r.Method == http.MethodPost:
 		s.join(w, r, room)
-		return
-	}
-	if len(parts) == 2 && parts[1] == "admin" && r.Method == http.MethodPost {
+	case len(parts) == 2 && parts[1] == "nickname" && r.Method == http.MethodPut:
+		s.nickname(w, r, room)
+	case len(parts) == 2 && parts[1] == "admin" && r.Method == http.MethodPost:
 		s.admin(w, r, room)
-		return
-	}
-	if len(parts) == 2 && parts[1] == "resolve" && r.Method == http.MethodPost {
+	case len(parts) == 2 && parts[1] == "resolve" && r.Method == http.MethodPost:
 		s.resolve(w, r, room)
-		return
-	}
-	if len(parts) == 2 && parts[1] == "resolved" && r.Method == http.MethodPost {
+	case len(parts) == 2 && parts[1] == "resolved" && r.Method == http.MethodPost:
 		s.resolved(w, r, room)
-		return
-	}
-	if len(parts) == 2 && parts[1] == "settings" && r.Method == http.MethodPut {
+	case len(parts) == 2 && parts[1] == "settings" && r.Method == http.MethodPut:
 		s.settings(w, r, room)
-		return
-	}
-	if len(parts) == 2 && parts[1] == "dissolve" && r.Method == http.MethodPost {
+	case len(parts) == 2 && parts[1] == "dissolve" && r.Method == http.MethodPost:
 		s.dissolve(w, r, room)
-		return
-	}
-	if len(parts) == 3 && parts[1] == "credentials" {
+	case len(parts) == 3 && parts[1] == "credentials":
 		s.credentials(w, r, room, parts[2])
-		return
+	default:
+		writeError(w, http.StatusNotFound, "接口不存在")
 	}
-	writeError(w, http.StatusNotFound, "接口不存在")
 }
 
 type JoinRequest struct {
@@ -238,6 +227,53 @@ func (s *server) join(w http.ResponseWriter, r *http.Request, room *Room) {
 		"snapshot":    snapshot,
 		"memberToken": issueMemberToken(s.store.config.TokenSecret, room.config.ID, memberID),
 	})
+}
+
+type NicknameRequest struct {
+	Nickname    string `json:"nickname"`
+	VisitorID   string `json:"visitorId"`
+	Fingerprint string `json:"fingerprint"`
+	AdminToken  string `json:"adminToken"`
+}
+
+// nickname lets an already joined member update only their own display name.
+// The signed member token prevents another browser from changing a known
+// visitor's name merely by reproducing its public fingerprint inputs.
+func (s *server) nickname(w http.ResponseWriter, r *http.Request, room *Room) {
+	request := NicknameRequest{}
+	if err := decodeJSON(r, &request); err != nil {
+		writeError(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+	memberID, valid := verifyMemberToken(s.store.config.TokenSecret, bearerToken(r), room.config.ID)
+	identityID := fingerprintHash(request.VisitorID, request.Fingerprint)
+	if !valid || memberID == "" || memberID != identityID {
+		writeError(w, http.StatusUnauthorized, "成员凭证无效")
+		return
+	}
+	nickname := sanitizeName(request.Nickname, 24)
+	if nickname == "" {
+		writeError(w, http.StatusBadRequest, "请填写昵称")
+		return
+	}
+	room.mu.Lock()
+	member := room.config.Members[memberID]
+	if member.ID == "" {
+		room.mu.Unlock()
+		writeError(w, http.StatusUnauthorized, "成员凭证无效")
+		return
+	}
+	member.Nickname = nickname
+	room.config.Members[memberID] = member
+	if err := room.saveConfigLocked(); err != nil {
+		room.mu.Unlock()
+		writeError(w, http.StatusInternalServerError, "保存昵称失败")
+		return
+	}
+	snapshot := room.snapshotLocked(memberID, request.AdminToken, s.store.config.TokenSecret)
+	room.mu.Unlock()
+	writeJSONResponse(w, http.StatusOK, map[string]any{"snapshot": snapshot})
+	broadcastRoomSnapshot(room)
 }
 
 type AdminRequest struct {

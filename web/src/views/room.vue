@@ -6,6 +6,7 @@ import {
   ArrowDown,
   CloseBold,
   DeleteFilled,
+  EditPen,
   Lock,
   Search,
   Setting,
@@ -113,6 +114,7 @@ const keyword = ref('');
 const loaded = ref(false);
 const createVisible = ref(false);
 const joinVisible = ref(false);
+const nicknameVisible = ref(false);
 const adminVisible = ref(false);
 const settingsVisible = ref(false);
 const searchVisible = ref(false);
@@ -121,12 +123,14 @@ const loadingList = ref(false);
 const routeRoomLoading = ref(false);
 const createLoading = ref(false);
 const joinLoading = ref(false);
+const nicknameLoading = ref(false);
 const adminLoading = ref(false);
 const settingsLoading = ref(false);
 const dissolveLoading = ref(false);
 const clock = ref(Date.now());
 const chatText = ref('');
 const nickname = ref(localStorage.getItem('musiche-room-nickname') || '');
+const roomNickname = ref('');
 const joinPassword = ref('');
 const adminPassword = ref('');
 const createForm = ref({ name: '', entryPassword: '', adminPassword: '' });
@@ -324,6 +328,14 @@ function chatMemberId(memberId: string) {
   return String(memberId || '')
     .slice(-4)
     .toUpperCase();
+}
+
+function formatChatTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return [date.getHours(), date.getMinutes(), date.getSeconds()]
+    .map(item => String(item).padStart(2, '0'))
+    .join(':');
 }
 
 const chatAvatarCache = new Map<string, string>();
@@ -617,6 +629,38 @@ async function enterAdmin() {
     ElMessage(messageOption(error?.message || '管理员密码错误'));
   } finally {
     adminLoading.value = false;
+  }
+}
+
+function openNicknameDialog() {
+  roomNickname.value = roomStore.snapshot?.nickname || nickname.value;
+  nicknameVisible.value = true;
+}
+
+async function saveNickname() {
+  const value = roomNickname.value.trim();
+  if (!value) {
+    ElMessage(messageOption('请填写昵称'));
+    return;
+  }
+  nicknameLoading.value = true;
+  try {
+    await roomStore.updateNickname(value);
+    nickname.value = value;
+    localStorage.setItem('musiche-room-nickname', value);
+    if (roomStore.room) {
+      const saved = getRoomCredential(roomStore.room.id);
+      saveRoomCredential(roomStore.room.id, {
+        nickname: value,
+        entryPassword: saved?.entryPassword || ''
+      });
+    }
+    nicknameVisible.value = false;
+    ElMessage(messageOption('昵称已更新'));
+  } catch (error: any) {
+    ElMessage(messageOption(error?.message || '昵称更新失败'));
+  } finally {
+    nicknameLoading.value = false;
   }
 }
 
@@ -1409,10 +1453,21 @@ onUnmounted(() => {
                     :src="chatAvatar(message.memberId)"
                     alt="用户头像" />
                   <div class="music-room-chat-body">
-                    <b v-if="message.memberId !== snapshot.memberId">
+                    <b>
+                      <time v-if="message.memberId === snapshot.memberId">{{
+                        formatChatTime(message.createdAt)
+                      }}</time>
+                      <span
+                        class="music-room-chat-self-edit"
+                        @click="openNicknameDialog"
+                        ><el-icon><EditPen /></el-icon
+                      ></span>
                       {{ message.nickname }} [{{
                         chatMemberId(message.memberId)
                       }}]
+                      <time v-if="message.memberId !== snapshot.memberId">{{
+                        formatChatTime(message.createdAt)
+                      }}</time>
                     </b>
                     <div class="music-room-chat-content">
                       <span
@@ -1530,6 +1585,27 @@ onUnmounted(() => {
         ><el-button @click="joinVisible = false">取消</el-button
         ><el-button type="primary" :loading="joinLoading" @click="joinRoom()"
           >进入</el-button
+        ></template
+      >
+    </el-dialog>
+
+    <el-dialog
+      v-model="nicknameVisible"
+      title="修改昵称"
+      width="360px"
+      append-to-body>
+      <el-input
+        v-model="roomNickname"
+        maxlength="24"
+        placeholder="请输入昵称"
+        @keyup.enter="saveNickname" />
+      <template #footer
+        ><el-button @click="nicknameVisible = false">取消</el-button
+        ><el-button
+          type="primary"
+          :loading="nicknameLoading"
+          @click="saveNickname"
+          >保存</el-button
         ></template
       >
     </el-dialog>
@@ -2156,6 +2232,12 @@ onUnmounted(() => {
           opacity: 0.75;
           font-size: 12px;
           flex-shrink: 0;
+          time {
+            margin-left: 5px;
+            opacity: 0.7;
+            font-size: 11px;
+            font-weight: normal;
+          }
         }
         span {
           word-break: break-word;
@@ -2200,6 +2282,19 @@ onUnmounted(() => {
         b {
           color: var(--music-primary-color);
           opacity: 1;
+          padding-left: 20px;
+          &:hover {
+            .music-room-chat-self-edit {
+              display: inline-block;
+              cursor: pointer;
+            }
+          }
+        }
+        &-edit {
+          transform: translateY(1px);
+          position: absolute;
+          left: 0;
+          display: none;
         }
         .music-room-chat-text {
           background: var(--music-button-primary-background);
