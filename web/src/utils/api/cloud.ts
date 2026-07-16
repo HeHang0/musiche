@@ -424,7 +424,6 @@ export async function playlistDetail(id: string, offset: number) {
     type: musicType
   };
   const total: number = ret.playlist.trackCount;
-  console.log('来了');
   ret.playlist.tracks.map((m: any) => {
     const music = parseMusic(m);
     music && list.push(music);

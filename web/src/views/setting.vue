@@ -201,6 +201,11 @@ const themes = ref([
     name: '深色',
     color: '#13131a'
   },
+  {
+    id: 'glass',
+    name: '玻璃',
+    color: 'linear-gradient(135deg, #dbe7f2 0%, #c9d9e9 48%, #e4dff1 100%)'
+  },
   setting.customTheme,
   {
     id: 'dark pure',

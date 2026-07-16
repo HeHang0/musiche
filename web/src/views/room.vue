@@ -1889,6 +1889,7 @@ onUnmounted(() => {
   }
   &-cards {
     display: grid;
+    align-content: start;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
     margin: 25px 0;
