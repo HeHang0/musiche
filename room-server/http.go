@@ -587,6 +587,7 @@ func cors(next http.Handler) http.Handler {
 		// Authorization is not covered reliably by the CORS wildcard, so list
 		// every header used by the Web client explicitly.
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Room-Admin, X-Room-Log-Token, X-Room-Member")
+		w.Header().Set("Access-Control-Expose-Headers", "Set-Cookie-Renamed")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Max-Age", "600")
 		if r.Method == http.MethodOptions {

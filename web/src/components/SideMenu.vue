@@ -58,6 +58,7 @@ onMounted(() => room.initialize());
         <template v-for="item in menus">
           <el-divider v-if="item.divider"></el-divider>
           <el-menu-item
+            :title="item.name"
             :index="'/' + item.key"
             :id="'/' + item.key"
             v-if="
@@ -80,12 +81,13 @@ onMounted(() => room.initialize());
           index="/local"
           id="/local"
           v-if="setting.config.file || canDirectoryPicker"
-          :class="route.meta.key == 'local' ? 'is-active' : ''">
+          :class="route.meta.key == 'local' ? 'is-active' : ''"
+          title="本地音乐">
           <span class="music-icon">乐</span>
           <span>本地音乐</span>
         </el-menu-item>
         <el-divider></el-divider>
-        <el-sub-menu index="favorite">
+        <el-sub-menu index="favorite" title="收藏的歌单">
           <template #title>
             <li class="el-menu-item">
               <span class="music-icon">藏</span>
@@ -103,7 +105,7 @@ onMounted(() => room.initialize());
           </el-menu-item>
         </el-sub-menu>
         <el-divider></el-divider>
-        <el-sub-menu index="created">
+        <el-sub-menu index="created" title="创建的歌单">
           <template #title>
             <li class="el-menu-item">
               <span class="music-icon">编</span>
@@ -213,6 +215,7 @@ onMounted(() => room.initialize());
     </el-scrollbar>
     <ul
       role="menubar"
+      title="设置"
       class="el-menu el-menu--vertical music-aside-menu"
       style="--el-menu-level: 0"
       @click="push('/setting')">

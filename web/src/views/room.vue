@@ -267,6 +267,13 @@ const roomLyricProgress = computed(() => {
     Math.max(0, (roomStore.currentPosition(clock.value) / length) * 1000)
   );
 });
+const randomPlaybackType = computed(() => {
+  if (settingStore.appTheme.id === 'animal-island') {
+    return snapshot.value?.state.randomPlayback ? 'default' : 'primary';
+  } else {
+    return snapshot.value?.state.randomPlayback ? 'primary' : 'default';
+  }
+});
 let lastRoomLyricKey = 0;
 const currentRoomLyric = computed(() => {
   if (!roomLyricLines.value.length) return '';
@@ -1388,6 +1395,18 @@ onUnmounted(() => {
                         >后</span
                       ></el-button
                     >
+                    <el-button
+                      circle
+                      :type="randomPlaybackType"
+                      :title="
+                        snapshot.state.randomPlayback
+                          ? '随机切歌模式：已开启'
+                          : '随机切歌模式：未开启'
+                      "
+                      :aria-pressed="snapshot.state.randomPlayback"
+                      @click="roomStore.toggleRandomPlayback"
+                      ><span class="music-icon">随</span></el-button
+                    >
                   </template>
                   <template v-else>
                     <el-button
@@ -1785,6 +1804,7 @@ onUnmounted(() => {
           <div
             v-for="music in playlistTitle ? playlistMusics : searchMusics"
             :key="music.type + music.id"
+            :class="music.noRight ? 'music-room-search-music-disabled' : ''"
             class="music-room-search-music">
             <img :src="music.image || LogoImage" />
             <div class="text-overflow-1">
@@ -1793,7 +1813,11 @@ onUnmounted(() => {
                 >{{ music.singer }} · {{ music.album }}</span
               >
             </div>
-            <el-button type="primary" size="small" @click="addMusic(music)"
+            <el-button
+              v-if="!music.noRight"
+              type="primary"
+              size="small"
+              @click="addMusic(music)"
               >点歌</el-button
             >
           </div>
@@ -2460,6 +2484,12 @@ onUnmounted(() => {
       gap: 10px;
       padding: 10px 20px;
       border-bottom: 1px solid var(--music-side-divider-color);
+
+      &-disabled {
+        opacity: 0.65;
+        pointer-events: none;
+      }
+
       img {
         width: 45px;
         height: 45px;

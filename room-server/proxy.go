@@ -38,6 +38,13 @@ func (data *proxyRequestData) checkRedirect(request *http.Request, _ []*http.Req
 	return http.ErrUseLastResponse
 }
 
+func parseSetCookie(values []string) string {
+	for i := 0; i < len(values); i++ {
+		values[i] = strings.ReplaceAll(values[i], ",", "")
+	}
+	return strings.Join(values, ",")
+}
+
 func (s *server) proxy(writer http.ResponseWriter, request *http.Request) {
 	if request.Method == http.MethodOptions {
 		return
@@ -71,7 +78,13 @@ func (s *server) proxy(writer http.ResponseWriter, request *http.Request) {
 		responseHeaders := make(map[string]string)
 		for key, values := range headers {
 			if len(values) > 0 {
-				responseHeaders[key] = values[0]
+				responseHeaders[key] = strings.Join(values, "; ")
+
+			}
+		}
+		if data.SetCookieRename && headers != nil {
+			if setCookie := headers.Values("Set-Cookie"); len(setCookie) > 0 {
+				responseHeaders["Set-Cookie-Renamed"] = parseSetCookie(setCookie)
 			}
 		}
 		headerBytes, _ := json.Marshal(responseHeaders)
@@ -83,7 +96,7 @@ func (s *server) proxy(writer http.ResponseWriter, request *http.Request) {
 	setProxyResponseHeaders(writer, headers)
 	if data.SetCookieRename && headers != nil {
 		if setCookie := headers.Values("Set-Cookie"); len(setCookie) > 0 {
-			writer.Header().Set("Set-Cookie-Renamed", strings.Join(setCookie, "; "))
+			writer.Header().Set("Set-Cookie-Renamed", parseSetCookie(setCookie))
 		}
 	}
 	writer.WriteHeader(statusCode)

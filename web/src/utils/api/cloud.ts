@@ -169,6 +169,7 @@ function parseMusic(data: any): Music | null {
     albumId: album.id || '',
     duration: millisecond2Duration(data.dt || data.duration),
     length: data.dt || data.duration || 0,
+    noRight: Boolean(data.noCopyrightRcmd),
     vip: data.privilege && data.privilege.fee == 1,
     remark: '',
     type: musicType
@@ -423,6 +424,7 @@ export async function playlistDetail(id: string, offset: number) {
     type: musicType
   };
   const total: number = ret.playlist.trackCount;
+  console.log('来了');
   ret.playlist.tracks.map((m: any) => {
     const music = parseMusic(m);
     music && list.push(music);

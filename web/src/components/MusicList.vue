@@ -155,13 +155,13 @@ function openMenu(music: Music, e: any) {
       v-for="(item, index) in props.list"
       class="music-list-item"
       :class="
-        item.id == play.music.id && item.type == play.music.type
+        (item.id == play.music.id && item.type == play.music.type
           ? 'music-list-item-is-play'
-          : ''
+          : '') + (item.noRight ? ' music-list-item-disabled' : '')
       "
-      @contextmenu.stop="!isMobile && openMenu(item, $event)"
+      @contextmenu.stop="!isMobile && !item.noRight && openMenu(item, $event)"
       @dblclick="
-        !props.single && !isMobile
+        !props.single && !isMobile && !item.noRight
           ? play.play(
               item,
               setting.pageValue.onlyAddMusicListAtDbClick
@@ -185,6 +185,7 @@ function openMenu(music: Music, e: any) {
         </span>
         <span
           v-if="
+            !item.noRight &&
             play.playStatus.playing &&
             play.music.id == item.id &&
             play.music.type == item.type
@@ -194,7 +195,7 @@ function openMenu(music: Music, e: any) {
           停
         </span>
         <span
-          v-else
+          v-else-if="!item.noRight"
           class="music-list-item-play music-icon"
           @click="play.play(item)">
           播
@@ -208,7 +209,9 @@ function openMenu(music: Music, e: any) {
             <img v-else-if="item.type == 'qq'" :src="QQMusicImage" />
             <img v-else-if="item.type == 'migu'" :src="MiguMusicImage" />
           </div>
-          <div class="music-list-item-image-single" v-if="props.single">
+          <div
+            class="music-list-item-image-single"
+            v-if="props.single && !item.noRight">
             <span
               v-if="
                 play.playStatus.playing &&
@@ -255,7 +258,7 @@ function openMenu(music: Music, e: any) {
               </div>
             </div>
           </div>
-          <div class="music-list-item-name-operate">
+          <div v-if="!item.noRight" class="music-list-item-name-operate">
             <span
               v-if="!props.single"
               class="music-icon"
@@ -300,7 +303,7 @@ function openMenu(music: Music, e: any) {
           >{{ item.album }}</span
         >
       </div>
-      <div v-if="!props.single" class="music-list-item-lover">
+      <div v-if="!props.single && !item.noRight" class="music-list-item-lover">
         <span
           class="music-icon"
           style="color: red"
@@ -312,6 +315,9 @@ function openMenu(music: Music, e: any) {
           恨
         </span>
       </div>
+      <div
+        v-if="!props.single && item.noRight"
+        class="music-list-item-lover"></div>
       <div class="music-list-item-duration">{{ item.duration }}</div>
     </div>
     <el-skeleton animated :loading="loading">
@@ -375,6 +381,9 @@ function openMenu(music: Music, e: any) {
   }
   &-item {
     display: flex;
+    &-disabled {
+      opacity: 0.65;
+    }
     &-index-content {
       display: block;
     }

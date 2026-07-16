@@ -417,6 +417,9 @@ export const useRoomStore = defineStore('room', {
     next() {
       this.command('next');
     },
+    toggleRandomPlayback() {
+      this.command('random_playback_toggle');
+    },
     seek(positionMs: number) {
       console.log('[在线歌房] seek', positionMs);
       this.command('seek', { positionMs: Math.round(positionMs) });
@@ -652,6 +655,12 @@ export const useRoomStore = defineStore('room', {
         this.audioNeedsGesture = false;
         return;
       }
+      if (current.music.noRight) {
+        // This comes from the music source metadata. Do not repeatedly try
+        // to resolve a URL that the source has already marked unavailable.
+        this.command('track_unavailable', { queueId: current.id, noRight: true });
+        return;
+      }
       this.syncingAudio = true;
       this.audioSyncPending = false;
       // Queue IDs are unique even when somebody queues the same song twice.
@@ -746,6 +755,13 @@ export const useRoomStore = defineStore('room', {
           // The active track changed while this URL was resolving. Its result
           // belongs to the old item and must not overwrite the current source.
           if (this.snapshot?.state.current?.id !== current.id) return;
+          if (music?.noRight) {
+            this.command('track_unavailable', {
+              queueId: current.id,
+              noRight: true
+            });
+            return;
+          }
           if (!music?.url) {
             this.audioNeedsGesture = true;
             this.lastError = '当前歌曲暂未取得可播放地址，请等待管理员解析完成';

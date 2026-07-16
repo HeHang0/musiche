@@ -55,11 +55,12 @@ type SecretInfo struct {
 }
 
 type RoomState struct {
-	Version    int64         `json:"version"`
-	Current    *QueueItem    `json:"current,omitempty"`
-	Queue      []QueueItem   `json:"queue"`
-	Playback   PlaybackState `json:"playback"`
-	EmptySince *time.Time    `json:"emptySince,omitempty"`
+	Version        int64         `json:"version"`
+	Current        *QueueItem    `json:"current,omitempty"`
+	Queue          []QueueItem   `json:"queue"`
+	Playback       PlaybackState `json:"playback"`
+	RandomPlayback bool          `json:"randomPlayback,omitempty"`
+	EmptySince     *time.Time    `json:"emptySince,omitempty"`
 }
 
 type PlaybackState struct {
@@ -80,6 +81,7 @@ type Music struct {
 	Duration    string      `json:"duration,omitempty"`
 	Length      int64       `json:"length,omitempty"`
 	VIP         bool        `json:"vip,omitempty"`
+	NoRight     bool        `json:"noRight,omitempty"`
 	Remark      string      `json:"remark,omitempty"`
 	Type        string      `json:"type"`
 	URL         string      `json:"url,omitempty"`

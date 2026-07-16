@@ -239,6 +239,7 @@ export function parseCookie(cookie: string): Record<string, string> {
   }
   return result;
 }
+
 export function parseCookieWithDomain(
   text: string
 ): Record<string, Record<string, string>> {

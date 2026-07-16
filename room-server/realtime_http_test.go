@@ -139,6 +139,9 @@ func TestHTTPRealtimeCORSAllowsAuthorizationHeader(t *testing.T) {
 	if response.Code != http.StatusNoContent || !strings.Contains(strings.ToLower(response.Header().Get("Access-Control-Allow-Headers")), "authorization") {
 		t.Fatalf("realtime CORS preflight: %d %q", response.Code, response.Header().Get("Access-Control-Allow-Headers"))
 	}
+	if !strings.Contains(strings.ToLower(response.Header().Get("Access-Control-Expose-Headers")), "set-cookie-renamed") {
+		t.Fatalf("CORS did not expose proxy cookie header: %q", response.Header().Get("Access-Control-Expose-Headers"))
+	}
 }
 
 func TestHTTPRealtimeRejectsInvalidMemberToken(t *testing.T) {

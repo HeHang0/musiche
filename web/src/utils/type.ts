@@ -53,6 +53,7 @@ export interface Music {
   url?: string;
   lyricUrl?: string;
   lyric?: string;
+  noRight?: boolean;
   audition?: boolean;
 }
 

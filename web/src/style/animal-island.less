@@ -841,65 +841,73 @@ html.animal-island .music-room-chat-list .music-room-chat-self .music-room-chat-
   }
 }
 
-@media (max-width: 800px) and (orientation: portrait) {
-  html.animal-island .music-aside {
-    width: calc(58px + var(--safe-area-left));
+.portrait-aside-style() {
+  width: calc(58px + var(--safe-area-left));
 
-    .music-aside-title {
-      height: 78px;
-      padding: var(--sat) 0 0 6px;
+  .music-aside-title {
+    height: 78px;
+    padding: var(--sat) 0 0 6px;
 
-      &-logo {
-        width: 42px;
-        height: 42px;
+    &-logo {
+      width: 42px;
+      height: 42px;
+    }
+
+    &-text {
+      display: none;
+    }
+  }
+
+  >.el-scrollbar {
+    height: calc(100% - 130px);
+  }
+
+  .music-aside-menu {
+    padding-top: 12px;
+
+    .el-menu-item {
+      justify-content: center;
+      margin: 5px 6px;
+      width: calc(100% - 12px);
+      padding: 0 var(--el-menu-base-level-padding) !important;
+
+      span:first-child {
+        margin-right: 0;
       }
 
-      &-text {
+      span:last-child {
         display: none;
       }
-    }
 
-    >.el-scrollbar {
-      height: calc(100% - 130px);
-    }
+      &-wide {
+        height: 42px;
 
-    .music-aside-menu {
-      padding-top: 12px;
-
-      .el-menu-item {
-        justify-content: center;
-        margin: 5px 6px;
-        width: calc(100% - 12px);
-        padding: 0 var(--el-menu-base-level-padding) !important;
-
-        span:first-child {
+        >img {
+          width: 34px;
+          height: 34px;
           margin-right: 0;
         }
-
-        span:last-child {
-          display: none;
-        }
-
-        &-wide {
-          height: 42px;
-
-          >img {
-            width: 34px;
-            height: 34px;
-            margin-right: 0;
-          }
-        }
-      }
-
-      .el-divider {
-        margin: 10px;
-        width: calc(100% - 20px);
       }
     }
 
-    .el-sub-menu__icon-arrow {
-      right: 4px !important;
+    .el-divider {
+      margin: 10px;
+      width: calc(100% - 20px);
     }
+  }
+
+  .el-sub-menu__icon-arrow {
+    right: 4px !important;
+  }
+}
+
+html.animal-island .music-aside-collapsed .music-aside {
+  .portrait-aside-style()
+}
+
+@media (max-width: 800px) and (orientation: portrait) {
+  html.animal-island .music-aside {
+    .portrait-aside-style()
   }
 }
 

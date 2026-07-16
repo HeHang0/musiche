@@ -48,6 +48,7 @@ export interface RoomState {
   current?: RoomQueueItem;
   queue: RoomQueueItem[];
   playback: RoomPlaybackState;
+  randomPlayback: boolean;
 }
 
 export interface RoomSnapshot {

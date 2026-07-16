@@ -54,6 +54,7 @@ type ClientCommand struct {
 	Music      *Music `json:"music,omitempty"`
 	QueueID    string `json:"queueId,omitempty"`
 	PositionMS int64  `json:"positionMs,omitempty"`
+	NoRight    bool   `json:"noRight,omitempty"`
 	Content    string `json:"content,omitempty"`
 	Image      string `json:"image,omitempty"`
 }
@@ -444,7 +445,7 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 			c.broadcastSnapshot()
 		}
 		return err
-	case "play_toggle", "next", "seek":
+	case "play_toggle", "next", "random_playback_toggle", "seek":
 		if !c.isAdmin(command.AdminToken) {
 			return errors.New("请输入管理员密码后再操作")
 		}
@@ -463,8 +464,10 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 			c.room.state.Playback.Playing = !c.room.state.Playback.Playing
 			c.room.state.Playback.UpdatedAt = now
 		case "next":
-			c.room.state.Current = queueHead(&c.room.state)
+			c.room.state.Current = nextQueueItem(&c.room.state)
 			c.room.state.Playback = PlaybackState{Playing: c.room.state.Current != nil, PositionMS: 0, UpdatedAt: now}
+		case "random_playback_toggle":
+			c.room.state.RandomPlayback = !c.room.state.RandomPlayback
 		case "seek":
 			if c.room.state.Current == nil {
 				c.room.mu.Unlock()
@@ -492,7 +495,27 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 			c.room.mu.Unlock()
 			return nil
 		}
-		c.room.state.Current = queueHead(&c.room.state)
+		c.room.state.Current = nextQueueItem(&c.room.state)
+		c.room.state.Playback = PlaybackState{Playing: c.room.state.Current != nil, UpdatedAt: time.Now().UTC()}
+		c.room.state.Version++
+		err := c.room.saveStateLocked()
+		c.room.mu.Unlock()
+		if err == nil {
+			c.broadcastSnapshot()
+		}
+		return err
+	case "track_unavailable":
+		c.room.mu.Lock()
+		if c.room.state.Current == nil || c.room.state.Current.ID != command.QueueID {
+			c.room.mu.Unlock()
+			return nil
+		}
+		if !c.room.state.Current.Music.NoRight && !command.NoRight {
+			c.room.mu.Unlock()
+			return errors.New("当前歌曲未标记为无播放权限")
+		}
+		c.room.state.Current.Music.NoRight = true
+		c.room.state.Current = nextQueueItem(&c.room.state)
 		c.room.state.Playback = PlaybackState{Playing: c.room.state.Current != nil, UpdatedAt: time.Now().UTC()}
 		c.room.state.Version++
 		err := c.room.saveStateLocked()
@@ -550,6 +573,26 @@ func queueHead(state *RoomState) *QueueItem {
 	}
 	item := state.Queue[0]
 	state.Queue = state.Queue[1:]
+	return &item
+}
+
+func nextQueueItem(state *RoomState) *QueueItem {
+	if state.RandomPlayback {
+		return randomQueueItem(state)
+	}
+	return queueHead(state)
+}
+
+// randomQueueItem picks one waiting song without shuffling the remaining
+// queue, so a one-off random switch does not unexpectedly reorder everyone
+// else's requests.
+func randomQueueItem(state *RoomState) *QueueItem {
+	if len(state.Queue) == 0 {
+		return nil
+	}
+	index := int(randomBytes(1)[0]) % len(state.Queue)
+	item := state.Queue[index]
+	state.Queue = append(state.Queue[:index:index], state.Queue[index+1:]...)
 	return &item
 }
 func currentPosition(playback PlaybackState, now time.Time) int64 {
