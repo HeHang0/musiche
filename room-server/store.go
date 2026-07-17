@@ -141,6 +141,9 @@ func (s *RoomStore) loadRoom(path string) (*Room, error) {
 	if state.Queue == nil {
 		state.Queue = []QueueItem{}
 	}
+	if state.History == nil {
+		state.History = []QueueItem{}
+	}
 	return &Room{config: config, state: state, connections: map[*RoomConnection]struct{}{}, path: path}, nil
 }
 
@@ -177,7 +180,7 @@ func (s *RoomStore) createRoom(request CreateRoomRequest) (*Room, string, error)
 	now := time.Now().UTC()
 	room := &Room{
 		config:      RoomConfig{ID: roomID, Name: name, AdminPasswordHash: hashPassword(request.AdminPassword), AdminVersion: 1, MaxMembers: s.config.MaxMembersPerRoom, CreatedAt: now, Members: map[string]Member{}, Credentials: map[string]SecretInfo{}},
-		state:       RoomState{Version: 1, Queue: []QueueItem{}, Playback: PlaybackState{UpdatedAt: now}},
+		state:       RoomState{Version: 1, Queue: []QueueItem{}, History: []QueueItem{}, Playback: PlaybackState{UpdatedAt: now}},
 		connections: map[*RoomConnection]struct{}{},
 		path:        filepath.Join(s.config.DataDir, roomID),
 	}
@@ -274,6 +277,12 @@ func (s *RoomStore) removeExpiredRooms() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for id, room := range s.rooms {
+		// Keep empty rooms while capacity is plentiful. Once the total reaches
+		// one third of the configured limit, remove only enough expired rooms
+		// to bring it back below that threshold.
+		if len(s.rooms)*3 < s.config.MaxRooms {
+			break
+		}
 		room.mu.RLock()
 		expired := len(room.connections) == 0 && room.state.EmptySince != nil && now.Sub(*room.state.EmptySince) >= s.config.EmptyTTL
 		path := room.path

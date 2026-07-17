@@ -39,6 +39,12 @@ const routers: RouteRecordRaw[] = [
     path: '/room',
     name: '在线歌房',
     meta: { key: 'room', icon: '\u706b' },
+    component: () => import(`../views/room-lobby.vue`)
+  },
+  {
+    path: '/room/:id',
+    name: '歌房详情',
+    meta: { key: 'room', show: false },
     component: () => import(`../views/room.vue`)
   },
   {

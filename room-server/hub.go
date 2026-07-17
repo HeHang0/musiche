@@ -4,12 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/net/websocket"
 )
+
+var builtInChatAvatarName = regexp.MustCompile(`^(?:animal_(?:[1-9]|[12][0-9]|3[0-8])|female_(?:[1-9]|1[0-9]|2[0-6])|male_(?:[1-9]|[12][0-9])|qq_[1-3])\.jpg$`)
 
 type RoomConnection struct {
 	id         string
@@ -55,8 +58,10 @@ type ClientCommand struct {
 	QueueID    string `json:"queueId,omitempty"`
 	PositionMS int64  `json:"positionMs,omitempty"`
 	NoRight    bool   `json:"noRight,omitempty"`
+	MemberID   string `json:"memberId,omitempty"`
 	Content    string `json:"content,omitempty"`
 	Image      string `json:"image,omitempty"`
+	Avatar     string `json:"avatar,omitempty"`
 }
 
 func (c *RoomConnection) send(event Event) error {
@@ -352,6 +357,27 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 		return c.send(Event{Type: "snapshot", Data: c.snapshot()})
 	case "heartbeat":
 		return c.send(Event{Type: "pong", Data: time.Now().UTC()})
+	case "pat":
+		targetID := strings.TrimSpace(command.MemberID)
+		if targetID == "" || targetID == c.memberID {
+			return nil
+		}
+		c.room.mu.RLock()
+		member := c.room.config.Members[c.memberID]
+		target := c.room.config.Members[targetID]
+		c.room.mu.RUnlock()
+		if target.ID == "" {
+			return errors.New("该成员已离开房间")
+		}
+		c.broadcast(Event{Type: "chat", Data: ChatMessage{
+			ID:        randomID(10),
+			MemberID:  c.memberID,
+			Nickname:  member.Nickname,
+			Content:   sanitizeName(member.Nickname, 24) + " 拍了拍 " + sanitizeName(target.Nickname, 24),
+			System:    true,
+			CreatedAt: time.Now().UTC(),
+		}})
+		return nil
 	case "queue_add":
 		if command.Music == nil || command.Music.ID == "" || command.Music.Type == "" || command.Music.Name == "" {
 			return errors.New("无效的歌曲")
@@ -369,6 +395,7 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 		member := c.room.config.Members[c.memberID]
 		item := QueueItem{ID: randomID(12), Music: *command.Music, RequestedBy: c.memberID, RequestedName: member.Nickname, RequestedAt: time.Now().UTC()}
 		c.room.state.Queue = append(c.room.state.Queue, item)
+		startedPlayback := c.room.state.Current == nil
 		// The first song in an empty room should start immediately. Moving it
 		// into Current also makes the playback state authoritative for every
 		// member instead of requiring the administrator to press play manually.
@@ -388,7 +415,13 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 			<-done
 			c.broadcast(Event{Type: "chat", Data: ChatMessage{
 				ID: randomID(10), MemberID: c.memberID, Nickname: member.Nickname,
-				Content:   "点歌：《" + sanitizeName(command.Music.Name, 120) + "》",
+				Content: "[" + sanitizeName(member.Nickname, 24) + "] " + func() string {
+					if startedPlayback {
+						return "点歌并开始播放：《" + sanitizeName(command.Music.Name, 120) + "》"
+					}
+					return "点歌：《" + sanitizeName(command.Music.Name, 120) + "》"
+				}(),
+				System:    true,
 				CreatedAt: item.RequestedAt,
 			}})
 		}
@@ -451,6 +484,8 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 		}
 		c.room.mu.Lock()
 		now := time.Now().UTC()
+		member := c.room.config.Members[c.memberID]
+		operation := ""
 		switch command.Action {
 		case "play_toggle":
 			if c.room.state.Current == nil && len(c.room.state.Queue) > 0 {
@@ -463,11 +498,26 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 			c.room.state.Playback.PositionMS = currentPosition(c.room.state.Playback, now)
 			c.room.state.Playback.Playing = !c.room.state.Playback.Playing
 			c.room.state.Playback.UpdatedAt = now
+			if c.room.state.Playback.Playing {
+				operation = "开始播放：《" + sanitizeName(c.room.state.Current.Music.Name, 120) + "》"
+			} else {
+				operation = "暂停播放：《" + sanitizeName(c.room.state.Current.Music.Name, 120) + "》"
+			}
 		case "next":
-			c.room.state.Current = nextQueueItem(&c.room.state)
+			c.room.state.Current = advanceQueueItem(&c.room.state)
 			c.room.state.Playback = PlaybackState{Playing: c.room.state.Current != nil, PositionMS: 0, UpdatedAt: now}
+			if c.room.state.Current == nil {
+				operation = "切歌，点歌列表已播放完"
+			} else {
+				operation = "切歌：《" + sanitizeName(c.room.state.Current.Music.Name, 120) + "》"
+			}
 		case "random_playback_toggle":
 			c.room.state.RandomPlayback = !c.room.state.RandomPlayback
+			if c.room.state.RandomPlayback {
+				operation = "开启了随机切歌"
+			} else {
+				operation = "关闭了随机切歌"
+			}
 		case "seek":
 			if c.room.state.Current == nil {
 				c.room.mu.Unlock()
@@ -478,12 +528,14 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 			}
 			c.room.state.Playback.PositionMS = command.PositionMS
 			c.room.state.Playback.UpdatedAt = now
+			operation = "调整播放进度至 " + formatPlaybackPosition(command.PositionMS)
 		}
 		c.room.state.Version++
 		err := c.room.saveStateLocked()
 		c.room.mu.Unlock()
 		if err == nil {
 			c.broadcastSnapshot()
+			c.broadcast(Event{Type: "chat", Data: operationChatMessage(c.memberID, member.Nickname, operation, now, true)})
 		}
 		return err
 	case "track_ended":
@@ -495,13 +547,20 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 			c.room.mu.Unlock()
 			return nil
 		}
-		c.room.state.Current = nextQueueItem(&c.room.state)
-		c.room.state.Playback = PlaybackState{Playing: c.room.state.Current != nil, UpdatedAt: time.Now().UTC()}
+		member := c.room.config.Members[c.memberID]
+		now := time.Now().UTC()
+		c.room.state.Current = advanceQueueItem(&c.room.state)
+		c.room.state.Playback = PlaybackState{Playing: c.room.state.Current != nil, UpdatedAt: now}
+		operation := "播放结束，点歌列表已播放完"
+		if c.room.state.Current != nil {
+			operation = "播放结束，自动切歌：《" + sanitizeName(c.room.state.Current.Music.Name, 120) + "》"
+		}
 		c.room.state.Version++
 		err := c.room.saveStateLocked()
 		c.room.mu.Unlock()
 		if err == nil {
 			c.broadcastSnapshot()
+			c.broadcast(Event{Type: "chat", Data: operationChatMessage(c.memberID, member.Nickname, operation, now, false)})
 		}
 		return err
 	case "track_unavailable":
@@ -514,19 +573,29 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 			c.room.mu.Unlock()
 			return errors.New("当前歌曲未标记为无播放权限")
 		}
+		member := c.room.config.Members[c.memberID]
+		now := time.Now().UTC()
 		c.room.state.Current.Music.NoRight = true
+		// A song without playback rights was never playable. Drop it instead
+		// of adding noise to the room's played-history list.
 		c.room.state.Current = nextQueueItem(&c.room.state)
-		c.room.state.Playback = PlaybackState{Playing: c.room.state.Current != nil, UpdatedAt: time.Now().UTC()}
+		c.room.state.Playback = PlaybackState{Playing: c.room.state.Current != nil, UpdatedAt: now}
+		operation := "当前歌曲无法播放，点歌列表已播放完"
+		if c.room.state.Current != nil {
+			operation = "当前歌曲无法播放，自动切歌：《" + sanitizeName(c.room.state.Current.Music.Name, 120) + "》"
+		}
 		c.room.state.Version++
 		err := c.room.saveStateLocked()
 		c.room.mu.Unlock()
 		if err == nil {
 			c.broadcastSnapshot()
+			c.broadcast(Event{Type: "chat", Data: operationChatMessage(c.memberID, member.Nickname, operation, now, false)})
 		}
 		return err
 	case "chat":
 		content := sanitizeName(command.Content, c.store.config.MaxChatMessageBytes)
 		image := sanitizeChatImage(command.Image, c.store.config.MaxChatImageBytes)
+		avatar := sanitizeChatAvatar(command.Avatar)
 		if strings.TrimSpace(command.Image) != "" && image == "" {
 			return errors.New("图片格式不支持或图片过大")
 		}
@@ -535,12 +604,37 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 		}
 		c.room.mu.Lock()
 		member := c.room.config.Members[c.memberID]
-		message := ChatMessage{ID: randomID(10), MemberID: c.memberID, Nickname: member.Nickname, Content: content, Image: image, CreatedAt: time.Now().UTC()}
+		message := ChatMessage{ID: randomID(10), MemberID: c.memberID, Nickname: member.Nickname, Content: content, Image: image, Avatar: avatar, CreatedAt: time.Now().UTC()}
 		c.room.mu.Unlock()
 		c.broadcast(Event{Type: "chat", Data: message})
 		return nil
 	}
 	return errors.New("不支持的房间操作")
+}
+
+// Operation notices use the same transient broadcast as chat messages. They
+// deliberately are not written to a room file, so reconnecting members only
+// see actions that happened while they were present.
+func operationChatMessage(memberID, nickname, content string, createdAt time.Time, includeMemberName bool) ChatMessage {
+	if includeMemberName {
+		content = "[" + sanitizeName(nickname, 24) + "] " + content
+	}
+	return ChatMessage{
+		ID:        randomID(10),
+		MemberID:  memberID,
+		Nickname:  nickname,
+		Content:   content,
+		System:    true,
+		CreatedAt: createdAt,
+	}
+}
+
+func formatPlaybackPosition(positionMS int64) string {
+	seconds := positionMS / 1000
+	if seconds < 0 {
+		seconds = 0
+	}
+	return fmt.Sprintf("%02d:%02d", seconds/60, seconds%60)
 }
 
 func sanitizeChatImage(value string, maxBytes int) string {
@@ -559,6 +653,17 @@ func sanitizeChatImage(value string, maxBytes int) string {
 		}
 	}
 	return ""
+}
+
+func sanitizeChatAvatar(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if !builtInChatAvatarName.MatchString(value) {
+		return ""
+	}
+	return value
 }
 
 func (c *RoomConnection) snapshot() Snapshot {
@@ -581,6 +686,18 @@ func nextQueueItem(state *RoomState) *QueueItem {
 		return randomQueueItem(state)
 	}
 	return queueHead(state)
+}
+
+const maxHistoryItems = 100
+
+func advanceQueueItem(state *RoomState) *QueueItem {
+	if state.Current != nil {
+		state.History = append([]QueueItem{*state.Current}, state.History...)
+		if len(state.History) > maxHistoryItems {
+			state.History = state.History[:maxHistoryItems]
+		}
+	}
+	return nextQueueItem(state)
 }
 
 // randomQueueItem picks one waiting song without shuffling the remaining

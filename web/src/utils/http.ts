@@ -9,8 +9,10 @@ export const httpAddress = import.meta.env.DEV
   ? '127.0.0.1:54621'
   : location.host;
 let proxyAddress =
-  localStorage.getItem(StorageKey.ProxyAddress)?.replace(/"/g, '').trim() ||
-  `//${httpAddress}/proxy`;
+  localStorage
+    .getItem('musiche-' + StorageKey.ProxyAddress)
+    ?.replace(/"/g, '')
+    .trim() || `//${httpAddress}/proxy`;
 let useHuaweiCloud = proxyAddress.includes('huawei');
 let useLocalAudio = true;
 var localAudio: AudioPlayer | null = null;

@@ -40,6 +40,8 @@ export interface RoomChatMessage {
   nickname: string;
   content: string;
   image?: string;
+  avatar?: string;
+  system?: boolean;
   createdAt: string;
 }
 
@@ -47,6 +49,7 @@ export interface RoomState {
   version: number;
   current?: RoomQueueItem;
   queue: RoomQueueItem[];
+  history?: RoomQueueItem[];
   playback: RoomPlaybackState;
   randomPlayback: boolean;
 }

@@ -31,14 +31,14 @@ html.glass {
   --el-text-color-regular: #304861;
   --el-text-color-placeholder: rgba(32, 50, 72, 0.56);
   --el-box-shadow-light: 0 14px 36px rgba(54, 86, 116, 0.14);
+  --music-flex-gap: 8px;
   background: #dbe7f2;
 
   body {
-    background:
-      radial-gradient(circle at 10% 8%, rgba(255, 255, 255, 0.9), transparent 32%),
+    background: radial-gradient(circle at 10% 8%, #19c8b900, transparent 32%),
       radial-gradient(circle at 88% 12%, rgba(174, 220, 255, 0.72), transparent 30%),
       radial-gradient(circle at 72% 90%, rgba(219, 197, 255, 0.48), transparent 34%),
-      linear-gradient(135deg, #dbe7f2 0%, #c9d9e9 48%, #e4dff1 100%);
+      linear-gradient(135deg, #dbe7f2 0%, #c9d9e9 48%, #e4dff1 100%)
   }
 
   .music-layout {
@@ -49,20 +49,33 @@ html.glass {
   .music-header,
   .music-main,
   .music-footer {
-    background: rgba(255, 255, 255, 0.3) !important;
+    background: transparent !important;
     border: 1px solid rgba(255, 255, 255, 0.48);
-    box-shadow: 0 14px 36px rgba(56, 83, 110, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.45);
-    backdrop-filter: blur(24px) saturate(135%);
+    // box-shadow: 0 14px 36px rgba(56, 83, 110, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.45);
     -webkit-backdrop-filter: blur(24px) saturate(135%);
+    backdrop-filter: blur(24px) saturate(135%);
+  }
+
+  .music-layout-right {
+    background: transparent !important;
   }
 
   .music-aside {
-    margin: 8px 8px;
+    margin: var(--music-flex-gap);
+    margin-right: 0;
     border-radius: var(--music-border-radius);
   }
 
+  .music-background-blur-image {
+    opacity: 1;
+
+    &>img {
+      opacity: 0.65;
+    }
+  }
+
   .music-header {
-    margin: 8px 8px 0;
+    margin: var(--music-flex-gap) var(--music-flex-gap) 0;
     border-radius: var(--music-border-radius);
     padding-left: calc(var(--music-page-padding-horizontal) / 3);
     padding-right: calc(var(--music-page-padding-horizontal) / 3);
@@ -103,21 +116,84 @@ html.glass {
   }
 
   .music-footer-full {
-    color: var(--music-text-color);
-    transform: translateY(-8px);
+    transform: translateY(-16px);
   }
 
   .music-main {
-    margin: 8px 8px;
-    margin-top: 8px;
+    margin: var(--music-flex-gap);
+    margin-top: var(--music-flex-gap) !important;
     border-radius: var(--music-border-radius);
     overflow: hidden;
   }
 
   .music-footer {
-    margin: 0 8px 8px 8px;
+    margin-top: 0;
+    margin: var(--music-flex-gap);
     width: calc(100vw - 16px);
     border-radius: var(--music-border-radius);
+  }
+
+  .music-room-detail {
+    .music-main {
+      border: none;
+    }
+  }
+
+  .music-room {
+    .music-room-active {
+      gap: var(--music-flex-gap);
+
+      .music-room-active-header {
+        padding: 0 calc(var(--music-page-padding-horizontal) / 3);
+      }
+
+      .music-room-active-main {
+        gap: var(--music-flex-gap);
+      }
+
+      .music-room-queue,
+      .music-room-control,
+      .music-room-active-header,
+      .music-room-player,
+      .music-room-chat,
+      .music-room-current-row,
+      .music-room-queue-item:hover {
+        border: 1px solid var(--music-side-divider-color);
+        border-radius: var(--music-border-radius);
+      }
+
+      .music-room-queue-item {
+        border: 1px solid transparent;
+
+        &:hover {
+          background-color: rgba(255, 255, 255, 0.2);
+        }
+      }
+
+      .music-room-queue-list {
+        padding: 0 var(--music-border-radius);
+      }
+
+      .music-room-control {
+        border: none;
+        gap: var(--music-flex-gap);
+      }
+
+      .music-room-current-row {
+        margin: var(--music-flex-gap)
+      }
+    }
+  }
+
+  .el-drawer:not(.music-play-detail) {
+    margin: var(--music-flex-gap);
+    border: 1px solid var(--music-side-divider-color);
+    border-radius: var(--music-border-radius);
+    height: calc(100% - var(--music-flex-gap) - var(--music-flex-gap));
+
+    .el-drawer__body {
+      padding: 0;
+    }
   }
 
   .el-dialog,
@@ -128,14 +204,14 @@ html.glass {
     background: rgba(239, 247, 255, 0.72) !important;
     border: 1px solid rgba(255, 255, 255, 0.56) !important;
     box-shadow: 0 18px 50px rgba(46, 72, 98, 0.2) !important;
-    backdrop-filter: blur(28px) saturate(140%);
     -webkit-backdrop-filter: blur(28px) saturate(140%);
+    backdrop-filter: blur(28px) saturate(140%);
   }
 
   .el-overlay {
     background: rgba(113, 139, 166, 0.12) !important;
-    backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
   }
 
   .el-menu,

@@ -30,6 +30,7 @@ const play = usePlayStore();
   &-jukebox {
     height: 100%;
     width: 40vw;
+    max-width: 566px;
   }
 }
 

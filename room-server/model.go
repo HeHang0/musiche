@@ -58,6 +58,7 @@ type RoomState struct {
 	Version        int64         `json:"version"`
 	Current        *QueueItem    `json:"current,omitempty"`
 	Queue          []QueueItem   `json:"queue"`
+	History        []QueueItem   `json:"history"`
 	Playback       PlaybackState `json:"playback"`
 	RandomPlayback bool          `json:"randomPlayback,omitempty"`
 	EmptySince     *time.Time    `json:"emptySince,omitempty"`
@@ -102,6 +103,8 @@ type ChatMessage struct {
 	Nickname  string    `json:"nickname"`
 	Content   string    `json:"content"`
 	Image     string    `json:"image,omitempty"`
+	Avatar    string    `json:"avatar,omitempty"`
+	System    bool      `json:"system,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 

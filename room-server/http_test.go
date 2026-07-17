@@ -273,6 +273,21 @@ func TestWebSocketQueueCommand(t *testing.T) {
 	}
 	currentQueueID := room.state.Current.ID
 	room.mu.RUnlock()
+	if err := websocket.JSON.Send(connection, ClientCommand{Action: "play_toggle", AdminToken: adminToken}); err != nil {
+		t.Fatal(err)
+	}
+	var pauseSnapshot Event
+	if err := websocket.JSON.Receive(connection, &pauseSnapshot); err != nil || pauseSnapshot.Type != "snapshot" {
+		t.Fatalf("pause snapshot: %#v, error: %v", pauseSnapshot, err)
+	}
+	var pauseChat Event
+	if err := websocket.JSON.Receive(connection, &pauseChat); err != nil || pauseChat.Type != "chat" {
+		t.Fatalf("pause chat: %#v, error: %v", pauseChat, err)
+	}
+	pauseData, ok := pauseChat.Data.(map[string]interface{})
+	if !ok || !strings.Contains(pauseData["content"].(string), "暂停播放") {
+		t.Fatalf("expected pause operation chat, got %#v", pauseChat.Data)
+	}
 	if err := websocket.JSON.Send(connection, ClientCommand{Action: "track_ended", QueueID: currentQueueID}); err != nil {
 		t.Fatal(err)
 	}
@@ -292,6 +307,14 @@ func TestWebSocketQueueCommand(t *testing.T) {
 	}
 	if authorizedEnded.Type != "snapshot" {
 		t.Fatalf("track-ended with the administrator token did not update playback: %#v", authorizedEnded)
+	}
+	var endedChat Event
+	if err := websocket.JSON.Receive(connection, &endedChat); err != nil || endedChat.Type != "chat" {
+		t.Fatalf("track-ended chat: %#v, error: %v", endedChat, err)
+	}
+	endedData, ok := endedChat.Data.(map[string]interface{})
+	if !ok || endedData["system"] != true {
+		t.Fatalf("expected system chat after automatic track change, got %#v", endedChat.Data)
 	}
 	_ = connection.Close()
 	deadline := time.Now().Add(time.Second)

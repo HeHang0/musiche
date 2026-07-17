@@ -424,8 +424,12 @@ export const useRoomStore = defineStore('room', {
       console.log('[在线歌房] seek', positionMs);
       this.command('seek', { positionMs: Math.round(positionMs) });
     },
-    chat(content: string, image = '') {
-      this.command('chat', { content, image });
+    chat(content: string, image = '', avatar = '') {
+      this.command('chat', { content, image, avatar });
+    },
+    pat(memberId: string) {
+      if (!this.snapshot || memberId === this.snapshot.memberId) return;
+      this.command('pat', { memberId });
     },
     async becomeAdmin(password: string) {
       if (!this.snapshot) return;

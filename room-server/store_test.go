@@ -46,6 +46,31 @@ func TestRoomPersistenceAndIdentity(t *testing.T) {
 	}
 }
 
+func TestExpiredRoomsAreKeptBelowOneThirdCapacity(t *testing.T) {
+	config := Config{
+		DataDir: t.TempDir(), MaxRooms: 9, MaxMembersPerRoom: 30,
+		EmptyTTL: time.Minute, TokenSecret: []byte("room-expiry-threshold-test"),
+	}
+	store, err := newRoomStore(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index := 0; index < 2; index++ {
+		room, _, err := store.createRoom(CreateRoomRequest{
+			Name: "保留歌房", Nickname: "用户", VisitorID: "visitor" + string(rune('A'+index)), Fingerprint: "fingerprint" + string(rune('A'+index)), AdminPassword: "administrator-password",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		expiredAt := time.Now().UTC().Add(-2 * time.Minute)
+		room.state.EmptySince = &expiredAt
+	}
+	store.removeExpiredRooms()
+	if len(store.rooms) != 2 {
+		t.Fatalf("expected empty rooms to remain below one-third capacity, got %d", len(store.rooms))
+	}
+}
+
 func TestPasswordHash(t *testing.T) {
 	encoded := hashPassword("administrator-password")
 	if !verifyPassword(encoded, "administrator-password") {
