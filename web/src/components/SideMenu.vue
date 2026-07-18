@@ -35,6 +35,10 @@ function toHome() {
   getServiceWorkerRegistration()?.update();
   push('/');
 }
+async function openRoomLobby() {
+  if (route.path.startsWith('/room/')) room.leave();
+  if (route.path !== '/room') await push('/room');
+}
 const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
 onMounted(() => room.initialize());
 </script>
@@ -72,7 +76,8 @@ onMounted(() => room.initialize());
                     )
                   : true
             "
-            :class="route.meta.key == item.key ? 'is-active' : ''">
+            :class="route.meta.key == item.key ? 'is-active' : ''"
+            @click="item.key === 'room' && openRoomLobby()">
             <span class="music-icon">{{ item.icon }}</span>
             <span>{{ item.name }}</span>
           </el-menu-item>

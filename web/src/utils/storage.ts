@@ -25,6 +25,7 @@ export enum StorageKey {
   LyricOptions = 'lyric-options',
   ProxyAddress = 'proxy-address',
   RoomServerAddress = 'room-server-address',
+  RoomParticleSettings = 'room-particle-settings',
   Proxy = 'proxy',
   LocalMusicSupplement = 'local-music-supplement'
 }

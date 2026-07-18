@@ -19,7 +19,7 @@
   cursor: pointer;
 }
 button {
-  font-family: unset;
+  font-family: inherit !important;
 }
 .is-disabled .music-icon {
   cursor: not-allowed;

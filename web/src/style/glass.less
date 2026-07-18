@@ -116,7 +116,7 @@ html.glass {
   }
 
   .music-footer-full {
-    transform: translateY(-16px);
+    transform: translateY(-8px);
   }
 
   .music-main {
@@ -128,7 +128,7 @@ html.glass {
 
   .music-footer {
     margin-top: 0;
-    margin: var(--music-flex-gap);
+    margin: 0 var(--music-flex-gap) var(--music-flex-gap) var(--music-flex-gap);
     width: calc(100vw - 16px);
     border-radius: var(--music-border-radius);
   }
@@ -198,7 +198,7 @@ html.glass {
 
   .el-dialog,
   .el-message-box,
-  .el-drawer,
+  .el-drawer:not(.music-room-search-drawer-particle),
   .el-dropdown-menu,
   .el-select-dropdown {
     background: rgba(239, 247, 255, 0.72) !important;
@@ -229,6 +229,6 @@ html.glass {
   .el-input__wrapper,
   .el-textarea__inner {
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42) !important;
-    background: rgba(255, 255, 255, 0.22) !important;
+    background: rgba(255, 255, 255, 0.22);
   }
 }

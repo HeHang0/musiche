@@ -34,12 +34,14 @@ import {
   millisecond2Duration,
   parseLyric
 } from '../utils/utils';
+import RoomParticle from './roomParticle.vue';
 
 const roomStore = useRoomStore();
 const playStore = usePlayStore();
 const settingStore = useSettingStore();
 const route = useRoute();
 const router = useRouter();
+const particleMode = ref(false);
 const roomCredentialsKey = 'musiche-room-credentials';
 type RoomCredential = string | { entryPassword?: string };
 
@@ -55,7 +57,9 @@ function getRoomCredential(roomId: string) {
   const credentials = readRoomCredentials();
   if (!Object.prototype.hasOwnProperty.call(credentials, roomId)) return null;
   const credential = credentials[roomId];
-  return typeof credential === 'string' ? credential : credential?.entryPassword || '';
+  return typeof credential === 'string'
+    ? credential
+    : credential?.entryPassword || '';
 }
 
 function saveRoomCredential(roomId: string, entryPassword: string) {
@@ -284,6 +288,10 @@ function currentPosition() {
   );
 }
 
+function toggleParticleMode() {
+  particleMode.value = !particleMode.value;
+}
+
 function changeProgress(value: number) {
   progressDragging.value = false;
   roomStore.seek(value);
@@ -481,11 +489,9 @@ async function openRouteRoom() {
   routeRoomLoading.value = true;
   const saved = getRoomCredential(id);
   const requestedNickname = routeQueryValue('nickname');
-  const preferredNickname =
-    requestedNickname || nickname.value.trim();
+  const preferredNickname = requestedNickname || nickname.value.trim();
   const joinNickname = preferredNickname || generateGuestNickname();
-  const entryPassword =
-    routeQueryValue('password') || saved || '';
+  const entryPassword = routeQueryValue('password') || saved || '';
   const adminPasswordFromLink = routeQueryValue('admin');
   try {
     await roomStore.join(id, {
@@ -593,7 +599,9 @@ async function saveSettings() {
       const saved = getRoomCredential(roomStore.room.id);
       saveRoomCredential(
         roomStore.room.id,
-        settingsEntryEnabled.value ? settingsEntryPassword.value || saved || '' : ''
+        settingsEntryEnabled.value
+          ? settingsEntryPassword.value || saved || ''
+          : ''
       );
     }
     settingsVisible.value = false;
@@ -1039,7 +1047,38 @@ onUnmounted(() => {
     class="music-room"
     v-loading="!loaded || roomStore.loading || routeRoomLoading">
     <template v-if="snapshot">
-      <section class="music-room-active" @click="startPlayCheck">
+      <RoomParticle
+        v-if="particleMode"
+        :snapshot="snapshot"
+        :current="current"
+        :lyric="currentRoomLyric"
+        :position="currentPosition()"
+        :duration="playbackLength"
+        :volume="roomStore.volume"
+        :playing="Boolean(playback?.playing && roomStore.localPlaying)"
+        :audio="roomStore.audio"
+        :current-avatar="selectedAvatar"
+        :avatar-resolver="chatAvatar"
+        :song-picker-open="searchVisible"
+        @close="toggleParticleMode"
+        @toggle-play="roomStore.togglePlayerAction"
+        @next="roomStore.next"
+        @toggle-random="roomStore.toggleRandomPlayback"
+        @seek="roomStore.seek"
+        @set-volume="roomStore.setVolume"
+        @resume="roomStore.resumeAudio"
+        :chat-messages="roomStore.chatMessages"
+        @remove-queue="removeQueue"
+        @pin-queue="roomStore.togglePinQueue"
+        @add-queue="roomStore.addQueue"
+        @pat-member="patMember"
+        @edit-profile="openNicknameDialog"
+        @request-song="openSearchDrawer"
+        @send-chat="roomStore.chat" />
+      <section
+        v-if="!particleMode"
+        class="music-room-active"
+        @click="startPlayCheck">
         <header class="music-room-active-header">
           <div class="music-room-active-header-title">
             <span class="music-icon" @click="leaveRoom">左</span>
@@ -1058,6 +1097,13 @@ onUnmounted(() => {
             </span>
           </div>
           <div class="music-room-active-header-actions">
+            <el-button
+              class="music-room-active-particle-button"
+              type="primary"
+              @click="toggleParticleMode"
+              style="background: #00a5c2">
+              {{ particleMode ? '退出沉浸' : '沉浸模式' }}
+            </el-button>
             <el-button :icon="Share" type="success" @click="copyRoomLink"
               >分享</el-button
             >
@@ -1542,16 +1588,28 @@ onUnmounted(() => {
 
     <el-drawer
       v-model="searchVisible"
-      direction="rtl"
-      size="min(520px, 100%)"
+      :direction="particleMode ? 'btt' : 'rtl'"
+      :size="particleMode ? '50%' : 'min(520px, 100%)'"
       :with-header="false"
       append-to-body
-      class="music-room-search-drawer"
+      :class="[
+        'music-room-search-drawer',
+        { 'music-room-search-drawer-particle': particleMode }
+      ]"
       @close="backToPlaylistSearch">
       <div class="music-room-search-drawer-content" @click="startPlayCheck">
         <div class="music-room-search-head">
-          <h2>{{ playlistTitle || '点歌' }}</h2>
-          <span class="music-icon" @click="closeSearchDrawer">关</span>
+          <div class="music-room-search-title">
+            <small v-if="particleMode">SONG REQUEST</small>
+            <h2>{{ playlistTitle || '点歌' }}</h2>
+          </div>
+          <button
+            class="music-room-search-close"
+            type="button"
+            title="关闭"
+            @click="closeSearchDrawer">
+            <span class="music-icon">{{ particleMode ? '×' : '关' }}</span>
+          </button>
         </div>
         <div v-if="!playlistTitle" class="music-room-search-input">
           <MusicTypeEle
@@ -1684,6 +1742,28 @@ onUnmounted(() => {
         align-items: center;
         gap: 8px;
         white-space: nowrap;
+      }
+    }
+    &-particle-button {
+      position: relative;
+      overflow: visible;
+      &::before {
+        content: 'BETA';
+        position: absolute;
+        z-index: 1;
+        top: -9px;
+        right: -10px;
+        padding: 1px 5px;
+        border: 1px solid rgba(255, 255, 255, 0.55);
+        border-radius: 999px;
+        color: #fff;
+        background: linear-gradient(135deg, #7868ff, #df63c4);
+        box-shadow: 0 3px 9px rgba(79, 55, 178, 0.28);
+        font-size: 8px;
+        font-weight: 700;
+        line-height: 13px;
+        letter-spacing: 0.4px;
+        pointer-events: none;
       }
     }
     &-main {
@@ -2239,10 +2319,12 @@ onUnmounted(() => {
     }
   }
   &-search {
-    &-drawer-content {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
+    &-drawer {
+      &-content {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+      }
     }
     &-head {
       padding: 0 20px;
@@ -2258,6 +2340,45 @@ onUnmounted(() => {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+    }
+    &-title {
+      display: flex;
+      min-width: 0;
+      flex: 1;
+      flex-direction: column;
+      gap: 3px;
+      small {
+        color: #77cde8;
+        font-size: 9px;
+        letter-spacing: 0.22em;
+      }
+    }
+    &-close {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      line-height: 34px !important;
+      flex: 0 0 34px;
+      place-items: center;
+      padding: 0 0 2px;
+      border: 1px solid transparent;
+      border-radius: 50%;
+      color: inherit;
+      background: transparent;
+      font:
+        22px/1 Arial,
+        sans-serif;
+      cursor: pointer;
+      transition: 0.2s;
+      transform-origin: 50% 50%;
+      .music-icon {
+        margin-right: 0;
+      }
+      &:hover {
+        border-color: rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.08);
+        transform: rotate(90deg);
       }
     }
     &-back {
@@ -2363,6 +2484,95 @@ onUnmounted(() => {
 }
 :global(.music-room-search-drawer .el-drawer__body) {
   padding: 20px 0;
+}
+:global(.music-room-search-drawer-particle.el-drawer) {
+  right: auto !important;
+  bottom: 16px;
+  left: 50% !important;
+  width: 33.333vw !important;
+  min-width: 420px;
+  height: 50vh !important;
+  max-height: 50vh;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(180, 220, 255, 0.18) !important;
+  border-radius: 22px;
+  color: rgba(241, 248, 255, 0.9);
+  background: linear-gradient(
+    145deg,
+    rgba(20, 29, 44, 0.82),
+    rgba(5, 9, 17, 0.66)
+  ) !important;
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.52),
+    inset 0 1px rgba(255, 255, 255, 0.07),
+    inset 0 0 60px rgba(94, 163, 227, 0.04);
+  -webkit-backdrop-filter: blur(5px) saturate(1.35) !important;
+  backdrop-filter: blur(5px) saturate(1.35) !important;
+  translate: -50% 0;
+  --el-bg-color: rgba(12, 20, 32, 0.94);
+  --el-bg-color-overlay: rgba(12, 20, 32, 0.96);
+  --el-fill-color-blank: rgba(255, 255, 255, 0.055);
+  --el-fill-color-light: rgba(255, 255, 255, 0.08);
+  --el-border-color: rgba(255, 255, 255, 0.13);
+  --el-border-color-light: rgba(255, 255, 255, 0.09);
+  --el-text-color-primary: rgba(245, 250, 255, 0.92);
+  --el-text-color-regular: rgba(235, 244, 255, 0.72);
+  --el-color-primary: rgba(90, 174, 219, 0.18);
+  --music-primary-color: rgba(90, 174, 219, 0.18) !important;
+}
+:global(.music-room-search-drawer-particle.el-drawer .el-button:hover) {
+  color: white !important;
+  border-color: rgba(128, 225, 255, 0.52) !important;
+  background: rgba(32, 73, 116, 0.72) !important;
+  box-shadow: 0 0 24px rgba(75, 174, 231, 0.22) !important;
+}
+:global(html .music-room-search-drawer-particle .el-input__wrapper) {
+  background: transparent !important;
+}
+:global(
+  html
+    .music-room-search-drawer-particle
+    .el-input__wrapper
+    .el-input__inner::placeholder
+) {
+  color: #ffffff8c;
+}
+:global(.music-room-search-drawer-particle .music-room-search-head) {
+  height: 58px;
+}
+:global(.music-room-search-drawer-particle .music-room-search-music) {
+  margin: 0 12px;
+  padding: 8px 10px;
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+  border-radius: 9px;
+}
+:global(.music-room-search-drawer-particle .music-room-search-music:hover) {
+  background: rgba(255, 255, 255, 0.055);
+}
+:global(.music-room-search-drawer-particle .el-loading-mask) {
+  background: rgba(5, 10, 18, 0.01) !important;
+}
+:global(.music-room-search-drawer-particle .el-loading-spinner .path) {
+  stroke: #83ddf2;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 5px rgba(112, 212, 239, 0.55));
+}
+:global(
+  .music-room-search-drawer-particle .el-loading-spinner .el-loading-text
+) {
+  color: rgba(155, 229, 246, 0.82);
+}
+@media (max-width: 720px) {
+  :global(.music-room-search-drawer-particle.el-drawer) {
+    bottom: 10px;
+    left: 50% !important;
+    width: calc(100vw - 20px) !important;
+    min-width: 0;
+    height: 56vh !important;
+    max-height: 56vh;
+    border-radius: 18px;
+  }
 }
 @media (max-width: 850px) {
   .music-room {
