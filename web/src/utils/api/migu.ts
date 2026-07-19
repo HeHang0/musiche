@@ -192,7 +192,7 @@ function parseMusic3(data: any): Music | null {
     album: data.album || '',
     albumId: data.albumId || '',
     duration: second2Duration(data.duration || 0),
-    length: data.duration || 0,
+    length: Number(data.duration || 0) * 1000,
     vip: data.downloadTags?.includes('vip') || false,
     remark: data.contentId || data.songId,
     type: musicType

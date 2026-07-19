@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import * as THREE from 'three';
+import { DeleteFilled, Upload } from '@element-plus/icons-vue';
 import type { RoomChatMessage, RoomSnapshot } from '../utils/room';
 import { LogoImage } from '../utils/logo';
 import { parseHttpProxyAddress } from '../utils/http';
@@ -12,6 +13,7 @@ const props = defineProps<{
   snapshot: RoomSnapshot;
   current: RoomCurrent | null;
   lyric: string;
+  lyricsText: string;
   position: number;
   duration: number;
   volume: number;
@@ -25,6 +27,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
+  share: [];
   togglePlay: [];
   next: [];
   toggleRandom: [];
@@ -135,7 +138,14 @@ const shelfPresenceOptions = [
   ['auto', '自动隐藏']
 ] as const;
 const visualPreset = ref<
-  'galaxy' | 'topography' | 'vinyl' | 'tunnel' | 'emily'
+  | 'galaxy'
+  | 'topography'
+  | 'peaks'
+  | 'spectrum'
+  | 'ring'
+  | 'vinyl'
+  | 'tunnel'
+  | 'emily'
 >('galaxy');
 const shelfCenter = ref(0);
 const fx = ref({
@@ -189,10 +199,25 @@ type RoomParticleSettings = {
 const visualPresetOptions: readonly VisualPreset[] = [
   'galaxy',
   'topography',
+  'peaks',
+  'spectrum',
+  'ring',
   'vinyl',
   'tunnel',
   'emily'
 ];
+function getParticlePresetIndex(preset = visualPreset.value) {
+  return {
+    galaxy: 0,
+    topography: 1,
+    vinyl: 2,
+    tunnel: 3,
+    emily: 4,
+    peaks: 5,
+    spectrum: 6,
+    ring: 7
+  }[preset];
+}
 let settingsRestored = false;
 let saveSettingsTimer: number | null = null;
 const pointer = ref({ active: false, x: 0, y: 0 });
@@ -234,6 +259,7 @@ const audioBands = {
   beat: 0,
   previousBass: 0
 };
+const spectrumBands = new Float32Array(32);
 let frame = 0;
 let floatingControlsTimer: number | null = null;
 let floatingDropdownOpen = false;
@@ -249,6 +275,8 @@ let particleCoverLoadToken = 0;
 let lyricMesh: THREE.Mesh | null = null;
 let lyricRenderToken = 0;
 let renderedLyricText = '';
+let sceneFontLoadKey = '';
+let sceneFontLoadPromise: Promise<void> = Promise.resolve();
 let lyricParticleTransition: {
   points: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
   from: Float32Array;
@@ -317,6 +345,11 @@ function readAudioBands(time: number) {
   let bass = 0;
   let mid = 0;
   let treble = 0;
+  const followSpectrum = (index: number, target: number) => {
+    const current = spectrumBands[index];
+    spectrumBands[index] =
+      current + (target - current) * (target > current ? 0.62 : 0.3);
+  };
   if (state?.context.state === 'running') {
     state.analyser.getByteFrequencyData(state.data);
     const frequencyBin = (frequency: number) =>
@@ -346,10 +379,36 @@ function readAudioBands(time: number) {
     bass = enhance(rms(35, 220), 3.5);
     mid = enhance(rms(220, 2500), 3.8);
     treble = enhance(rms(2500, 10000), 4.2);
+    const minFrequency = 35;
+    const maxFrequency = Math.min(14_000, state.context.sampleRate * 0.46);
+    const frequencyRatio = maxFrequency / minFrequency;
+    for (let band = 0; band < spectrumBands.length; band++) {
+      const from = minFrequency * Math.pow(frequencyRatio, band / 32);
+      const to = minFrequency * Math.pow(frequencyRatio, (band + 1) / 32);
+      const raw = enhance(rms(from, to), 5.2);
+      const lowFrequencyBoost = 1.18 - (band / 31) * 0.22;
+      followSpectrum(
+        band,
+        THREE.MathUtils.clamp(raw * lowFrequencyBoost, 0, 1)
+      );
+    }
   } else if (props.playing) {
     bass = 0.24 + Math.sin(time * 0.0042) * 0.07;
     mid = 0.18 + Math.sin(time * 0.0027 + 1.4) * 0.05;
     treble = 0.12 + Math.sin(time * 0.0061 + 0.7) * 0.04;
+    for (let band = 0; band < spectrumBands.length; band++) {
+      const frequencyWeight = 1 - band / spectrumBands.length;
+      const pulse =
+        0.12 +
+        frequencyWeight * bass * 0.72 +
+        Math.max(0, Math.sin(time * (0.004 + band * 0.00013) + band * 0.7)) *
+          mid *
+          0.55;
+      followSpectrum(band, pulse);
+    }
+  } else {
+    for (let band = 0; band < spectrumBands.length; band++)
+      followSpectrum(band, 0);
   }
   const follow = (
     current: number,
@@ -400,9 +459,11 @@ const PARTICLE_VERTEX_SHADER = `
   uniform float uPreset;
   uniform float uDepth;
   uniform float uHasCover;
+  uniform float uSpectrum[32];
   uniform vec3 uColor;
   uniform sampler2D uCoverTex;
   attribute float aSeed;
+  attribute float aSpectrumBand;
   attribute vec2 aCoverUv;
   varying float vGlow;
   varying vec3 vParticleColor;
@@ -410,6 +471,7 @@ const PARTICLE_VERTEX_SHADER = `
   void main() {
     vec3 p = position;
     float seed = aSeed;
+    float spectrumGlow = 0.0;
     vParticleColor = uColor;
     vParticleAlpha = 1.0;
     if (uPreset < 0.5) {
@@ -427,7 +489,7 @@ const PARTICLE_VERTEX_SHADER = `
       p.xy *= 1.0 + uBass * .07 + uBeat * .04;
       p.z += uTime * (.5 + seed * .4 + uEnergy * 1.1);
       p.z = mod(p.z + 4.5, 9.0) - 4.5;
-    } else {
+    } else if (uPreset < 4.5) {
       vec3 coverColor = texture2D(uCoverTex, aCoverUv).rgb;
       float luminance = dot(coverColor, vec3(.299, .587, .114));
       float midWave = sin(p.x * 2.7 + uTime * .7 + seed * 4.0) * uMid * .62;
@@ -437,13 +499,68 @@ const PARTICLE_VERTEX_SHADER = `
       p.xy *= 1.0 + uBass * .065 + uBeat * .04;
       vParticleColor = mix(uColor, coverColor, uHasCover);
       vParticleAlpha = mix(.75, clamp(.18 + luminance * 1.05, .16, 1.0), uHasCover);
+    } else if (uPreset < 5.5) {
+      float peakA = exp(-((p.x + 3.25) * (p.x + 3.25) * .72 + (p.z + .8) * (p.z + .8) * 1.05));
+      float peakB = exp(-((p.x + 1.15) * (p.x + 1.15) * 1.0 + (p.z - .95) * (p.z - .95) * .78));
+      float peakC = exp(-((p.x - 1.15) * (p.x - 1.15) * .82 + (p.z + .65) * (p.z + .65) * 1.2));
+      float peakD = exp(-((p.x - 3.2) * (p.x - 3.2) * .95 + (p.z - .75) * (p.z - .75) * .9));
+      float ridges = peakA + peakB + peakC + peakD;
+      float bassLift = (peakA + peakC) * (uBass * 1.75 + uBeat * 1.05);
+      float midLift = (peakB + peakD) * (uMid * 1.5 + uEnergy * .72);
+      float travelingWave = sin(p.x * 2.35 + p.z * 1.55 - uTime * 2.1 + seed * .8)
+        * (.08 + uMid * .34 + uTreble * .2) * (.3 + ridges);
+      float ripple = sin(length(p.xz) * 3.4 - uTime * 2.7)
+        * (uBeat * .24 + uBass * .12);
+      p.y += bassLift + midLift + travelingWave + ripple;
+      p.xz *= 1.0 + uBeat * .025;
+      float summit = clamp((p.y + 1.0) * .18 + uTreble * .28 + uBeat * .22, 0.0, .62);
+      vParticleColor = mix(uColor, vec3(1.0), summit);
+    } else if (uPreset < 6.5) {
+      int bandIndex = int(clamp(floor(aSpectrumBand + .5), 0.0, 31.0));
+      float amplitude = pow(clamp(uSpectrum[bandIndex], 0.0, 1.0), .68);
+      float level = clamp(p.y, 0.0, 1.0);
+      float lowBand = 1.0 - smoothstep(1.0, 11.0, aSpectrumBand);
+      float visibleHeight = clamp(.035 + amplitude * .92 + uBeat * lowBand * .16, .035, 1.0);
+      float activePoint = 1.0 - smoothstep(visibleHeight, visibleHeight + .035, level);
+      float peakLine = 1.0 - smoothstep(.025, .09, abs(level - visibleHeight));
+      p.y = -1.72 + level * 4.7;
+      p.z += sin(aSpectrumBand * 1.7 + level * 8.0 + uTime * 2.4) * amplitude * .045;
+      p.x *= 1.0 + uBeat * lowBand * .018;
+      float hot = clamp(level * .36 + amplitude * .42 + peakLine * .34 + uBeat * lowBand * .2, 0.0, .88);
+      vParticleColor = mix(uColor, vec3(1.0, .72, .92), hot);
+      vParticleAlpha = activePoint * (.48 + amplitude * .52);
+      spectrumGlow = activePoint * (amplitude * .85 + peakLine * .35 + uBeat * lowBand * .5);
+    } else {
+      float bandCoordinate = clamp(aSpectrumBand, 0.0, 31.0);
+      int bandIndex = int(floor(bandCoordinate));
+      int nextBandIndex = min(31, bandIndex + 1);
+      float amplitude = pow(
+        clamp(mix(uSpectrum[bandIndex], uSpectrum[nextBandIndex], fract(bandCoordinate)), 0.0, 1.0),
+        .72
+      );
+      float radius = max(.001, length(p.xy));
+      vec2 radial = p.xy / radius;
+      float lowBand = 1.0 - smoothstep(1.0, 11.0, aSpectrumBand);
+      float innerRing = 1.0 - smoothstep(1.82, 1.88, radius);
+      float outerRing = 1.0 - innerRing;
+      float outerThickness = radius - 1.96;
+      float waveformRadius = 1.96 + amplitude * 1.34 + uBeat * lowBand * .16;
+      float microRipple = sin(atan(p.y, p.x) * 6.0 - uTime * 2.0 + bandCoordinate * .12)
+        * amplitude * .025;
+      float targetRadius = mix(radius, waveformRadius + outerThickness + microRipple, outerRing);
+      p.xy = radial * targetRadius;
+      p.z += outerRing * sin(atan(p.y, p.x) * 3.0 + uTime * 1.2) * amplitude * .045;
+      float hot = clamp(amplitude * .56 + outerRing * .12 + uBeat * lowBand * .2, 0.0, .82);
+      vParticleColor = mix(uColor, vec3(1.0), hot);
+      vParticleAlpha = innerRing * .88 + outerRing * (.48 + amplitude * .52);
+      spectrumGlow = innerRing * .26 + outerRing * (amplitude * .92 + .12);
     }
     p *= 1.0 + uEnergy * (.14 + seed * .2) + uBeat * .1;
     vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
     float distanceToCamera = max(.5, -mvPosition.z);
     gl_PointSize = clamp(uPointSize * (30.0 / distanceToCamera), 1.2, 11.0);
     gl_Position = projectionMatrix * mvPosition;
-    vGlow = clamp(.3 + uEnergy * .68 + uTreble * .42 + uBeat * .58 + sin(uTime * (1.0 + seed) + seed * 20.0) * .16, .18, 1.4);
+    vGlow = clamp(.3 + uEnergy * .68 + uTreble * .42 + uBeat * .58 + spectrumGlow + sin(uTime * (1.0 + seed) + seed * 20.0) * .16, .18, 1.7);
   }
 `;
 const PARTICLE_FRAGMENT_SHADER = `
@@ -458,9 +575,7 @@ const PARTICLE_FRAGMENT_SHADER = `
   }
 `;
 
-function selectPreset(
-  preset: 'galaxy' | 'topography' | 'vinyl' | 'tunnel' | 'emily'
-) {
+function selectPreset(preset: VisualPreset) {
   visualPreset.value = preset;
   const presets = {
     galaxy: {
@@ -474,6 +589,24 @@ function selectPreset(
       density: 1.25,
       speed: 0.75,
       shelfMode: 'stage' as const
+    },
+    peaks: {
+      color: 'cyan' as const,
+      density: 1.35,
+      speed: 0.82,
+      shelfMode: 'side' as const
+    },
+    spectrum: {
+      color: 'rose' as const,
+      density: 1.25,
+      speed: 1,
+      shelfMode: 'side' as const
+    },
+    ring: {
+      color: 'emerald' as const,
+      density: 1.4,
+      speed: 1.05,
+      shelfMode: 'side' as const
     },
     vinyl: {
       color: 'gold' as const,
@@ -508,6 +641,9 @@ function getCameraPreset(preset = visualPreset.value) {
     emily: { radius: 6.6, phi: 0.08, theta: 0 },
     tunnel: { radius: 6.2, phi: 0.03, theta: 0 },
     vinyl: { radius: 6.5, phi: 0.04, theta: 0 },
+    peaks: { radius: 8.2, phi: 0.32, theta: -0.18 },
+    spectrum: { radius: 7.4, phi: 0.12, theta: -0.08 },
+    ring: { radius: 7.2, phi: 0.05, theta: 0 },
     galaxy: { radius: 9.4, phi: 0.34, theta: -0.52 },
     topography: { radius: 9.4, phi: 0.34, theta: -0.52 }
   }[preset];
@@ -526,6 +662,24 @@ function getViewPreset(preset = visualPreset.value) {
       position: [-0.0038, 0.513, 0.1067] as const,
       rotation: [0, 0] as const,
       radius: 9.4,
+      zoomOverride: false
+    },
+    peaks: {
+      position: [0, 0.12, 0] as const,
+      rotation: [-0.04, 0] as const,
+      radius: cameraPreset.radius,
+      zoomOverride: false
+    },
+    spectrum: {
+      position: [0, 0.18, 0] as const,
+      rotation: [0, 0] as const,
+      radius: cameraPreset.radius,
+      zoomOverride: false
+    },
+    ring: {
+      position: [0, 0.08, 0] as const,
+      rotation: [0, 0] as const,
+      radius: cameraPreset.radius,
       zoomOverride: false
     },
     emily: {
@@ -571,6 +725,58 @@ function buildParticlePositions(count: number) {
       x = gx * 9;
       z = gz * 6;
       y = Math.sin(gx * 15 + gz * 8) * 0.35 + Math.cos(gz * 18) * 0.22;
+    } else if (visualPreset.value === 'peaks') {
+      const columns = Math.ceil(Math.sqrt(count));
+      const rows = Math.ceil(count / columns);
+      const gx = (index % columns) / Math.max(1, columns - 1) - 0.5;
+      const gz = Math.floor(index / columns) / Math.max(1, rows - 1) - 0.5;
+      x = gx * 9.6;
+      z = gz * 6.4;
+      const peak = (cx: number, cz: number, wx: number, wz: number) =>
+        Math.exp(-((x - cx) ** 2 * wx + (z - cz) ** 2 * wz));
+      y =
+        -1.22 +
+        peak(-3.25, -0.8, 0.72, 1.05) * 1.35 +
+        peak(-1.15, 0.95, 1, 0.78) * 1.65 +
+        peak(1.15, -0.65, 0.82, 1.2) * 1.5 +
+        peak(3.2, 0.75, 0.95, 0.9) * 1.28 +
+        Math.sin(x * 2.1 + z * 1.35) * 0.055;
+    } else if (visualPreset.value === 'spectrum') {
+      const bandCount = 32;
+      const levelCount = Math.max(10, Math.floor(count / (bandCount * 4)));
+      const layerCount = Math.max(
+        1,
+        Math.ceil(count / (bandCount * levelCount))
+      );
+      const band = index % bandCount;
+      const level = Math.floor(index / bandCount) % levelCount;
+      const layer = Math.floor(index / (bandCount * levelCount));
+      x = (band / (bandCount - 1) - 0.5) * 9.2;
+      y = level / Math.max(1, levelCount - 1);
+      z =
+        (layer / Math.max(1, layerCount - 1) - 0.5) * 0.9 +
+        (Math.random() - 0.5) * 0.035;
+    } else if (visualPreset.value === 'ring') {
+      const sectorCount = 320;
+      const sector = index % sectorCount;
+      const localIndex = Math.floor(index / sectorCount);
+      const pointsPerSector = Math.max(6, Math.ceil(count / sectorCount));
+      const innerPoints = Math.max(2, Math.round(pointsPerSector * 0.28));
+      const angle =
+        (sector / sectorCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.004;
+      let radius = 0;
+      if (localIndex < innerPoints) {
+        const layer = localIndex / Math.max(1, innerPoints - 1) - 0.5;
+        radius = 1.72 + layer * 0.055 + (Math.random() - 0.5) * 0.008;
+      } else {
+        const outerIndex = localIndex - innerPoints;
+        const outerCount = Math.max(1, pointsPerSector - innerPoints);
+        const layer = outerIndex / Math.max(1, outerCount - 1) - 0.5;
+        radius = 1.96 + layer * 0.11 + (Math.random() - 0.5) * 0.006;
+      }
+      x = Math.cos(angle) * radius;
+      y = Math.sin(angle) * radius;
+      z = ((localIndex % 3) - 1) * 0.035 + (Math.random() - 0.5) * 0.018;
     } else if (visualPreset.value === 'vinyl') {
       const radius = 0.55 + Math.sqrt(Math.random()) * 4.5;
       const angle = Math.random() * Math.PI * 2;
@@ -599,6 +805,7 @@ function createParticleGeometry() {
   const geometry = new THREE.BufferGeometry();
   const count = activeParticleCount.value;
   const seeds = new Float32Array(count);
+  const spectrumBandAttributes = new Float32Array(count);
   const coverUvs = new Float32Array(count * 2);
   let positions: Float32Array;
   if (visualPreset.value === 'emily') {
@@ -616,6 +823,7 @@ function createParticleGeometry() {
       coverUvs[index * 2] = u;
       coverUvs[index * 2 + 1] = v;
       seeds[index] = Math.random();
+      spectrumBandAttributes[index] = 0;
     }
   } else {
     positions = buildParticlePositions(count);
@@ -623,10 +831,22 @@ function createParticleGeometry() {
       coverUvs[index * 2] = Math.random();
       coverUvs[index * 2 + 1] = Math.random();
       seeds[index] = Math.random();
+      if (visualPreset.value === 'spectrum')
+        spectrumBandAttributes[index] = index % 32;
+      else if (visualPreset.value === 'ring') {
+        const sector = index % 320;
+        const phase = sector / 319;
+        const mirroredFrequency = phase <= 0.5 ? phase * 2 : (1 - phase) * 2;
+        spectrumBandAttributes[index] = mirroredFrequency * 31;
+      } else spectrumBandAttributes[index] = 0;
     }
   }
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
+  geometry.setAttribute(
+    'aSpectrumBand',
+    new THREE.BufferAttribute(spectrumBandAttributes, 1)
+  );
   geometry.setAttribute('aCoverUv', new THREE.BufferAttribute(coverUvs, 2));
   return geometry;
 }
@@ -1267,20 +1487,23 @@ async function ensureLyricFontLoaded(text: string) {
   if (!text.trim() || !document.fonts) return;
   if (lyricFont.value === 'body') await ensureGoogleFontStylesheetReady();
   const fontFamily = getLyricFontFamily();
-  const fonts = [document.fonts.load(`700 80px ${fontFamily}`, text)];
+  const characters = Array.from(new Set(Array.from(text))).join('');
+  const fonts = [400, 500, 600, 700].map(weight =>
+    document.fonts.load(`${weight} 80px ${fontFamily}`, characters)
+  );
   if (
     lyricFont.value === 'body' &&
     document.documentElement.classList.contains('animal-island')
   ) {
-    fonts.push(document.fonts.load('700 80px "Nunito"', text));
-    fonts.push(document.fonts.load('700 80px "Zen Maru Gothic"', text));
+    fonts.push(document.fonts.load('700 80px "Nunito"', characters));
+    fonts.push(document.fonts.load('700 80px "Zen Maru Gothic"', characters));
   }
   await Promise.all(fonts).catch(error =>
     console.warn('[沉浸模式] 歌词字体加载失败，使用后备字体', error)
   );
 }
 
-function getSceneFontText(lyric: string) {
+function getSceneFontText(lyricsText: string) {
   const cardText = [props.current, ...props.snapshot.state.queue.slice(0, 2)]
     .flatMap(item => [
       item?.music.name || '',
@@ -1288,7 +1511,19 @@ function getSceneFontText(lyric: string) {
       item?.requestedName || ''
     ])
     .join('');
-  return `${lyric}${cardText}正在播放下一首队列播放暂停切歌随机音量`;
+  return `${lyricsText}${cardText}正在播放下一首队列播放暂停切歌随机音量`;
+}
+
+function preloadSceneFont() {
+  const text = getSceneFontText(props.lyricsText);
+  const musicKey = props.current
+    ? `${props.current.id}:${props.current.music.type}:${props.current.music.id}`
+    : '';
+  const nextKey = `${lyricFont.value}:${musicKey}:${text}`;
+  if (sceneFontLoadKey === nextKey) return sceneFontLoadPromise;
+  sceneFontLoadKey = nextKey;
+  sceneFontLoadPromise = ensureLyricFontLoaded(text);
+  return sceneFontLoadPromise;
 }
 
 function createTextCanvas(text: string, width = 1400, height = 320) {
@@ -1489,7 +1724,7 @@ function updateLyricParticleTransition(time: number) {
 
 async function renderLyricTexture(nextLyric: string) {
   const renderToken = ++lyricRenderToken;
-  await ensureLyricFontLoaded(getSceneFontText(nextLyric));
+  await preloadSceneFont();
   if (renderToken !== lyricRenderToken || !lyricMesh) return;
   const previousLyric = renderedLyricText;
   startLyricParticleTransition(previousLyric, nextLyric);
@@ -1693,7 +1928,10 @@ function createCardTexture(
     context.restore();
   }
   const coverSource =
-    item?.music.largeImage || item?.music.mediumImage || item?.music.image || '';
+    item?.music.largeImage ||
+    item?.music.mediumImage ||
+    item?.music.image ||
+    '';
   if (coverSource) {
     const paintCover = (image: HTMLImageElement) => {
       const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
@@ -1895,18 +2133,10 @@ function startParticles() {
       uBeat: { value: 0 },
       uDepth: { value: fx.value.depth },
       uHasCover: { value: 0 },
+      uSpectrum: { value: spectrumBands },
       uCoverTex: { value: null },
       uPreset: {
-        value:
-          visualPreset.value === 'galaxy'
-            ? 0
-            : visualPreset.value === 'topography'
-              ? 1
-              : visualPreset.value === 'vinyl'
-                ? 2
-                : visualPreset.value === 'tunnel'
-                  ? 3
-                  : 4
+        value: getParticlePresetIndex()
       }
     },
     vertexShader: PARTICLE_VERTEX_SHADER,
@@ -1971,6 +2201,7 @@ function startParticles() {
     material.uniforms.uMid.value = audioBands.mid * fx.value.intensity;
     material.uniforms.uTreble.value = audioBands.treble * fx.value.intensity;
     material.uniforms.uBeat.value = audioBands.beat;
+    material.uniforms.uSpectrum.value = spectrumBands;
     material.uniforms.uDepth.value = fx.value.depth;
     material.uniforms.uPointSize.value =
       (props.playing ? 3.55 : 2.8) *
@@ -1982,16 +2213,7 @@ function startParticles() {
       green / 255,
       blue / 255
     );
-    material.uniforms.uPreset.value =
-      visualPreset.value === 'galaxy'
-        ? 0
-        : visualPreset.value === 'topography'
-          ? 1
-          : visualPreset.value === 'vinyl'
-            ? 2
-            : visualPreset.value === 'tunnel'
-              ? 3
-              : 4;
+    material.uniforms.uPreset.value = getParticlePresetIndex();
     if (!pointer.value.active) {
       gestureRotation.x += particleSpin.vx * dt;
       gestureRotation.y += particleSpin.vy * dt;
@@ -2138,6 +2360,15 @@ function startParticles() {
 }
 
 watch(
+  () => props.lyricsText,
+  () => {
+    void preloadSceneFont().then(() => {
+      if (lyricMesh) void renderLyricTexture(props.lyric);
+      refreshCardGroup();
+    });
+  }
+);
+watch(
   () => props.lyric,
   nextLyric => void renderLyricTexture(nextLyric)
 );
@@ -2167,9 +2398,7 @@ watch(
     const cardCount = 1 + props.snapshot.state.queue.slice(0, 2).length;
     shelfCenter.value = Math.min(shelfCenter.value, cardCount - 1);
     refreshCardGroup();
-    void ensureLyricFontLoaded(getSceneFontText(props.lyric)).then(() =>
-      refreshCardGroup()
-    );
+    void preloadSceneFont().then(() => refreshCardGroup());
   }
 );
 watch(
@@ -2191,6 +2420,7 @@ watch(
 onMounted(async () => {
   await restoreParticleSettings();
   startParticles();
+  void preloadSceneFont().then(() => refreshCardGroup());
   showFloatingControls();
   window.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
@@ -2255,12 +2485,14 @@ onUnmounted(() => {
       <header
         class="room-particle-topbar room-particle-floating-ui"
         @pointerdown.stop>
-        <span></span>
+        <button class="room-particle-exit" type="button" @click="emit('close')">
+          退出沉浸
+        </button>
         <span class="room-particle-room-name"
           >{{ snapshot.room.name }} · {{ snapshot.nickname }}</span
         >
-        <button class="room-particle-exit" type="button" @click="emit('close')">
-          退出沉浸
+        <button class="room-particle-exit" type="button" @click="emit('share')">
+          分享
         </button>
       </header>
 
@@ -2355,19 +2587,19 @@ onUnmounted(() => {
                     snapshot.isAdmin || item.requestedBy === snapshot.memberId
                   "
                   class="drawer-actions">
-                  <button
+                  <el-button
                     v-if="snapshot.isAdmin && index > 0"
                     type="button"
-                    title="置顶"
+                    title="置顶到列表第一首"
                     @click="emit('pinQueue', item.id)">
-                    ↑
-                  </button>
-                  <button
+                    <el-icon><Upload /></el-icon>
+                  </el-button>
+                  <el-button
                     type="button"
                     title="删除"
                     @click="emit('removeQueue', item.id)">
-                    ×
-                  </button>
+                    <el-icon><DeleteFilled /></el-icon>
+                  </el-button>
                 </span>
               </div>
               <p v-if="!snapshot.state.queue.length" class="drawer-empty">
@@ -2525,9 +2757,9 @@ onUnmounted(() => {
           <div class="fx-head">
             <b>视觉控制台</b>
             <div class="fx-head-actions">
-            <button
-              v-if="showDebugTools"
-              class="fx-debug-copy"
+              <button
+                v-if="showDebugTools"
+                class="fx-debug-copy"
                 type="button"
                 title="复制当前视角参数"
                 @click="copyCurrentViewDebug">
@@ -2573,6 +2805,9 @@ onUnmounted(() => {
                   v-for="preset in [
                     ['galaxy', '星河'],
                     ['topography', '声波地形'],
+                    ['peaks', '节奏山脉'],
+                    ['spectrum', '粒子频谱'],
+                    ['ring', '频率光环'],
                     ['vinyl', '唱片'],
                     ['tunnel', '滚筒'],
                     ['emily', 'emily专辑封面']
@@ -2587,42 +2822,42 @@ onUnmounted(() => {
             >
             <template v-else-if="settingsTab === 'appearance'"
               ><strong>外观</strong>
-            <div class="color-options">
+              <div class="color-options">
                 <button
                   v-for="option in colorOptions"
                   :key="option"
                   :class="{ active: color === option }"
                   :data-color="option"
-                type="button"
-                @click="color = option" />
-            </div>
-            <label
-              >场景字体
-              <el-dropdown
-                popper-class="room-particle-dropdown"
-                effect="dark"
-                trigger="click"
-                @command="selectLyricFont"
-                @visible-change="onFloatingDropdownVisible">
-                <button class="fx-dropdown-trigger" type="button">
-                  {{ dropdownLabel(lyricFontOptions, lyricFont) }}
-                  <span>⌄</span>
-                </button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item
-                      v-for="option in lyricFontOptions"
-                      :key="option[0]"
-                      :class="{ active: lyricFont === option[0] }"
-                      :command="option[0]">
-                      {{ option[1] }}
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown></label
-            >
-            <label
-              >色彩张力
+                  type="button"
+                  @click="color = option" />
+              </div>
+              <label
+                >场景字体
+                <el-dropdown
+                  popper-class="room-particle-dropdown"
+                  effect="dark"
+                  trigger="click"
+                  @command="selectLyricFont"
+                  @visible-change="onFloatingDropdownVisible">
+                  <button class="fx-dropdown-trigger" type="button">
+                    {{ dropdownLabel(lyricFontOptions, lyricFont) }}
+                    <span>⌄</span>
+                  </button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item
+                        v-for="option in lyricFontOptions"
+                        :key="option[0]"
+                        :class="{ active: lyricFont === option[0] }"
+                        :command="option[0]">
+                        {{ option[1] }}
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown></label
+              >
+              <label
+                >色彩张力
                 <input
                   v-model.number="fx.colorBoost"
                   type="range"
@@ -2789,9 +3024,7 @@ onUnmounted(() => {
                   @command="selectShelfCameraMode"
                   @visible-change="onFloatingDropdownVisible">
                   <button class="fx-dropdown-trigger" type="button">
-                    {{
-                      dropdownLabel(shelfCameraOptions, fx.shelfCameraMode)
-                    }}
+                    {{ dropdownLabel(shelfCameraOptions, fx.shelfCameraMode) }}
                     <span>⌄</span>
                   </button>
                   <template #dropdown>
@@ -3252,9 +3485,7 @@ onUnmounted(() => {
   border-color: rgba(153, 220, 225, 0.2) !important;
   background: rgba(10, 18, 28, 0.96) !important;
 }
-:global(
-  html.animal-island .room-particle-dropdown .el-popper__arrow::before
-) {
+:global(html.animal-island .room-particle-dropdown .el-popper__arrow::before) {
   border: 1px solid rgba(153, 220, 225, 0.2) !important;
   background: rgba(10, 18, 28, 0.96) !important;
 }
@@ -3602,6 +3833,11 @@ onUnmounted(() => {
   border-bottom: 1px solid rgba(255, 255, 255, 0.055);
   border-radius: 9px;
   transition: background 0.18s;
+  &:hover {
+    .drawer-actions {
+      opacity: 1;
+    }
+  }
 }
 .drawer-row:hover {
   background: rgba(255, 255, 255, 0.045);
@@ -3642,6 +3878,11 @@ onUnmounted(() => {
 .drawer-actions {
   display: flex;
   gap: 2px;
+  opacity: 0;
+  .el-button {
+    --music-button-margin: 2px;
+    padding: 8px;
+  }
 }
 .drawer-actions button,
 .requeue-button {

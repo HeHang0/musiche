@@ -1037,7 +1037,8 @@ export async function userInfo(cookies: string): Promise<UserInfo | null> {
   const cookieObj = parseCookieText(cookie);
   const cookieNewObject = {
     uin: cookieObj.uin || '',
-    qm_keyst: cookieObj.qm_keyst || ''
+    qm_keyst: cookieObj.qm_keyst || '',
+    qqmusic_key: cookieObj.qqmusic_key || ''
   };
   if (cookieNewObject) {
     qqCookie = formatCookies(cookieNewObject);

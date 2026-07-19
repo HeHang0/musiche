@@ -38,35 +38,34 @@ func newResolver(config Config) *Resolver {
 	return &Resolver{config: config, client: &http.Client{Timeout: 12 * time.Second}, cache: map[string]resolvedCacheItem{}}
 }
 
-func (r *Resolver) resolve(room *Room, music Music) (Music, error) {
+func (r *Resolver) resolve(room *Room, music Music, quality string) (Music, error) {
 	if music.ID == "" || music.Type == "" {
 		return Music{}, errors.New("无效的歌曲")
 	}
+	quality = normalizeMusicQuality(quality)
 	room.mu.RLock()
 	_, configured := room.config.Credentials[music.Type]
 	roomID := room.config.ID
 	path := room.path
 	room.mu.RUnlock()
-	key := r.cacheKey(roomID, music)
+	key := r.cacheKey(roomID, music, quality)
 	r.mu.Lock()
 	if cached, ok := r.cache[key]; ok && time.Now().Before(cached.expires) {
 		r.mu.Unlock()
 		return cached.music, nil
 	}
 	r.mu.Unlock()
-	if !configured {
+	if !configured && music.Type != "migu" {
 		return Music{}, fmt.Errorf("房间未配置%s的解析 Cookie", sourceName(music.Type))
 	}
-	cookie, err := readCredential(path, music.Type, r.config.CookieKey)
-	if err != nil {
-		return Music{}, err
-	}
+	cookie, _ := readCredential(path, music.Type, r.config.CookieKey)
 	var resolved Music
+	var err error
 	switch music.Type {
 	case "cloud":
-		resolved, err = r.resolveCloud(music, cookie)
+		resolved, err = r.resolveCloud(music, cookie, quality)
 	case "migu":
-		resolved, err = r.resolveMigu(music, cookie)
+		resolved, err = r.resolveMigu(music, cookie, quality)
 	case "qq":
 		resolved, err = r.resolveQQ(music, cookie)
 	default:
@@ -342,14 +341,23 @@ func qqGUID() string {
 	return fmt.Sprintf("%010d", time.Now().UnixNano()%10000000000)
 }
 
-func (r *Resolver) cacheKey(roomID string, music Music) string {
-	return strings.Join([]string{roomID, music.Type, string(music.ID), music.Remark}, "|")
+func normalizeMusicQuality(value string) string {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "PQ", "SQ", "HQ", "ZQ":
+		return strings.ToUpper(strings.TrimSpace(value))
+	default:
+		return "PQ"
+	}
+}
+
+func (r *Resolver) cacheKey(roomID string, music Music, quality string) string {
+	return strings.Join([]string{roomID, music.Type, string(music.ID), music.Remark, normalizeMusicQuality(quality)}, "|")
 }
 
 // cacheResolved lets an administrator seed the server cache with the URL that
 // their already-authorised Web player resolved. It remains a compatibility
 // path for cases where a platform resolver or cookie is temporarily invalid.
-func (r *Resolver) cacheResolved(room *Room, music Music) error {
+func (r *Resolver) cacheResolved(room *Room, music Music, quality string) error {
 	if music.ID == "" || music.Type == "" || strings.TrimSpace(music.URL) == "" {
 		return errors.New("无效的播放地址")
 	}
@@ -358,7 +366,7 @@ func (r *Resolver) cacheResolved(room *Room, music Music) error {
 		return errors.New("播放地址格式错误")
 	}
 	room.mu.RLock()
-	key := r.cacheKey(room.config.ID, music)
+	key := r.cacheKey(room.config.ID, music, quality)
 	room.mu.RUnlock()
 	r.mu.Lock()
 	r.cache[key] = resolvedCacheItem{music: music, expires: time.Now().Add(r.config.AudioCacheTTL)}
@@ -413,11 +421,20 @@ func cookieValue(cookie, key string) string {
 	return ""
 }
 
-func (r *Resolver) resolveCloud(music Music, rawCredential string) (Music, error) {
+func (r *Resolver) resolveCloud(music Music, rawCredential string, quality string) (Music, error) {
+	br := 128000
+	switch strings.ToUpper(strings.TrimSpace(quality)) {
+	case "HQ":
+		br = 320000
+	case "SQ":
+		br = 480000
+	case "ZQ":
+		br = 960000
+	}
 	cookie := credentialValue(rawCredential, "cookie")
 	csrf := cookieValue(cookie, "__csrf")
 	musicU := cookieValue(cookie, "MUSIC_U")
-	payload, _ := json.Marshal(map[string]any{"ids": []string{string(music.ID)}, "br": 480000, "csrf_token": csrf})
+	payload, _ := json.Marshal(map[string]any{"ids": []string{string(music.ID)}, "br": br, "csrf_token": csrf})
 	params, err := cloudEncrypt(string(payload))
 	if err != nil {
 		return Music{}, err
@@ -476,17 +493,19 @@ func aesCBCBase64(value, key []byte) (string, error) {
 	return base64.StdEncoding.EncodeToString(output), nil
 }
 
-func (r *Resolver) resolveMigu(music Music, rawCredential string) (Music, error) {
+func (r *Resolver) resolveMigu(music Music, rawCredential, quality string) (Music, error) {
 	cookie := credentialValue(rawCredential, "cookie")
 	uid := credentialValue(rawCredential, "uid")
 	if uid == "" {
-		var err error
-		uid, err = r.miguUserID(cookie)
-		if err != nil {
-			return Music{}, err
-		}
+		uid, _ = r.miguUserID(cookie)
 	}
-	endpoint := "https://app.c.nf.migu.cn/strategy/pc/listen/v2.0?contentId=" + url.QueryEscape(music.Remark) + "&copyrightId=" + url.QueryEscape(string(music.ID)) + "&scene=&netType=01&resourceType=2&toneFlag=SQ"
+	if cookie == "" {
+		quality = "PQ"
+	}
+	endpoint := "https://app.c.nf.migu.cn/strategy/pc/listen/v2.0?contentId=" +
+		url.QueryEscape(music.Remark) + "&copyrightId=" +
+		url.QueryEscape(string(music.ID)) + "&scene=&netType=01&resourceType=2&toneFlag=" +
+		url.QueryEscape(normalizeMusicQuality(quality))
 	request, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return Music{}, err

@@ -28,6 +28,7 @@ import type {
   PlaylistSearchItem
 } from '../utils/type';
 import { LogoImage } from '../utils/logo';
+import { musicTypeInfo } from '../utils/platform';
 import { RoomRequestError } from '../utils/room';
 import {
   messageOption,
@@ -138,6 +139,13 @@ const searchPlaylists = ref<RoomPlaylistItem[]>([]);
 const playlistMusics = ref<Music[]>([]);
 const playlistTitle = ref('');
 const activeShortcut = ref<ShortcutKey | ''>('');
+
+function musicSourceLogo(type: MusicType) {
+  return type === 'cloud' || type === 'qq' || type === 'migu'
+    ? musicTypeInfo[type].image
+    : '';
+}
+
 const shortcutOptions: Array<{
   value: ShortcutKey;
   label: string;
@@ -233,7 +241,18 @@ watch(
 const snapshot = computed(() => roomStore.snapshot);
 const current = computed(() => snapshot.value?.state.current || null);
 const playback = computed(() => snapshot.value?.state.playback);
-const playbackLength = computed(() => current.value?.music.length || 1);
+function musicPlaybackLength(music?: Music) {
+  const length = Number(music?.length || 0);
+  // Older Migu queue items stored the provider duration in seconds while room
+  // playback positions are milliseconds.
+  return music?.type === 'migu' && length > 0 && length < 1000
+    ? length * 1000
+    : length;
+}
+
+const playbackLength = computed(
+  () => musicPlaybackLength(current.value?.music) || 1
+);
 const progressDragging = ref(false);
 const progressModelValue = ref(0);
 const playLoading = computed(
@@ -246,7 +265,7 @@ const roomLyricKey = computed(() =>
   current.value ? `${current.value.music.type}:${current.value.music.id}` : ''
 );
 const roomLyricProgress = computed(() => {
-  const length = current.value?.music.length || 0;
+  const length = musicPlaybackLength(current.value?.music);
   if (!length) return 0;
   return Math.min(
     1000,
@@ -280,6 +299,12 @@ const currentRoomLyric = computed(() => {
   lastRoomLyricKey = activeIndex >= 0 ? lastRoomLyricKey : 0;
   return activeIndex >= 0 ? roomLyricLines.value[activeIndex].text : '';
 });
+const currentRoomLyricsText = computed(() =>
+  roomLyricLines.value
+    .map(line => line.text.trim())
+    .filter(Boolean)
+    .join('\n')
+);
 
 function currentPosition() {
   return Math.min(
@@ -417,7 +442,7 @@ watch(
       const music = { ...current.value.music };
       const text = await api.lyric(music);
       if (key !== roomLyricKey.value || !text) return;
-      roomLyricLines.value = parseLyric(text, music.length || 1);
+      roomLyricLines.value = parseLyric(text, musicPlaybackLength(music) || 1);
     } catch (error) {
       console.warn('[在线歌房] 歌词加载失败', error);
     } finally {
@@ -443,10 +468,11 @@ function routeQueryValue(key: string) {
   return typeof value === 'string' ? value : '';
 }
 
-async function copyRoomLink() {
+async function copyRoomLink(particle = false) {
   if (!snapshot.value) return;
   const link = new URL(
-    router.resolve(roomPath(snapshot.value.room.id)).href,
+    router.resolve(roomPath(snapshot.value.room.id)).href +
+      (particle ? '?particle=1' : ''),
     location.origin
   ).toString();
   try {
@@ -468,6 +494,7 @@ async function pauseOriginalPlayer() {
 }
 
 async function openRouteRoom() {
+  particleMode.value = routeQueryValue('particle') === '1';
   const routeID = typeof route.params.id === 'string' ? route.params.id : '';
   const legacyID = routeQueryValue('room');
   if (!routeID && legacyID) {
@@ -1052,6 +1079,7 @@ onUnmounted(() => {
         :snapshot="snapshot"
         :current="current"
         :lyric="currentRoomLyric"
+        :lyrics-text="currentRoomLyricsText"
         :position="currentPosition()"
         :duration="playbackLength"
         :volume="roomStore.volume"
@@ -1060,14 +1088,15 @@ onUnmounted(() => {
         :current-avatar="selectedAvatar"
         :avatar-resolver="chatAvatar"
         :song-picker-open="searchVisible"
+        :chat-messages="roomStore.chatMessages"
         @close="toggleParticleMode"
+        @share="copyRoomLink(true)"
         @toggle-play="roomStore.togglePlayerAction"
         @next="roomStore.next"
         @toggle-random="roomStore.toggleRandomPlayback"
         @seek="roomStore.seek"
         @set-volume="roomStore.setVolume"
         @resume="roomStore.resumeAudio"
-        :chat-messages="roomStore.chatMessages"
         @remove-queue="removeQueue"
         @pin-queue="roomStore.togglePinQueue"
         @add-queue="roomStore.addQueue"
@@ -1104,7 +1133,7 @@ onUnmounted(() => {
               style="background: #00a5c2">
               {{ particleMode ? '退出沉浸' : '沉浸模式' }}
             </el-button>
-            <el-button :icon="Share" type="success" @click="copyRoomLink"
+            <el-button :icon="Share" type="success" @click="copyRoomLink(false)"
               >分享</el-button
             >
             <el-button :icon="Setting" @click="openSettings">设置</el-button>
@@ -1160,7 +1189,13 @@ onUnmounted(() => {
                 :key="item.id"
                 class="music-room-queue-item">
                 <span>{{ String(index + 1).padStart(2, '0') }}</span>
-                <img :src="item.music.image || LogoImage" />
+                <div class="music-room-cover music-room-queue-cover">
+                  <img :src="item.music.image || LogoImage" />
+                  <img
+                    v-if="musicSourceLogo(item.music.type)"
+                    class="music-room-cover-source"
+                    :src="musicSourceLogo(item.music.type)" />
+                </div>
                 <div class="music-room-queue-item-info text-overflow-1">
                   <b class="text-overflow-1">{{ item.music.name }}</b>
                   <small class="text-overflow-1"
@@ -1195,7 +1230,13 @@ onUnmounted(() => {
                 :key="`${item.id}-${index}`"
                 class="music-room-queue-item music-room-history-item">
                 <span>{{ String(index + 1).padStart(2, '0') }}</span>
-                <img :src="item.music.image || LogoImage" />
+                <div class="music-room-cover music-room-queue-cover">
+                  <img :src="item.music.image || LogoImage" />
+                  <img
+                    v-if="musicSourceLogo(item.music.type)"
+                    class="music-room-cover-source"
+                    :src="musicSourceLogo(item.music.type)" />
+                </div>
                 <div class="music-room-queue-item-info text-overflow-1">
                   <b class="text-overflow-1">{{ item.music.name }}</b>
                   <small class="text-overflow-1"
@@ -1664,8 +1705,14 @@ onUnmounted(() => {
             :key="music.type + music.id"
             :class="music.noRight ? 'music-room-search-music-disabled' : ''"
             class="music-room-search-music">
-            <img :src="music.image || LogoImage" />
-            <div class="text-overflow-1">
+            <div class="music-room-cover music-room-search-cover">
+              <img :src="music.image || LogoImage" />
+              <img
+                v-if="musicSourceLogo(music.type)"
+                class="music-room-cover-source"
+                :src="musicSourceLogo(music.type)" />
+            </div>
+            <div class="music-room-search-music-info text-overflow-1">
               <b class="text-overflow-1">{{ music.name }}</b
               ><span class="text-overflow-1"
                 >{{ music.singer }} · {{ music.album }}</span
@@ -1685,7 +1732,7 @@ onUnmounted(() => {
               :key="item.type + item.id"
               class="music-room-search-music">
               <img :src="item.image || LogoImage" />
-              <div class="text-overflow-1">
+              <div class="music-room-search-music-info text-overflow-1">
                 <b class="text-overflow-1">{{ item.name }}</b
                 ><span v-if="item.creator || item.trackCount"
                   >{{ item.creator }} · {{ item.trackCount }} 首</span
@@ -1874,6 +1921,33 @@ onUnmounted(() => {
       opacity: 0.6;
     }
   }
+  &-cover {
+    position: relative;
+    flex-shrink: 0;
+    > img:first-child {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: var(--music-border-radius);
+    }
+    &-source {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 15px !important;
+      height: 15px !important;
+      border-radius: 50% !important;
+    }
+  }
+  &-queue-cover {
+    width: 42px;
+    height: 42px;
+  }
+  &-search-cover {
+    width: 45px;
+    height: 45px;
+  }
   &-queue-title {
     display: flex;
     justify-content: space-between;
@@ -1904,7 +1978,8 @@ onUnmounted(() => {
     align-items: center;
     gap: 10px;
     padding: 9px 20px;
-    img {
+    > img,
+    > .music-room-cover > img:not(.music-room-cover-source) {
       width: 42px;
       height: 42px;
       border-radius: var(--music-border-radius);
@@ -2445,7 +2520,8 @@ onUnmounted(() => {
         pointer-events: none;
       }
 
-      img {
+      > img,
+      > .music-room-cover > img:not(.music-room-cover-source) {
         width: 45px;
         height: 45px;
         object-fit: cover;
@@ -2462,7 +2538,7 @@ onUnmounted(() => {
           opacity: 1;
         }
       }
-      > div {
+      > .music-room-search-music-info {
         min-width: 0;
         flex: 1;
         display: flex;

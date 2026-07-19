@@ -531,6 +531,7 @@ export const useRoomStore = defineStore('room', {
         method: 'POST',
         body: JSON.stringify({
           music,
+          quality: useSettingStore().playQuality,
           ...this.identity,
           adminToken: this.adminToken
         })
@@ -725,6 +726,7 @@ export const useRoomStore = defineStore('room', {
                   signal: resolveAbort.signal,
                   body: JSON.stringify({
                     music: current.music,
+                    quality: useSettingStore().playQuality,
                     ...this.identity
                   })
                 }

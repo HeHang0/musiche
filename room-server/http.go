@@ -24,6 +24,7 @@ func (s *server) routes() http.Handler {
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", s.health)
+	mux.HandleFunc("/config", s.emptyConfig)
 	mux.HandleFunc("/api/v1/config", s.config)
 	mux.HandleFunc("/api/v1/logs", s.logs)
 	mux.HandleFunc("/api/v1/rooms", s.rooms)
@@ -42,6 +43,9 @@ func (s *server) health(w http.ResponseWriter, _ *http.Request) {
 }
 func (s *server) config(w http.ResponseWriter, _ *http.Request) {
 	writeJSONResponse(w, http.StatusOK, map[string]any{"maxRooms": s.store.config.MaxRooms, "maxMembersPerRoom": s.store.config.MaxMembersPerRoom, "maxQueueItems": s.store.config.MaxQueueItems, "listPageSize": s.store.config.ListPageSize, "listMaxPageSize": s.store.config.ListMaxPageSize, "credentialUploadEnabled": len(s.store.config.CookieKey) > 0, "superAdminEnabled": s.store.config.SuperAdminPassword != ""})
+}
+func (s *server) emptyConfig(w http.ResponseWriter, _ *http.Request) {
+	writeJSONResponse(w, http.StatusOK, map[string]any{})
 }
 
 func (s *server) logs(w http.ResponseWriter, r *http.Request) {
@@ -506,6 +510,7 @@ func (s *server) snapshot(w http.ResponseWriter, r *http.Request, room *Room) {
 
 type ResolveRequest struct {
 	Music       Music  `json:"music"`
+	Quality     string `json:"quality"`
 	VisitorID   string `json:"visitorId"`
 	Fingerprint string `json:"fingerprint"`
 }
@@ -524,7 +529,7 @@ func (s *server) resolve(w http.ResponseWriter, r *http.Request, room *Room) {
 		writeError(w, 403, "请先进入房间")
 		return
 	}
-	music, err := s.store.resolver.resolve(room, request.Music)
+	music, err := s.store.resolver.resolve(room, request.Music, request.Quality)
 	if err != nil {
 		writeError(w, 422, err.Error())
 		return
@@ -534,6 +539,7 @@ func (s *server) resolve(w http.ResponseWriter, r *http.Request, room *Room) {
 
 type ResolvedCacheRequest struct {
 	Music       Music  `json:"music"`
+	Quality     string `json:"quality"`
 	VisitorID   string `json:"visitorId"`
 	Fingerprint string `json:"fingerprint"`
 	AdminToken  string `json:"adminToken"`
@@ -554,7 +560,7 @@ func (s *server) resolved(w http.ResponseWriter, r *http.Request, room *Room) {
 		writeError(w, 403, "需要管理员权限")
 		return
 	}
-	if err := s.store.resolver.cacheResolved(room, request.Music); err != nil {
+	if err := s.store.resolver.cacheResolved(room, request.Music, request.Quality); err != nil {
 		writeError(w, 400, err.Error())
 		return
 	}
