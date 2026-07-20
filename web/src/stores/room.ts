@@ -280,8 +280,7 @@ export const useRoomStore = defineStore('room', {
               this.reconnectTimer = setTimeout(() => {
                 if (this.snapshot?.room.id !== roomId) return;
                 void this.open(roomId).catch((error: any) => {
-                  this.lastError =
-                    error?.message || '刷新歌房连接凭证失败';
+                  this.lastError = error?.message || '刷新歌房连接凭证失败';
                 });
               }, 300);
             } else if (
@@ -293,10 +292,9 @@ export const useRoomStore = defineStore('room', {
                 'invalid_message'
               ].includes(code)
             ) {
-              const delay = [
-                'room_full',
-                'connection_limit_reached'
-              ].includes(code)
+              const delay = ['room_full', 'connection_limit_reached'].includes(
+                code
+              )
                 ? 10000
                 : 2000;
               this.reconnectTimer = setTimeout(() => this.connect(), delay);
@@ -663,7 +661,10 @@ export const useRoomStore = defineStore('room', {
       if (current.music.noRight) {
         // This comes from the music source metadata. Do not repeatedly try
         // to resolve a URL that the source has already marked unavailable.
-        this.command('track_unavailable', { queueId: current.id, noRight: true });
+        this.command('track_unavailable', {
+          queueId: current.id,
+          noRight: true
+        });
         return;
       }
       this.syncingAudio = true;
@@ -831,9 +832,9 @@ export const useRoomStore = defineStore('room', {
         const activeQueueId = this.snapshot?.state.current?.id || '';
         const canKeepPlaying = Boolean(
           activeQueueId &&
-            activeQueueId === this.loadedQueueId &&
-            this.audio &&
-            !this.audio.paused
+          activeQueueId === this.loadedQueueId &&
+          this.audio &&
+          !this.audio.paused
         );
         // A temporary URL refresh failure must not turn a working playback
         // into a pause that requires the listener to click play again.

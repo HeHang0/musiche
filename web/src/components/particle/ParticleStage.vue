@@ -2,28 +2,65 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import * as THREE from 'three';
 import { DeleteFilled, Upload } from '@element-plus/icons-vue';
-import type { RoomChatMessage, RoomSnapshot } from '../utils/room';
-import { LogoImage } from '../utils/logo';
-import { parseHttpProxyAddress } from '../utils/http';
-import { StorageKey, storage } from '../utils/storage';
+import type { RoomChatMessage, RoomSnapshot } from '../../utils/room';
+import { LogoImage } from '../../utils/logo';
+import { parseHttpProxyAddress } from '../../utils/http';
+import { StorageKey, storage } from '../../utils/storage';
+import ParticleVisualConsole from './ParticleVisualConsole.vue';
+import {
+  PARTICLE_FRAGMENT_SHADER,
+  PARTICLE_VERTEX_SHADER
+} from './particleShaders';
+import {
+  colorMap,
+  colorOptions,
+  createDefaultParticleStageFx,
+  getCameraPreset as resolveCameraPreset,
+  getParticlePresetIndex as resolveParticlePresetIndex,
+  getViewPreset as resolveViewPreset,
+  lyricFontOptions,
+  particlePresetSettings,
+  shelfCameraOptions,
+  shelfModeOptions,
+  shelfPresenceOptions,
+  visualPresetOptions
+} from './particleConfig';
+import type {
+  LyricFont,
+  ParticleStageFx,
+  ParticleStageSettings,
+  SceneColor,
+  VisualPreset
+} from './particleConfig';
+import { createParticleGeometry as buildParticleGeometry } from './particleGeometry';
 
 type RoomCurrent = RoomSnapshot['state']['current'];
 
-const props = defineProps<{
-  snapshot: RoomSnapshot;
-  current: RoomCurrent | null;
-  lyric: string;
-  lyricsText: string;
-  position: number;
-  duration: number;
-  volume: number;
-  playing: boolean;
-  audio?: HTMLAudioElement | null;
-  chatMessages: RoomChatMessage[];
-  currentAvatar?: string;
-  avatarResolver?: (memberId: string, avatar?: string) => string;
-  songPickerOpen?: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    snapshot: RoomSnapshot;
+    current: RoomCurrent | null;
+    lyric: string;
+    lyricsText: string;
+    position: number;
+    duration: number;
+    volume: number;
+    playing: boolean;
+    audio?: HTMLAudioElement | null;
+    chatMessages: RoomChatMessage[];
+    currentAvatar?: string;
+    avatarResolver?: (memberId: string, avatar?: string) => string;
+    songPickerOpen?: boolean;
+    embedded?: boolean;
+    showCards?: boolean;
+    controlsVisible?: boolean;
+  }>(),
+  {
+    embedded: false,
+    showCards: true,
+    controlsVisible: true
+  }
+);
 
 const emit = defineEmits<{
   close: [];
@@ -47,6 +84,9 @@ const canvas = ref<HTMLCanvasElement | null>(null);
 const activePanel = ref<'queue' | 'chat' | null>(null);
 const settingsOpen = ref(false);
 const floatingControlsVisible = ref(true);
+const floatingControlsHidden = computed(() =>
+  props.embedded ? !props.controlsVisible : !floatingControlsVisible.value
+);
 const debugCopyStatus = ref('');
 const showDebugTools = import.meta.env.DEV;
 const settingsTab = ref<
@@ -92,132 +132,17 @@ const emojiList = [
 ];
 const density = ref(1);
 const speed = ref(1);
-const colorOptions = [
-  'blue',
-  'violet',
-  'gold',
-  'cyan',
-  'rose',
-  'coral',
-  'emerald',
-  'ice'
-] as const;
-type SceneColor = (typeof colorOptions)[number];
 const color = ref<SceneColor>('blue');
-const lyricFontOptions = [
-  ['body', '跟随页面'],
-  ['yahei', '微软雅黑'],
-  ['pingfang', '苹方'],
-  ['dengxian', '等线'],
-  ['simhei', '黑体'],
-  ['kaiti', '楷体'],
-  ['xingkai', '华文行楷'],
-  ['stkaiti', '华文楷体'],
-  ['simsun', '宋体'],
-  ['stsong', '华文宋体'],
-  ['fangsong', '仿宋'],
-  ['lishu', '隶书'],
-  ['youyuan', '幼圆'],
-  ['shuti', '方正舒体'],
-  ['notoSans', '思源黑体'],
-  ['notoSerif', '思源宋体']
-] as const;
-type LyricFont = (typeof lyricFontOptions)[number][0];
 const lyricFont = ref<LyricFont>('body');
-const shelfModeOptions = [
-  ['off', '关闭'],
-  ['side', '侧栏'],
-  ['stage', '舞台']
-] as const;
-const shelfCameraOptions = [
-  ['dynamic', '动态镜头'],
-  ['static', '静态镜头']
-] as const;
-const shelfPresenceOptions = [
-  ['always', '常驻'],
-  ['auto', '自动隐藏']
-] as const;
-const visualPreset = ref<
-  | 'galaxy'
-  | 'topography'
-  | 'peaks'
-  | 'spectrum'
-  | 'ring'
-  | 'vinyl'
-  | 'tunnel'
-  | 'emily'
->('galaxy');
+const visualPreset = ref<VisualPreset>('galaxy');
 const shelfCenter = ref(0);
-const fx = ref({
-  intensity: 0.85,
-  depth: 1,
-  point: 1,
-  twist: 0,
-  colorBoost: 1.1,
-  scatter: 0,
-  bgFade: 0.2,
-  bloomStrength: 0.62,
-  cinemaShake: 0.5,
-  cameraDistance: 1,
-  lyricGlowStrength: 0.28,
-  lyricScale: 0.7,
-  lyricOffsetX: 0,
-  lyricOffsetY: 0,
-  lyricOffsetZ: 0,
-  lyricTiltX: 0,
-  lyricTiltY: 0,
-  lyricGlow: true,
-  lyricGlowBeat: true,
-  lyricGlowParticles: true,
-  lyricCameraLock: false,
-  particleLyrics: true,
-  cinema: true,
-  floatLayer: true,
-  bloom: false,
-  edge: false,
-  shelfMode: 'side' as 'off' | 'side' | 'stage',
-  shelfCameraMode: 'dynamic' as 'dynamic' | 'static',
-  shelfPresence: 'always' as 'auto' | 'always',
-  shelfSize: 1,
-  shelfOffsetX: 0,
-  shelfOffsetY: 0,
-  shelfOffsetZ: 0,
-  shelfAngleY: -15,
-  shelfOpacity: 1,
-  shelfBgOpacity: 0.9
-});
-type VisualPreset = typeof visualPreset.value;
-type RoomParticleFx = typeof fx.value;
-type RoomParticleSettings = {
-  visualPreset: VisualPreset;
-  density: number;
-  speed: number;
-  color: SceneColor;
-  lyricFont: LyricFont;
-  fx: RoomParticleFx;
-};
-const visualPresetOptions: readonly VisualPreset[] = [
-  'galaxy',
-  'topography',
-  'peaks',
-  'spectrum',
-  'ring',
-  'vinyl',
-  'tunnel',
-  'emily'
-];
-function getParticlePresetIndex(preset = visualPreset.value) {
-  return {
-    galaxy: 0,
-    topography: 1,
-    vinyl: 2,
-    tunnel: 3,
-    emily: 4,
-    peaks: 5,
-    spectrum: 6,
-    ring: 7
-  }[preset];
-}
+const fx = ref<ParticleStageFx>(createDefaultParticleStageFx());
+const getParticlePresetIndex = (preset = visualPreset.value) =>
+  resolveParticlePresetIndex(preset);
+const getCameraPreset = (preset = visualPreset.value) =>
+  resolveCameraPreset(preset);
+const getViewPreset = (preset = visualPreset.value) =>
+  resolveViewPreset(preset);
 let settingsRestored = false;
 let saveSettingsTimer: number | null = null;
 const pointer = ref({ active: false, x: 0, y: 0 });
@@ -265,6 +190,12 @@ let floatingControlsTimer: number | null = null;
 let floatingDropdownOpen = false;
 let resizeObserver: ResizeObserver | null = null;
 let renderer: THREE.WebGLRenderer | null = null;
+let particleRenderedFrames = 0;
+let particleLastFrameAt = 0;
+let particleLastErrorAt = 0;
+let webglContextLost = false;
+let webglContextLostHandler: ((event: Event) => void) | null = null;
+let webglContextRestoredHandler: (() => void) | null = null;
 let scene: THREE.Scene | null = null;
 let camera: THREE.PerspectiveCamera | null = null;
 let stageRoot: THREE.Group | null = null;
@@ -287,19 +218,9 @@ let lyricParticleTransition: {
 } | null = null;
 let cardGroup: THREE.Group | null = null;
 
-const colorMap = {
-  blue: [166, 210, 255],
-  violet: [214, 178, 255],
-  gold: [255, 224, 166],
-  cyan: [122, 238, 241],
-  rose: [255, 159, 205],
-  coral: [255, 157, 137],
-  emerald: [126, 235, 177],
-  ice: [224, 244, 255]
-} as const;
 type ParticleAudioElement = HTMLAudioElement & {
   captureStream?: () => MediaStream;
-  __roomParticleAnalyser?: {
+  __particleStageAnalyser?: {
     context: AudioContext;
     analyser: AnalyserNode;
     data: Uint8Array<ArrayBuffer>;
@@ -310,7 +231,7 @@ type ParticleAudioElement = HTMLAudioElement & {
 async function ensureAudioAnalyser() {
   const audio = props.audio as ParticleAudioElement | null | undefined;
   if (!audio) return;
-  if (!audio.__roomParticleAnalyser) {
+  if (!audio.__particleStageAnalyser) {
     if (!audio.captureStream) return;
     try {
       const context = new AudioContext();
@@ -323,7 +244,7 @@ async function ensureAudioAnalyser() {
       source.connect(analyser);
       analyser.connect(silentOutput);
       silentOutput.connect(context.destination);
-      audio.__roomParticleAnalyser = {
+      audio.__particleStageAnalyser = {
         context,
         analyser,
         data: new Uint8Array(analyser.frequencyBinCount),
@@ -334,14 +255,14 @@ async function ensureAudioAnalyser() {
       return;
     }
   }
-  if (audio.__roomParticleAnalyser.context.state === 'suspended') {
-    await audio.__roomParticleAnalyser.context.resume().catch(() => undefined);
+  if (audio.__particleStageAnalyser.context.state === 'suspended') {
+    await audio.__particleStageAnalyser.context.resume().catch(() => undefined);
   }
 }
 
 function readAudioBands(time: number) {
   const audio = props.audio as ParticleAudioElement | null | undefined;
-  const state = audio?.__roomParticleAnalyser;
+  const state = audio?.__particleStageAnalyser;
   let bass = 0;
   let mid = 0;
   let treble = 0;
@@ -448,185 +369,9 @@ const percent = computed(() =>
 );
 const isAdmin = computed(() => Boolean(props.snapshot.isAdmin));
 
-const PARTICLE_VERTEX_SHADER = `
-  uniform float uTime;
-  uniform float uEnergy;
-  uniform float uBass;
-  uniform float uMid;
-  uniform float uTreble;
-  uniform float uBeat;
-  uniform float uPointSize;
-  uniform float uPreset;
-  uniform float uDepth;
-  uniform float uHasCover;
-  uniform float uSpectrum[32];
-  uniform vec3 uColor;
-  uniform sampler2D uCoverTex;
-  attribute float aSeed;
-  attribute float aSpectrumBand;
-  attribute vec2 aCoverUv;
-  varying float vGlow;
-  varying vec3 vParticleColor;
-  varying float vParticleAlpha;
-  void main() {
-    vec3 p = position;
-    float seed = aSeed;
-    float spectrumGlow = 0.0;
-    vParticleColor = uColor;
-    vParticleAlpha = 1.0;
-    if (uPreset < 0.5) {
-      float a = uTime * (0.03 + seed * 0.03);
-      p.xy = mat2(cos(a), -sin(a), sin(a), cos(a)) * p.xy;
-      p.xy *= 1.0 + uBass * (.055 + seed * .045);
-      p.z += sin(uTime * .5 + seed * 12.0) * (.15 + uMid * .86);
-    } else if (uPreset < 1.5) {
-      p.y += sin(p.x * 1.8 + uTime * .7) * (.18 + uBass * 1.12) + cos(p.z * 2.2 + uTime * .45) * (.14 + uTreble * .54);
-    } else if (uPreset < 2.5) {
-      p.xy = mat2(cos(uTime * .12), -sin(uTime * .12), sin(uTime * .12), cos(uTime * .12)) * p.xy;
-      p.xy *= 1.0 + uBass * .075 + uBeat * .035;
-      p.z += sin(length(p.xy) * 5.0 - uTime * 2.0) * (.08 + uBass * .58);
-    } else if (uPreset < 3.5) {
-      p.xy *= 1.0 + uBass * .07 + uBeat * .04;
-      p.z += uTime * (.5 + seed * .4 + uEnergy * 1.1);
-      p.z = mod(p.z + 4.5, 9.0) - 4.5;
-    } else if (uPreset < 4.5) {
-      vec3 coverColor = texture2D(uCoverTex, aCoverUv).rgb;
-      float luminance = dot(coverColor, vec3(.299, .587, .114));
-      float midWave = sin(p.x * 2.7 + uTime * .7 + seed * 4.0) * uMid * .62;
-      float detail = sin((p.x + p.y) * 7.0 + uTime * 2.5 + seed * 15.0) * uTreble * .18;
-      float bassWave = sin(p.x * .8 + p.y * .65 + uTime * .45) * uBass * .58;
-      p.z += (luminance - .5) * uDepth * .65 + midWave + detail + bassWave;
-      p.xy *= 1.0 + uBass * .065 + uBeat * .04;
-      vParticleColor = mix(uColor, coverColor, uHasCover);
-      vParticleAlpha = mix(.75, clamp(.18 + luminance * 1.05, .16, 1.0), uHasCover);
-    } else if (uPreset < 5.5) {
-      float peakA = exp(-((p.x + 3.25) * (p.x + 3.25) * .72 + (p.z + .8) * (p.z + .8) * 1.05));
-      float peakB = exp(-((p.x + 1.15) * (p.x + 1.15) * 1.0 + (p.z - .95) * (p.z - .95) * .78));
-      float peakC = exp(-((p.x - 1.15) * (p.x - 1.15) * .82 + (p.z + .65) * (p.z + .65) * 1.2));
-      float peakD = exp(-((p.x - 3.2) * (p.x - 3.2) * .95 + (p.z - .75) * (p.z - .75) * .9));
-      float ridges = peakA + peakB + peakC + peakD;
-      float bassLift = (peakA + peakC) * (uBass * 1.75 + uBeat * 1.05);
-      float midLift = (peakB + peakD) * (uMid * 1.5 + uEnergy * .72);
-      float travelingWave = sin(p.x * 2.35 + p.z * 1.55 - uTime * 2.1 + seed * .8)
-        * (.08 + uMid * .34 + uTreble * .2) * (.3 + ridges);
-      float ripple = sin(length(p.xz) * 3.4 - uTime * 2.7)
-        * (uBeat * .24 + uBass * .12);
-      p.y += bassLift + midLift + travelingWave + ripple;
-      p.xz *= 1.0 + uBeat * .025;
-      float summit = clamp((p.y + 1.0) * .18 + uTreble * .28 + uBeat * .22, 0.0, .62);
-      vParticleColor = mix(uColor, vec3(1.0), summit);
-    } else if (uPreset < 6.5) {
-      int bandIndex = int(clamp(floor(aSpectrumBand + .5), 0.0, 31.0));
-      float amplitude = pow(clamp(uSpectrum[bandIndex], 0.0, 1.0), .68);
-      float level = clamp(p.y, 0.0, 1.0);
-      float lowBand = 1.0 - smoothstep(1.0, 11.0, aSpectrumBand);
-      float visibleHeight = clamp(.035 + amplitude * .92 + uBeat * lowBand * .16, .035, 1.0);
-      float activePoint = 1.0 - smoothstep(visibleHeight, visibleHeight + .035, level);
-      float peakLine = 1.0 - smoothstep(.025, .09, abs(level - visibleHeight));
-      p.y = -1.72 + level * 4.7;
-      p.z += sin(aSpectrumBand * 1.7 + level * 8.0 + uTime * 2.4) * amplitude * .045;
-      p.x *= 1.0 + uBeat * lowBand * .018;
-      float hot = clamp(level * .36 + amplitude * .42 + peakLine * .34 + uBeat * lowBand * .2, 0.0, .88);
-      vParticleColor = mix(uColor, vec3(1.0, .72, .92), hot);
-      vParticleAlpha = activePoint * (.48 + amplitude * .52);
-      spectrumGlow = activePoint * (amplitude * .85 + peakLine * .35 + uBeat * lowBand * .5);
-    } else {
-      float bandCoordinate = clamp(aSpectrumBand, 0.0, 31.0);
-      int bandIndex = int(floor(bandCoordinate));
-      int nextBandIndex = min(31, bandIndex + 1);
-      float amplitude = pow(
-        clamp(mix(uSpectrum[bandIndex], uSpectrum[nextBandIndex], fract(bandCoordinate)), 0.0, 1.0),
-        .72
-      );
-      float radius = max(.001, length(p.xy));
-      vec2 radial = p.xy / radius;
-      float lowBand = 1.0 - smoothstep(1.0, 11.0, aSpectrumBand);
-      float innerRing = 1.0 - smoothstep(1.82, 1.88, radius);
-      float outerRing = 1.0 - innerRing;
-      float outerThickness = radius - 1.96;
-      float waveformRadius = 1.96 + amplitude * 1.34 + uBeat * lowBand * .16;
-      float microRipple = sin(atan(p.y, p.x) * 6.0 - uTime * 2.0 + bandCoordinate * .12)
-        * amplitude * .025;
-      float targetRadius = mix(radius, waveformRadius + outerThickness + microRipple, outerRing);
-      p.xy = radial * targetRadius;
-      p.z += outerRing * sin(atan(p.y, p.x) * 3.0 + uTime * 1.2) * amplitude * .045;
-      float hot = clamp(amplitude * .56 + outerRing * .12 + uBeat * lowBand * .2, 0.0, .82);
-      vParticleColor = mix(uColor, vec3(1.0), hot);
-      vParticleAlpha = innerRing * .88 + outerRing * (.48 + amplitude * .52);
-      spectrumGlow = innerRing * .26 + outerRing * (amplitude * .92 + .12);
-    }
-    p *= 1.0 + uEnergy * (.14 + seed * .2) + uBeat * .1;
-    vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
-    float distanceToCamera = max(.5, -mvPosition.z);
-    gl_PointSize = clamp(uPointSize * (30.0 / distanceToCamera), 1.2, 11.0);
-    gl_Position = projectionMatrix * mvPosition;
-    vGlow = clamp(.3 + uEnergy * .68 + uTreble * .42 + uBeat * .58 + spectrumGlow + sin(uTime * (1.0 + seed) + seed * 20.0) * .16, .18, 1.7);
-  }
-`;
-const PARTICLE_FRAGMENT_SHADER = `
-  varying float vGlow;
-  varying vec3 vParticleColor;
-  varying float vParticleAlpha;
-  void main() {
-    vec2 point = gl_PointCoord - .5;
-    float edge = 1.0 - smoothstep(.18, .5, length(point));
-    if (edge < .01) discard;
-    gl_FragColor = vec4(vParticleColor, edge * vGlow * vParticleAlpha);
-  }
-`;
-
 function selectPreset(preset: VisualPreset) {
   visualPreset.value = preset;
-  const presets = {
-    galaxy: {
-      color: 'blue' as const,
-      density: 1,
-      speed: 1,
-      shelfMode: 'side' as const
-    },
-    topography: {
-      color: 'violet' as const,
-      density: 1.25,
-      speed: 0.75,
-      shelfMode: 'stage' as const
-    },
-    peaks: {
-      color: 'cyan' as const,
-      density: 1.35,
-      speed: 0.82,
-      shelfMode: 'side' as const
-    },
-    spectrum: {
-      color: 'rose' as const,
-      density: 1.25,
-      speed: 1,
-      shelfMode: 'side' as const
-    },
-    ring: {
-      color: 'emerald' as const,
-      density: 1.4,
-      speed: 1.05,
-      shelfMode: 'side' as const
-    },
-    vinyl: {
-      color: 'gold' as const,
-      density: 0.7,
-      speed: 0.45,
-      shelfMode: 'side' as const
-    },
-    tunnel: {
-      color: 'violet' as const,
-      density: 1.5,
-      speed: 0.65,
-      shelfMode: 'stage' as const
-    },
-    emily: {
-      color: 'blue' as const,
-      density: 1.55,
-      speed: 0.8,
-      shelfMode: 'side' as const
-    }
-  }[preset];
+  const presets = particlePresetSettings[preset];
   color.value = presets.color;
   density.value = presets.density;
   speed.value = presets.speed;
@@ -636,221 +381,13 @@ function selectPreset(preset: VisualPreset) {
   if (preset === 'emily') loadParticleCover();
 }
 
-function getCameraPreset(preset = visualPreset.value) {
-  return {
-    emily: { radius: 6.6, phi: 0.08, theta: 0 },
-    tunnel: { radius: 6.2, phi: 0.03, theta: 0 },
-    vinyl: { radius: 6.5, phi: 0.04, theta: 0 },
-    peaks: { radius: 8.2, phi: 0.32, theta: -0.18 },
-    spectrum: { radius: 7.4, phi: 0.12, theta: -0.08 },
-    ring: { radius: 7.2, phi: 0.05, theta: 0 },
-    galaxy: { radius: 9.4, phi: 0.34, theta: -0.52 },
-    topography: { radius: 9.4, phi: 0.34, theta: -0.52 }
-  }[preset];
-}
-
-function getViewPreset(preset = visualPreset.value) {
-  const cameraPreset = getCameraPreset(preset);
-  return {
-    galaxy: {
-      position: [-0.2765, 0.2242, 0.0803] as const,
-      rotation: [0, 0] as const,
-      radius: 7.1,
-      zoomOverride: true
-    },
-    topography: {
-      position: [-0.0038, 0.513, 0.1067] as const,
-      rotation: [0, 0] as const,
-      radius: 9.4,
-      zoomOverride: false
-    },
-    peaks: {
-      position: [0, 0.12, 0] as const,
-      rotation: [-0.04, 0] as const,
-      radius: cameraPreset.radius,
-      zoomOverride: false
-    },
-    spectrum: {
-      position: [0, 0.18, 0] as const,
-      rotation: [0, 0] as const,
-      radius: cameraPreset.radius,
-      zoomOverride: false
-    },
-    ring: {
-      position: [0, 0.08, 0] as const,
-      rotation: [0, 0] as const,
-      radius: cameraPreset.radius,
-      zoomOverride: false
-    },
-    emily: {
-      position: [-1.3865, 0.3296, 0.3972] as const,
-      rotation: [0.017, 0.2109] as const,
-      radius: 6.6,
-      zoomOverride: false
-    },
-    vinyl: {
-      position: [0, 0, 0] as const,
-      rotation: [0, 0] as const,
-      radius: cameraPreset.radius,
-      zoomOverride: false
-    },
-    tunnel: {
-      position: [0, 0, 0] as const,
-      rotation: [0, 0] as const,
-      radius: cameraPreset.radius,
-      zoomOverride: false
-    }
-  }[preset];
-}
-
-function buildParticlePositions(count: number) {
-  const positions = new Float32Array(count * 3);
-  for (let index = 0; index < count; index++) {
-    const u = index / Math.max(1, count - 1);
-    let x = 0;
-    let y = 0;
-    let z = 0;
-    if (visualPreset.value === 'galaxy') {
-      const arm = index % 4;
-      const radius = 0.25 + Math.pow(Math.random(), 0.62) * 4.9;
-      const angle =
-        radius * 1.45 + (arm * Math.PI) / 2 + (Math.random() - 0.5) * 0.55;
-      x = Math.cos(angle) * radius;
-      y = Math.sin(angle) * radius * 0.48 + (Math.random() - 0.5) * 0.55;
-      z = (Math.random() - 0.5) * 2.6;
-    } else if (visualPreset.value === 'topography') {
-      const columns = Math.ceil(Math.sqrt(count));
-      const gx = (index % columns) / columns - 0.5;
-      const gz = Math.floor(index / columns) / columns - 0.5;
-      x = gx * 9;
-      z = gz * 6;
-      y = Math.sin(gx * 15 + gz * 8) * 0.35 + Math.cos(gz * 18) * 0.22;
-    } else if (visualPreset.value === 'peaks') {
-      const columns = Math.ceil(Math.sqrt(count));
-      const rows = Math.ceil(count / columns);
-      const gx = (index % columns) / Math.max(1, columns - 1) - 0.5;
-      const gz = Math.floor(index / columns) / Math.max(1, rows - 1) - 0.5;
-      x = gx * 9.6;
-      z = gz * 6.4;
-      const peak = (cx: number, cz: number, wx: number, wz: number) =>
-        Math.exp(-((x - cx) ** 2 * wx + (z - cz) ** 2 * wz));
-      y =
-        -1.22 +
-        peak(-3.25, -0.8, 0.72, 1.05) * 1.35 +
-        peak(-1.15, 0.95, 1, 0.78) * 1.65 +
-        peak(1.15, -0.65, 0.82, 1.2) * 1.5 +
-        peak(3.2, 0.75, 0.95, 0.9) * 1.28 +
-        Math.sin(x * 2.1 + z * 1.35) * 0.055;
-    } else if (visualPreset.value === 'spectrum') {
-      const bandCount = 32;
-      const levelCount = Math.max(10, Math.floor(count / (bandCount * 4)));
-      const layerCount = Math.max(
-        1,
-        Math.ceil(count / (bandCount * levelCount))
-      );
-      const band = index % bandCount;
-      const level = Math.floor(index / bandCount) % levelCount;
-      const layer = Math.floor(index / (bandCount * levelCount));
-      x = (band / (bandCount - 1) - 0.5) * 9.2;
-      y = level / Math.max(1, levelCount - 1);
-      z =
-        (layer / Math.max(1, layerCount - 1) - 0.5) * 0.9 +
-        (Math.random() - 0.5) * 0.035;
-    } else if (visualPreset.value === 'ring') {
-      const sectorCount = 320;
-      const sector = index % sectorCount;
-      const localIndex = Math.floor(index / sectorCount);
-      const pointsPerSector = Math.max(6, Math.ceil(count / sectorCount));
-      const innerPoints = Math.max(2, Math.round(pointsPerSector * 0.28));
-      const angle =
-        (sector / sectorCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.004;
-      let radius = 0;
-      if (localIndex < innerPoints) {
-        const layer = localIndex / Math.max(1, innerPoints - 1) - 0.5;
-        radius = 1.72 + layer * 0.055 + (Math.random() - 0.5) * 0.008;
-      } else {
-        const outerIndex = localIndex - innerPoints;
-        const outerCount = Math.max(1, pointsPerSector - innerPoints);
-        const layer = outerIndex / Math.max(1, outerCount - 1) - 0.5;
-        radius = 1.96 + layer * 0.11 + (Math.random() - 0.5) * 0.006;
-      }
-      x = Math.cos(angle) * radius;
-      y = Math.sin(angle) * radius;
-      z = ((localIndex % 3) - 1) * 0.035 + (Math.random() - 0.5) * 0.018;
-    } else if (visualPreset.value === 'vinyl') {
-      const radius = 0.55 + Math.sqrt(Math.random()) * 4.5;
-      const angle = Math.random() * Math.PI * 2;
-      x = Math.cos(angle) * radius;
-      y = Math.sin(angle) * radius;
-      z = Math.sin(radius * 4) * 0.08 + (Math.random() - 0.5) * 0.12;
-    } else if (visualPreset.value === 'tunnel') {
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 1.1 + Math.random() * 3.8;
-      x = Math.cos(angle) * radius;
-      y = Math.sin(angle) * radius;
-      z = (u - 0.5) * 9;
-    } else {
-      x = (Math.random() - 0.5) * 8.2;
-      y = (Math.random() - 0.5) * 5.2;
-      z = (Math.random() - 0.5) * 1.4 + Math.sin(x * 1.2) * 0.35;
-    }
-    positions[index * 3] = x;
-    positions[index * 3 + 1] = y;
-    positions[index * 3 + 2] = z;
-  }
-  return positions;
-}
-
 function createParticleGeometry() {
-  const geometry = new THREE.BufferGeometry();
-  const count = activeParticleCount.value;
-  const seeds = new Float32Array(count);
-  const spectrumBandAttributes = new Float32Array(count);
-  const coverUvs = new Float32Array(count * 2);
-  let positions: Float32Array;
-  if (visualPreset.value === 'emily') {
-    const gridSize = coverGridSize.value;
-    const planeSize = 4.8;
-    positions = new Float32Array(count * 3);
-    for (let index = 0; index < count; index++) {
-      const column = index % gridSize;
-      const row = Math.floor(index / gridSize);
-      const u = column / Math.max(1, gridSize - 1);
-      const v = row / Math.max(1, gridSize - 1);
-      positions[index * 3] = (u - 0.5) * planeSize;
-      positions[index * 3 + 1] = (v - 0.5) * planeSize;
-      positions[index * 3 + 2] = 0;
-      coverUvs[index * 2] = u;
-      coverUvs[index * 2 + 1] = v;
-      seeds[index] = Math.random();
-      spectrumBandAttributes[index] = 0;
-    }
-  } else {
-    positions = buildParticlePositions(count);
-    for (let index = 0; index < count; index++) {
-      coverUvs[index * 2] = Math.random();
-      coverUvs[index * 2 + 1] = Math.random();
-      seeds[index] = Math.random();
-      if (visualPreset.value === 'spectrum')
-        spectrumBandAttributes[index] = index % 32;
-      else if (visualPreset.value === 'ring') {
-        const sector = index % 320;
-        const phase = sector / 319;
-        const mirroredFrequency = phase <= 0.5 ? phase * 2 : (1 - phase) * 2;
-        spectrumBandAttributes[index] = mirroredFrequency * 31;
-      } else spectrumBandAttributes[index] = 0;
-    }
-  }
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1));
-  geometry.setAttribute(
-    'aSpectrumBand',
-    new THREE.BufferAttribute(spectrumBandAttributes, 1)
+  return buildParticleGeometry(
+    visualPreset.value,
+    activeParticleCount.value,
+    coverGridSize.value
   );
-  geometry.setAttribute('aCoverUv', new THREE.BufferAttribute(coverUvs, 2));
-  return geometry;
 }
-
 function resolveCoverUrl(source: string) {
   try {
     const url = new URL(source, location.href);
@@ -1129,9 +666,9 @@ function isFiniteNumber(value: unknown): value is number {
 
 function restoreFxSettings(savedFx: unknown) {
   if (!savedFx || typeof savedFx !== 'object') return;
-  const source = savedFx as Partial<RoomParticleFx>;
-  const restored: Partial<RoomParticleFx> = {};
-  for (const key of Object.keys(fx.value) as (keyof RoomParticleFx)[]) {
+  const source = savedFx as Partial<ParticleStageFx>;
+  const restored: Partial<ParticleStageFx> = {};
+  for (const key of Object.keys(fx.value) as (keyof ParticleStageFx)[]) {
     const savedValue = source[key];
     const defaultValue = fx.value[key];
     if (
@@ -1144,8 +681,8 @@ function restoreFxSettings(savedFx: unknown) {
 }
 
 async function restoreParticleSettings() {
-  const saved = await storage.getValue<Partial<RoomParticleSettings> | null>(
-    StorageKey.RoomParticleSettings,
+  const saved = await storage.getValue<Partial<ParticleStageSettings> | null>(
+    StorageKey.ParticleStageSettings,
     null
   );
   if (!saved || typeof saved !== 'object') {
@@ -1174,7 +711,7 @@ function saveParticleSettings() {
 }
 
 function persistParticleSettings() {
-  const value: RoomParticleSettings = {
+  const value: ParticleStageSettings = {
     visualPreset: visualPreset.value,
     density: density.value,
     speed: speed.value,
@@ -1182,7 +719,7 @@ function persistParticleSettings() {
     lyricFont: lyricFont.value,
     fx: { ...fx.value }
   };
-  void storage.setValue(StorageKey.RoomParticleSettings, value);
+  void storage.setValue(StorageKey.ParticleStageSettings, value);
 }
 
 function onPointerDown(event: PointerEvent) {
@@ -2013,6 +1550,7 @@ function refreshCardGroup() {
         opacity: fx.value.shelfOpacity
       })
     );
+    mesh.frustumCulled = false;
     mesh.userData.cardIndex = index;
     mesh.renderOrder = 80 - index;
     cardGroup?.add(mesh);
@@ -2093,6 +1631,117 @@ function updateCardPose(
     (absDelta < 0.5 ? 1 : Math.max(0.22, 1 - absDelta * 0.3));
 }
 
+function getParticleDebugSnapshot() {
+  const el = canvas.value;
+  const material = particleCloud?.material as THREE.ShaderMaterial | undefined;
+  const context = renderer?.getContext();
+  const style = el ? window.getComputedStyle(el) : null;
+  const positionCount =
+    particleCloud?.geometry.getAttribute('position')?.count ?? 0;
+  const spectrumMax = spectrumBands.reduce(
+    (max, value) => Math.max(max, value),
+    0
+  );
+  const finite = (values: number[]) => values.every(Number.isFinite);
+  const renderCalls = renderer?.info.render.calls ?? 0;
+  const renderedPoints = renderer?.info.render.points ?? 0;
+  const programs = renderer?.info.programs ?? [];
+  const audioFinite = finite([
+    audioBands.bass,
+    audioBands.mid,
+    audioBands.treble,
+    audioBands.energy,
+    audioBands.beat,
+    ...spectrumBands
+  ]);
+  const diagnosis =
+    webglContextLost || Boolean(context?.isContextLost())
+      ? 'WEBGL_CONTEXT_LOST'
+      : performance.now() - particleLastFrameAt >= 1000
+        ? 'RAF_STOPPED'
+        : !audioFinite
+          ? 'AUDIO_UNIFORM_INVALID'
+          : renderCalls === 0
+            ? 'NOTHING_SUBMITTED_TO_GPU'
+            : renderedPoints === 0
+              ? 'PARTICLES_NOT_SUBMITTED'
+              : 'GPU_IS_DRAWING';
+  return {
+    diagnosis,
+    instance: props.embedded ? 'play-detail' : 'room',
+    preset: visualPreset.value,
+    raf: {
+      alive: performance.now() - particleLastFrameAt < 1000,
+      frames: particleRenderedFrames,
+      lastFrameAgo: Math.round(performance.now() - particleLastFrameAt)
+    },
+    canvas: el
+      ? {
+          connected: el.isConnected,
+          client: [el.clientWidth, el.clientHeight],
+          buffer: [el.width, el.height],
+          display: style?.display,
+          visibility: style?.visibility,
+          opacity: style?.opacity
+        }
+      : null,
+    webgl: {
+      contextLost: webglContextLost || Boolean(context?.isContextLost()),
+      calls: renderCalls,
+      points: renderedPoints,
+      rendererFrame: renderer?.info.render.frame ?? 0,
+      programs: programs.length
+    },
+    particles: {
+      count: positionCount,
+      visible: particleCloud?.visible,
+      scale: particleCloud
+        ? particleCloud.scale.toArray().map(value => Number(value.toFixed(3)))
+        : null,
+      materialVisible: material?.visible,
+      opacity: material?.opacity,
+      energy: material?.uniforms.uEnergy?.value,
+      pointSize: material?.uniforms.uPointSize?.value
+    },
+    stage: stageRoot
+      ? {
+          visible: stageRoot.visible,
+          position: stageRoot.position
+            .toArray()
+            .map(value => Number(value.toFixed(3))),
+          rotation: stageRoot.rotation
+            .toArray()
+            .slice(0, 3)
+            .map(value => Number((value as number).toFixed(3))),
+          finite: finite([
+            ...stageRoot.position.toArray(),
+            stageRoot.rotation.x,
+            stageRoot.rotation.y,
+            stageRoot.rotation.z
+          ])
+        }
+      : null,
+    camera: camera
+      ? {
+          position: camera.position
+            .toArray()
+            .map(value => Number(value.toFixed(3))),
+          radius: Number(cameraRadius.toFixed(3)),
+          targetRadius: Number(targetCameraRadius.toFixed(3)),
+          near: camera.near,
+          far: camera.far,
+          aspect: Number(camera.aspect.toFixed(3)),
+          finite: finite(camera.position.toArray())
+        }
+      : null,
+    audio: {
+      ...audioBands,
+      spectrumMax: Number(spectrumMax.toFixed(3)),
+      finite: audioFinite
+    }
+  };
+}
+
 function startParticles() {
   const el = canvas.value;
   if (!el) return;
@@ -2106,6 +1755,15 @@ function startParticles() {
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  webglContextLostHandler = event => {
+    event.preventDefault();
+    webglContextLost = true;
+  };
+  webglContextRestoredHandler = () => {
+    webglContextLost = false;
+  };
+  el.addEventListener('webglcontextlost', webglContextLostHandler);
+  el.addEventListener('webglcontextrestored', webglContextRestoredHandler);
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
   const initialCamera = getCameraPreset();
@@ -2146,6 +1804,8 @@ function startParticles() {
     blending: THREE.AdditiveBlending
   });
   particleCloud = new THREE.Points(geometry, material);
+  // 顶点着色器会把粒子移出原始 geometry 包围球，不能使用静态包围球裁剪。
+  particleCloud.frustumCulled = false;
   stageRoot.add(particleCloud);
   loadParticleCover();
   lyricMesh = new THREE.Mesh(
@@ -2160,6 +1820,7 @@ function startParticles() {
     })
   );
   lyricMesh.position.set(0, 0.18, 1.48);
+  lyricMesh.frustumCulled = false;
   lyricMesh.renderOrder = 120;
   stageRoot.add(lyricMesh);
   void renderLyricTexture(props.lyric);
@@ -2177,184 +1838,202 @@ function startParticles() {
   resize();
   resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(parent);
+  particleLastFrameAt = performance.now();
+  particleRenderedFrames = 0;
   const draw = (time: number) => {
-    if (!renderer || !scene || !camera || !particleCloud || !stageRoot) return;
-    const dt = Math.max(
-      1 / 120,
-      Math.min(
-        0.05,
-        previousFrameTime ? (time - previousFrameTime) / 1000 : 1 / 60
-      )
-    );
-    previousFrameTime = time;
-    if (
-      particleCloud.geometry.getAttribute('position').count !==
-        activeParticleCount.value ||
-      particlePreset !== visualPreset.value
-    )
-      rebuildParticleGeometry();
-    const material = particleCloud.material as THREE.ShaderMaterial;
-    readAudioBands(time);
-    material.uniforms.uTime.value = time * 0.001 * speed.value;
-    material.uniforms.uEnergy.value = audioBands.energy * fx.value.intensity;
-    material.uniforms.uBass.value = audioBands.bass * fx.value.intensity;
-    material.uniforms.uMid.value = audioBands.mid * fx.value.intensity;
-    material.uniforms.uTreble.value = audioBands.treble * fx.value.intensity;
-    material.uniforms.uBeat.value = audioBands.beat;
-    material.uniforms.uSpectrum.value = spectrumBands;
-    material.uniforms.uDepth.value = fx.value.depth;
-    material.uniforms.uPointSize.value =
-      (props.playing ? 3.55 : 2.8) *
-      fx.value.point *
-      (1 + audioBands.energy * 0.52 + audioBands.beat * 0.28);
-    const [red, green, blue] = colorMap[color.value];
-    (material.uniforms.uColor.value as THREE.Color).setRGB(
-      red / 255,
-      green / 255,
-      blue / 255
-    );
-    material.uniforms.uPreset.value = getParticlePresetIndex();
-    if (!pointer.value.active) {
-      gestureRotation.x += particleSpin.vx * dt;
-      gestureRotation.y += particleSpin.vy * dt;
-      particleSpin.vx *= Math.pow(0.9, dt * 60);
-      particleSpin.vy *= Math.pow(0.9, dt * 60);
-      if (Math.abs(particleSpin.vx) < 0.01) particleSpin.vx = 0;
-      if (Math.abs(particleSpin.vy) < 0.01) particleSpin.vy = 0;
-    }
-    stageRoot.rotation.x += (gestureRotation.x - stageRoot.rotation.x) * 0.055;
-    stageRoot.rotation.y += (gestureRotation.y - stageRoot.rotation.y) * 0.055;
-    stagePan.lerp(stagePanTarget, 0.14);
-    stageRoot.position.copy(stagePan);
-    particleCloud.scale.setScalar(
-      visualPreset.value === 'emily' ? 1 : fx.value.depth
-    );
-    if (cardGroup?.visible) {
-      stageRoot.updateMatrixWorld(true);
-      camera.updateMatrixWorld(true);
-      raycaster.setFromCamera(scenePointer, camera);
-      const cardHits = raycaster
-        .intersectObjects(
-          cardGroup.children.filter(child => child.visible),
-          false
-        )
-        .sort(
-          (a, b) => (b.object.renderOrder || 0) - (a.object.renderOrder || 0)
-        );
-      hoveredCardIndex = cardHits.length
-        ? Number(cardHits[0].object.userData.cardIndex ?? -1)
-        : -1;
-      const nextHoverAction =
-        hoveredCardIndex === 0 && cardHits[0]?.uv
-          ? getCardActionAt(
-              cardHits[0].uv.x * 720,
-              (1 - cardHits[0].uv.y) * 360
-            )
-          : null;
-      if (nextHoverAction !== hoveredCardAction) {
-        hoveredCardAction = nextHoverAction;
-        refreshCurrentCardTexture();
-      }
-      renderer.domElement.style.cursor =
-        pointerMode.value === 'pan'
-          ? 'grabbing'
-          : hoveredCardAction || hoveredCardIndex >= 0
-            ? 'pointer'
-            : pointer.value.active
-              ? 'grabbing'
-              : 'grab';
-    } else {
-      hoveredCardIndex = -1;
-      if (hoveredCardAction) {
-        hoveredCardAction = null;
-        refreshCurrentCardTexture();
-      }
-    }
-    shelfCenterSmooth += (shelfCenter.value - shelfCenterSmooth) * 0.16;
-    const cameraPreset = getCameraPreset();
-    const focusCard =
-      fx.value.shelfMode !== 'off' && fx.value.shelfCameraMode === 'dynamic';
-    const focusIndex = Math.round(shelfCenterSmooth);
-    const desiredRadius = cameraZoomOverride
-      ? targetCameraRadius * fx.value.cameraDistance
-      : focusCard
-        ? (fx.value.shelfMode === 'stage' ? 6.2 : 6.6) +
-          Math.min(focusIndex, 3) * 0.05
-        : targetCameraRadius * fx.value.cameraDistance;
-    const desiredTheta = focusCard
-      ? fx.value.shelfMode === 'stage'
-        ? -0.08 + focusIndex * 0.08
-        : 0.28
-      : cameraPreset.theta;
-    const desiredPhi = focusCard
-      ? fx.value.shelfMode === 'stage'
-        ? -0.2
-        : -0.04 + (1.5 - focusIndex) * 0.025
-      : cameraPreset.phi;
-    const desiredLookAt = new THREE.Vector3(
-      fx.value.lyricOffsetX,
-      0.18 + fx.value.lyricOffsetY,
-      1.48 + fx.value.lyricOffsetZ
-    );
-    cameraRadius += (desiredRadius - cameraRadius) * 0.07;
-    cameraTheta += (desiredTheta - cameraTheta) * 0.1;
-    cameraPhi += (desiredPhi - cameraPhi) * 0.1;
-    cameraLookAt.lerp(desiredLookAt, 0.1);
-    const cinema = fx.value.cinema ? fx.value.cinemaShake : 0;
-    const theta = cameraTheta + Math.sin(time * 0.00008) * 0.012 * cinema;
-    const phi = cameraPhi + Math.sin(time * 0.00006 + 1) * 0.01 * cinema;
-    const cy = Math.cos(phi);
-    camera.position.set(
-      cameraLookAt.x + cameraRadius * cy * Math.sin(theta),
-      cameraLookAt.y + cameraRadius * Math.sin(phi),
-      cameraLookAt.z + cameraRadius * cy * Math.cos(theta)
-    );
-    camera.lookAt(cameraLookAt);
-    if (lyricMesh) {
-      lyricMesh.visible = fx.value.particleLyrics;
-      const lyricBreath =
-        Math.sin(time * 0.00092) * 0.05 +
-        Math.sin(time * 0.00041 + 0.7) * 0.028;
-      lyricMesh.position.set(
-        fx.value.lyricOffsetX,
-        0.18 + fx.value.lyricOffsetY + Math.sin(time * 0.00055) * 0.055,
-        1.48 + fx.value.lyricOffsetZ + Math.cos(time * 0.00048) * 0.08
-      );
-      lyricMesh.scale.setScalar(
-        fx.value.lyricScale *
-          (0.96 +
-            lyricBreath +
-            audioBands.bass * 0.038 +
-            audioBands.beat * 0.014)
-      );
-      lyricMesh.rotation.set(
-        THREE.MathUtils.degToRad(fx.value.lyricTiltX),
-        THREE.MathUtils.degToRad(fx.value.lyricTiltY),
-        Math.sin(time * 0.00034) * 0.018
-      );
-      (lyricMesh.material as THREE.MeshBasicMaterial).opacity = fx.value
-        .lyricGlow
-        ? Math.min(
-            1,
-            0.55 +
-              fx.value.lyricGlowStrength +
-              (fx.value.lyricGlowBeat ? audioBands.beat * 0.28 : 0)
-          )
-        : 0.72;
-      updateLyricParticleTransition(time);
-    }
-    if (cardGroup) {
-      cardGroup.visible = fx.value.shelfMode !== 'off';
-      cardGroup.children.forEach((child, index) => {
-        const mesh = child as THREE.Mesh<
-          THREE.PlaneGeometry,
-          THREE.MeshBasicMaterial
-        >;
-        updateCardPose(mesh, index, shelfCenterSmooth, time * 0.001);
-      });
-    }
-    renderer.render(scene, camera);
     frame = requestAnimationFrame(draw);
+    particleLastFrameAt = performance.now();
+    particleRenderedFrames++;
+    if (!renderer || !scene || !camera || !particleCloud || !stageRoot) return;
+    try {
+      const dt = Math.max(
+        1 / 120,
+        Math.min(
+          0.05,
+          previousFrameTime ? (time - previousFrameTime) / 1000 : 1 / 60
+        )
+      );
+      previousFrameTime = time;
+      if (
+        particleCloud.geometry.getAttribute('position').count !==
+          activeParticleCount.value ||
+        particlePreset !== visualPreset.value
+      )
+        rebuildParticleGeometry();
+      const material = particleCloud.material as THREE.ShaderMaterial;
+      readAudioBands(time);
+      material.uniforms.uTime.value = time * 0.001 * speed.value;
+      material.uniforms.uEnergy.value = audioBands.energy * fx.value.intensity;
+      material.uniforms.uBass.value = audioBands.bass * fx.value.intensity;
+      material.uniforms.uMid.value = audioBands.mid * fx.value.intensity;
+      material.uniforms.uTreble.value = audioBands.treble * fx.value.intensity;
+      material.uniforms.uBeat.value = audioBands.beat;
+      material.uniforms.uSpectrum.value = spectrumBands;
+      material.uniforms.uDepth.value = fx.value.depth;
+      material.uniforms.uPointSize.value =
+        (props.playing ? 3.55 : 2.8) *
+        fx.value.point *
+        (1 + audioBands.energy * 0.52 + audioBands.beat * 0.28);
+      const [red, green, blue] = colorMap[color.value];
+      (material.uniforms.uColor.value as THREE.Color).setRGB(
+        red / 255,
+        green / 255,
+        blue / 255
+      );
+      material.uniforms.uPreset.value = getParticlePresetIndex();
+      if (!pointer.value.active) {
+        gestureRotation.x += particleSpin.vx * dt;
+        gestureRotation.y += particleSpin.vy * dt;
+        particleSpin.vx *= Math.pow(0.9, dt * 60);
+        particleSpin.vy *= Math.pow(0.9, dt * 60);
+        if (Math.abs(particleSpin.vx) < 0.01) particleSpin.vx = 0;
+        if (Math.abs(particleSpin.vy) < 0.01) particleSpin.vy = 0;
+      }
+      stageRoot.rotation.x +=
+        (gestureRotation.x - stageRoot.rotation.x) * 0.055;
+      stageRoot.rotation.y +=
+        (gestureRotation.y - stageRoot.rotation.y) * 0.055;
+      stagePan.lerp(stagePanTarget, 0.14);
+      stageRoot.position.copy(stagePan);
+      particleCloud.scale.setScalar(
+        visualPreset.value === 'emily' ? 1 : fx.value.depth
+      );
+      if (cardGroup?.visible) {
+        stageRoot.updateMatrixWorld(true);
+        camera.updateMatrixWorld(true);
+        raycaster.setFromCamera(scenePointer, camera);
+        const cardHits = raycaster
+          .intersectObjects(
+            cardGroup.children.filter(child => child.visible),
+            false
+          )
+          .sort(
+            (a, b) => (b.object.renderOrder || 0) - (a.object.renderOrder || 0)
+          );
+        hoveredCardIndex = cardHits.length
+          ? Number(cardHits[0].object.userData.cardIndex ?? -1)
+          : -1;
+        const nextHoverAction =
+          hoveredCardIndex === 0 && cardHits[0]?.uv
+            ? getCardActionAt(
+                cardHits[0].uv.x * 720,
+                (1 - cardHits[0].uv.y) * 360
+              )
+            : null;
+        if (nextHoverAction !== hoveredCardAction) {
+          hoveredCardAction = nextHoverAction;
+          refreshCurrentCardTexture();
+        }
+        renderer.domElement.style.cursor =
+          pointerMode.value === 'pan'
+            ? 'grabbing'
+            : hoveredCardAction || hoveredCardIndex >= 0
+              ? 'pointer'
+              : pointer.value.active
+                ? 'grabbing'
+                : 'grab';
+      } else {
+        hoveredCardIndex = -1;
+        if (hoveredCardAction) {
+          hoveredCardAction = null;
+          refreshCurrentCardTexture();
+        }
+      }
+      shelfCenterSmooth += (shelfCenter.value - shelfCenterSmooth) * 0.16;
+      const cameraPreset = getCameraPreset();
+      const focusCard =
+        fx.value.shelfMode !== 'off' && fx.value.shelfCameraMode === 'dynamic';
+      const focusIndex = Math.round(shelfCenterSmooth);
+      const desiredRadius = cameraZoomOverride
+        ? targetCameraRadius * fx.value.cameraDistance
+        : focusCard
+          ? (fx.value.shelfMode === 'stage' ? 6.2 : 6.6) +
+            Math.min(focusIndex, 3) * 0.05
+          : targetCameraRadius * fx.value.cameraDistance;
+      const desiredTheta = focusCard
+        ? fx.value.shelfMode === 'stage'
+          ? -0.08 + focusIndex * 0.08
+          : 0.28
+        : cameraPreset.theta;
+      const desiredPhi = focusCard
+        ? fx.value.shelfMode === 'stage'
+          ? -0.2
+          : -0.04 + (1.5 - focusIndex) * 0.025
+        : cameraPreset.phi;
+      const desiredLookAt = new THREE.Vector3(
+        fx.value.lyricOffsetX,
+        0.18 + fx.value.lyricOffsetY,
+        1.48 + fx.value.lyricOffsetZ
+      );
+      cameraRadius += (desiredRadius - cameraRadius) * 0.07;
+      cameraTheta += (desiredTheta - cameraTheta) * 0.1;
+      cameraPhi += (desiredPhi - cameraPhi) * 0.1;
+      cameraLookAt.lerp(desiredLookAt, 0.1);
+      const cinema = fx.value.cinema ? fx.value.cinemaShake : 0;
+      const theta = cameraTheta + Math.sin(time * 0.00008) * 0.012 * cinema;
+      const phi = cameraPhi + Math.sin(time * 0.00006 + 1) * 0.01 * cinema;
+      const cy = Math.cos(phi);
+      camera.position.set(
+        cameraLookAt.x + cameraRadius * cy * Math.sin(theta),
+        cameraLookAt.y + cameraRadius * Math.sin(phi),
+        cameraLookAt.z + cameraRadius * cy * Math.cos(theta)
+      );
+      camera.lookAt(cameraLookAt);
+      if (lyricMesh) {
+        lyricMesh.visible = fx.value.particleLyrics;
+        const lyricBreath =
+          Math.sin(time * 0.00092) * 0.05 +
+          Math.sin(time * 0.00041 + 0.7) * 0.028;
+        lyricMesh.position.set(
+          fx.value.lyricOffsetX,
+          0.18 + fx.value.lyricOffsetY + Math.sin(time * 0.00055) * 0.055,
+          1.48 + fx.value.lyricOffsetZ + Math.cos(time * 0.00048) * 0.08
+        );
+        lyricMesh.scale.setScalar(
+          fx.value.lyricScale *
+            (0.96 +
+              lyricBreath +
+              audioBands.bass * 0.038 +
+              audioBands.beat * 0.014)
+        );
+        lyricMesh.rotation.set(
+          THREE.MathUtils.degToRad(fx.value.lyricTiltX),
+          THREE.MathUtils.degToRad(fx.value.lyricTiltY),
+          Math.sin(time * 0.00034) * 0.018
+        );
+        (lyricMesh.material as THREE.MeshBasicMaterial).opacity = fx.value
+          .lyricGlow
+          ? Math.min(
+              1,
+              0.55 +
+                fx.value.lyricGlowStrength +
+                (fx.value.lyricGlowBeat ? audioBands.beat * 0.28 : 0)
+            )
+          : 0.72;
+        updateLyricParticleTransition(time);
+      }
+      if (cardGroup) {
+        cardGroup.visible = props.showCards && fx.value.shelfMode !== 'off';
+        cardGroup.children.forEach((child, index) => {
+          const mesh = child as THREE.Mesh<
+            THREE.PlaneGeometry,
+            THREE.MeshBasicMaterial
+          >;
+          updateCardPose(mesh, index, shelfCenterSmooth, time * 0.001);
+        });
+      }
+      renderer.render(scene, camera);
+    } catch (error) {
+      const now = performance.now();
+      if (import.meta.env.DEV && now - particleLastErrorAt > 1000) {
+        particleLastErrorAt = now;
+        console.error(
+          '[粒子诊断] render frame failed',
+          error,
+          getParticleDebugSnapshot()
+        );
+      }
+    }
   };
   frame = requestAnimationFrame(draw);
 }
@@ -2431,6 +2110,13 @@ onMounted(async () => {
 });
 onUnmounted(() => {
   cancelAnimationFrame(frame);
+  const el = canvas.value;
+  if (el && webglContextLostHandler)
+    el.removeEventListener('webglcontextlost', webglContextLostHandler);
+  if (el && webglContextRestoredHandler)
+    el.removeEventListener('webglcontextrestored', webglContextRestoredHandler);
+  webglContextLostHandler = null;
+  webglContextRestoredHandler = null;
   if (saveSettingsTimer !== null) {
     window.clearTimeout(saveSettingsTimer);
     persistParticleSettings();
@@ -2455,12 +2141,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <Teleport to="body">
+  <Teleport to="body" :disabled="embedded">
     <section
-      class="room-particle"
+      class="particle-stage"
       :class="{
         'is-panning': pointerMode === 'pan',
-        'controls-hidden': !floatingControlsVisible
+        'controls-hidden': floatingControlsHidden,
+        'is-embedded': embedded
       }"
       aria-label="歌房沉浸模式"
       @pointerenter="showFloatingControls"
@@ -2474,31 +2161,32 @@ onUnmounted(() => {
       @contextmenu.prevent="recenterStage"
       @dblclick="recenterStage">
       <div
-        class="room-particle-backdrop"
+        class="particle-stage-backdrop"
         :style="{
           backgroundImage: `url(${current?.music.image || LogoImage})`
         }" />
-      <canvas ref="canvas" class="room-particle-canvas" />
-      <div class="room-particle-grid" />
-      <div class="room-particle-vignette" />
+      <canvas ref="canvas" class="particle-stage-canvas" />
+      <div class="particle-stage-grid" />
+      <div class="particle-stage-vignette" />
 
       <header
-        class="room-particle-topbar room-particle-floating-ui"
+        v-if="!embedded"
+        class="particle-stage-topbar particle-stage-floating-ui"
         @pointerdown.stop>
-        <button class="room-particle-exit" type="button" @click="emit('close')">
+        <button class="particle-stage-exit" type="button" @click="emit('close')">
           退出沉浸
         </button>
-        <span class="room-particle-room-name"
+        <span class="particle-stage-room-name"
           >{{ snapshot.room.name }} · {{ snapshot.nickname }}</span
         >
-        <button class="room-particle-exit" type="button" @click="emit('share')">
+        <button class="particle-stage-exit" type="button" @click="emit('share')">
           分享
         </button>
       </header>
 
       <button
-        v-if="activePanel !== 'queue'"
-        class="edge-button edge-left room-particle-floating-ui"
+        v-if="!embedded && activePanel !== 'queue'"
+        class="edge-button edge-left particle-stage-floating-ui"
         type="button"
         @pointerdown.stop
         @click.stop="togglePanel('queue')">
@@ -2508,8 +2196,8 @@ onUnmounted(() => {
         }}</i>
       </button>
       <button
-        v-if="activePanel !== 'chat'"
-        class="edge-button edge-right room-particle-floating-ui"
+        v-if="!embedded && activePanel !== 'chat'"
+        class="edge-button edge-right particle-stage-floating-ui"
         type="button"
         @pointerdown.stop
         @click.stop="togglePanel('chat')">
@@ -2519,8 +2207,12 @@ onUnmounted(() => {
         }}</i>
       </button>
       <button
-        v-if="!songPickerOpen && (snapshot.isAdmin || snapshot.allowGuestQueue)"
-        class="edge-button song-button room-particle-floating-ui"
+        v-if="
+          !embedded &&
+          !songPickerOpen &&
+          (snapshot.isAdmin || snapshot.allowGuestQueue)
+        "
+        class="edge-button song-button particle-stage-floating-ui"
         type="button"
         @pointerdown.stop
         @click.stop="openSongPicker">
@@ -2535,7 +2227,7 @@ onUnmounted(() => {
       <Transition name="drawer-left">
         <aside
           v-if="activePanel === 'queue'"
-          class="room-particle-drawer drawer-left"
+          class="particle-stage-drawer drawer-left"
           @pointerdown.stop
           @wheel.stop>
           <div class="drawer-heading">
@@ -2641,7 +2333,7 @@ onUnmounted(() => {
       <Transition name="drawer-right">
         <aside
           v-if="activePanel === 'chat'"
-          class="room-particle-drawer drawer-right"
+          class="particle-stage-drawer drawer-right"
           @pointerdown.stop
           @wheel.stop>
           <div class="drawer-heading">
@@ -2738,22 +2430,11 @@ onUnmounted(() => {
         </aside>
       </Transition>
 
-      <div
-        v-if="settingsOpen"
-        class="settings-mask"
-        @pointerdown.stop
-        @click="settingsOpen = false" />
-      <div
-        class="room-particle-settings-wrap room-particle-floating-ui"
-        @pointerdown.stop
-        @wheel.stop>
-        <button
-          class="settings-fab"
-          type="button"
-          @click="settingsOpen = !settingsOpen">
-          ☷
-        </button>
-        <div v-if="settingsOpen" class="room-particle-settings">
+      <ParticleVisualConsole
+        v-model="settingsOpen"
+        :embedded="embedded"
+        :visible="!floatingControlsHidden">
+        <div class="particle-stage-settings">
           <div class="fx-head">
             <b>视觉控制台</b>
             <div class="fx-head-actions">
@@ -2834,7 +2515,7 @@ onUnmounted(() => {
               <label
                 >场景字体
                 <el-dropdown
-                  popper-class="room-particle-dropdown"
+                  popper-class="particle-stage-dropdown"
                   effect="dark"
                   trigger="click"
                   @command="selectLyricFont"
@@ -2994,7 +2675,7 @@ onUnmounted(() => {
               ><label
                 >显示模式
                 <el-dropdown
-                  popper-class="room-particle-dropdown"
+                  popper-class="particle-stage-dropdown"
                   effect="dark"
                   trigger="click"
                   @command="selectShelfMode"
@@ -3018,7 +2699,7 @@ onUnmounted(() => {
               ><label
                 >歌单架镜头
                 <el-dropdown
-                  popper-class="room-particle-dropdown"
+                  popper-class="particle-stage-dropdown"
                   effect="dark"
                   trigger="click"
                   @command="selectShelfCameraMode"
@@ -3044,7 +2725,7 @@ onUnmounted(() => {
               ><label
                 >显示策略
                 <el-dropdown
-                  popper-class="room-particle-dropdown"
+                  popper-class="particle-stage-dropdown"
                   effect="dark"
                   trigger="click"
                   @command="selectShelfPresence"
@@ -3164,966 +2845,12 @@ onUnmounted(() => {
             >左键旋转，中键平移，滚轮缩放，右键恢复初始视角</small
           >
         </div>
-      </div>
+      </ParticleVisualConsole>
     </section>
   </Teleport>
 </template>
 
-<style lang="less" scoped>
-.room-particle {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  inset: 0;
-  z-index: 50;
-  overflow: hidden;
-  color: #f1f5ff;
-  background: #05070c;
-  user-select: none;
-  cursor: grab;
-  &:active {
-    cursor: grabbing;
-  }
-  &.is-panning,
-  &.is-panning * {
-    cursor: grabbing !important;
-  }
-}
-.room-particle-backdrop,
-.room-particle-canvas,
-.room-particle-grid,
-.room-particle-vignette {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-.room-particle-backdrop {
-  background-position: center;
-  background-size: cover;
-  filter: blur(58px) saturate(1.4);
-  transform: scale(1.2);
-  opacity: 0.18;
-  transition: background-image 0.8s ease;
-}
-.room-particle-canvas {
-  z-index: 1;
-  opacity: 0.9;
-}
-.room-particle-grid {
-  z-index: 1;
-  opacity: 0.12;
-  background-image:
-    linear-gradient(rgba(180, 210, 255, 0.18) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(180, 210, 255, 0.18) 1px, transparent 1px);
-  background-size: 120px 120px;
-  transform: perspective(650px) rotateX(65deg) translateY(32%);
-  transform-origin: center bottom;
-}
-.room-particle-vignette {
-  z-index: 2;
-  background:
-    radial-gradient(
-      circle at 50% 48%,
-      transparent 5%,
-      rgba(3, 5, 10, 0.16) 44%,
-      rgba(3, 5, 10, 0.84) 100%
-    ),
-    linear-gradient(
-      90deg,
-      rgba(3, 5, 10, 0.2),
-      transparent 35%,
-      transparent 70%,
-      rgba(3, 5, 10, 0.25)
-    );
-  pointer-events: none;
-}
-.room-particle-topbar {
-  position: absolute;
-  z-index: 5;
-  inset: 0 0 auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 22px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  opacity: 1;
-  transition: opacity 0.38s ease;
-}
-.room-particle-search,
-.room-particle-exit,
-.edge-button,
-.settings-fab {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 999px;
-  color: rgba(240, 246, 255, 0.75);
-  background: rgba(7, 10, 17, 0.42);
-  backdrop-filter: blur(12px);
-  cursor: pointer;
-}
-.room-particle-search,
-.room-particle-exit {
-  padding: 8px 13px;
-}
-.room-particle-search span {
-  margin-left: 7px;
-  color: rgba(240, 246, 255, 0.45);
-}
-.room-particle-room-name {
-  color: rgba(240, 246, 255, 0.42);
-}
-.edge-button {
-  position: absolute;
-  z-index: 12;
-  top: 50%;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 14px 8px;
-  font-size: 12px;
-  writing-mode: vertical-rl;
-  transform: translateY(-50%);
-  transition:
-    opacity 0.38s ease,
-    color 0.2s,
-    border-color 0.2s,
-    background 0.2s,
-    box-shadow 0.2s;
-  &:hover,
-  &.active {
-    color: white;
-    border-color: rgba(128, 225, 255, 0.52);
-    background: rgba(32, 73, 116, 0.72);
-    box-shadow: 0 0 24px rgba(75, 174, 231, 0.22);
-  }
-  i {
-    display: grid;
-    min-width: 18px;
-    height: 18px;
-    place-items: center;
-    border-radius: 9px;
-    color: #071017;
-    background: #9ee7ff;
-    font-size: 10px;
-    font-style: normal;
-    writing-mode: horizontal-tb;
-  }
-}
-.room-particle.controls-hidden {
-  .room-particle-floating-ui {
-    opacity: 0;
-    pointer-events: none;
-  }
-}
-.edge-left {
-  left: 0;
-  border-left: 0;
-  border-radius: 0 14px 14px 0;
-}
-.edge-right {
-  right: 0;
-  border-right: 0;
-  border-radius: 14px 0 0 14px;
-}
-.song-button {
-  top: auto;
-  bottom: 20px;
-  left: 50%;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 15px;
-  writing-mode: horizontal-tb;
-  transform: translateX(-50%);
-  letter-spacing: 0.08em;
-  &:hover {
-    color: white;
-    border-color: rgba(128, 225, 255, 0.52);
-    background: rgba(32, 73, 116, 0.72);
-    box-shadow: 0 0 24px rgba(75, 174, 231, 0.22);
-  }
-  span {
-    color: #92e4fa;
-    font-size: 16px;
-  }
-}
-.settings-mask {
-  position: absolute;
-  z-index: 7;
-  inset: 0;
-  background: transparent;
-  cursor: default;
-}
-.room-particle-settings-wrap {
-  position: absolute;
-  z-index: 8;
-  right: 24px;
-  bottom: 24px;
-  opacity: 1;
-  transition: opacity 0.38s ease;
-}
-.settings-fab {
-  width: 37px;
-  height: 37px;
-  padding: 0;
-  font-size: 16px;
-  &:hover {
-    color: #8de7db;
-    border-color: rgba(109, 226, 209, 0.7);
-  }
-}
-.room-particle-settings {
-  position: absolute;
-  right: 0;
-  bottom: 49px;
-  display: flex;
-  width: 290px;
-  overflow: hidden;
-  flex-direction: column;
-  gap: 15px;
-  padding: 17px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 16px;
-  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(20px);
-  font-size: 12px;
-}
-.room-particle-settings label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  color: rgba(255, 255, 255, 0.65);
-}
-.room-particle-settings input {
-  width: 140px;
-  accent-color: #6de2d1;
-}
-.room-particle-settings .el-dropdown {
-  width: 140px;
-}
-.fx-dropdown-trigger {
-  display: flex;
-  width: 140px;
-  box-sizing: border-box;
-  align-items: center;
-  justify-content: space-between;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  outline: none;
-  padding: 6px 9px;
-  color: rgba(241, 247, 255, 0.9);
-  background-color: rgba(13, 22, 34, 0.88);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color 0.2s,
-    background-color 0.2s,
-    box-shadow 0.2s;
-  &:hover,
-  &:focus {
-    border-color: rgba(109, 226, 209, 0.62);
-    background-color: rgba(18, 34, 48, 0.96);
-    box-shadow: 0 0 0 2px rgba(109, 226, 209, 0.08);
-  }
-  span {
-    color: #79d9d0;
-    font-size: 14px;
-    line-height: 1;
-  }
-}
-:global(.room-particle-dropdown.el-popper) {
-  --el-bg-color-overlay: rgba(10, 18, 28, 0.94);
-  --el-border-color-light: rgba(255, 255, 255, 0.14);
-  overflow: hidden;
-  border: 1px solid rgba(153, 220, 225, 0.2) !important;
-  border-radius: 11px !important;
-  background: rgba(10, 18, 28, 0.88) !important;
-  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.48) !important;
-  backdrop-filter: blur(18px) saturate(1.25);
-}
-:global(html.animal-island .room-particle-dropdown.el-popper),
-:global(html.animal-island .room-particle-dropdown.el-popper.is-dark),
-:global(html.animal-island .room-particle-dropdown.el-popper.is-light) {
-  --el-bg-color-overlay: rgba(10, 18, 28, 0.94) !important;
-  --el-popper-bg-color-dark: rgba(10, 18, 28, 0.94) !important;
-  --el-popper-bg-color-light: rgba(10, 18, 28, 0.94) !important;
-  border-color: rgba(153, 220, 225, 0.2) !important;
-  background: rgba(10, 18, 28, 0.9) !important;
-  color: #eaf4ff !important;
-}
-:global(.room-particle-dropdown .el-dropdown-menu) {
-  max-height: 280px;
-  overflow-y: auto;
-  padding: 6px;
-  background: transparent !important;
-}
-:global(.room-particle-dropdown .el-scrollbar),
-:global(.room-particle-dropdown .el-scrollbar__wrap),
-:global(.room-particle-dropdown .el-scrollbar__view),
-:global(.room-particle-dropdown .el-dropdown__list) {
-  background: transparent !important;
-}
-:global(.room-particle-dropdown .el-dropdown-menu__item) {
-  min-width: 126px;
-  border-radius: 7px;
-  padding: 7px 10px;
-  color: rgba(231, 241, 250, 0.74);
-  font-size: 12px;
-}
-:global(.room-particle-dropdown .el-dropdown-menu__item:hover),
-:global(.room-particle-dropdown .el-dropdown-menu__item:focus),
-:global(.room-particle-dropdown .el-dropdown-menu__item.active) {
-  color: #dffff9;
-  background: rgba(109, 226, 209, 0.14);
-}
-:global(.room-particle-dropdown .el-popper__arrow::before) {
-  border-color: rgba(153, 220, 225, 0.2) !important;
-  background: rgba(10, 18, 28, 0.96) !important;
-}
-:global(html.animal-island .room-particle-dropdown .el-popper__arrow::before) {
-  border: 1px solid rgba(153, 220, 225, 0.2) !important;
-  background: rgba(10, 18, 28, 0.96) !important;
-}
-.room-particle-settings small {
-  color: rgba(255, 255, 255, 0.38);
-}
-.fx-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.fx-head-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.fx-head .fx-debug-copy {
-  min-width: 58px;
-  border: 1px solid rgba(109, 226, 209, 0.3);
-  border-radius: 7px;
-  padding: 4px 7px;
-  color: rgba(185, 247, 237, 0.82);
-  background: rgba(109, 226, 209, 0.08);
-  font-size: 10px;
-  cursor: pointer;
-  &:hover {
-    border-color: rgba(109, 226, 209, 0.68);
-    color: white;
-    background: rgba(109, 226, 209, 0.18);
-  }
-}
-.fx-head .fx-close {
-  width: 24px;
-  height: 24px;
-  border: 0;
-  padding: 0;
-  color: white;
-  background: transparent;
-  font-size: 20px;
-  cursor: pointer;
-}
-.fx-tabs {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-.fx-tabs button {
-  border: 0;
-  border-bottom: 2px solid transparent;
-  padding: 7px 6px;
-  color: rgba(255, 255, 255, 0.48);
-  background: transparent;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.fx-tabs button.active {
-  border-bottom-color: #6de2d1;
-  color: white;
-}
-.fx-content {
-  display: flex;
-  max-height: 300px;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  flex-direction: column;
-  gap: 15px;
-  padding-right: 4px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(109, 226, 209, 0.3) transparent;
-}
-.fx-tips {
-  flex: 0 0 auto;
-  padding-top: 2px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  line-height: 1.6;
-}
-.preset-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
-}
-.preset-grid button {
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 8px;
-  padding: 9px 5px;
-  color: rgba(255, 255, 255, 0.65);
-  background: rgba(255, 255, 255, 0.05);
-  cursor: pointer;
-}
-.preset-grid button.active,
-.preset-grid button:hover {
-  border-color: #6de2d1;
-  color: white;
-  background: rgba(109, 226, 209, 0.13);
-}
-.color-options {
-  display: flex;
-  gap: 8px;
-}
-.color-options button {
-  width: 24px;
-  height: 24px;
-  border: 2px solid transparent;
-  border-radius: 50%;
-  cursor: pointer;
-}
-.color-options button.active {
-  border-color: white;
-}
-[data-color='blue'] {
-  background: #a6d2ff;
-}
-[data-color='violet'] {
-  background: #d6b2ff;
-}
-[data-color='gold'] {
-  background: #ffe0a6;
-}
-[data-color='cyan'] {
-  background: #7aeef1;
-}
-[data-color='rose'] {
-  background: #ff9fcd;
-}
-[data-color='coral'] {
-  background: #ff9d89;
-}
-[data-color='emerald'] {
-  background: #7eebb1;
-}
-[data-color='ice'] {
-  background: #e0f4ff;
-}
-.drawer-mask {
-  position: absolute;
-  z-index: 9;
-  inset: 0;
-  background: rgba(1, 3, 8, 0.24);
-  cursor: default;
-}
-.room-particle-drawer {
-  position: absolute;
-  z-index: 11;
-  top: 68px;
-  bottom: 18px;
-  display: flex;
-  width: min(380px, calc(100vw - 36px));
-  box-sizing: border-box;
-  flex-direction: column;
-  padding: 22px;
-  border: 1px solid rgba(180, 220, 255, 0.18);
-  border-radius: 22px;
-  background: linear-gradient(
-    145deg,
-    rgba(20, 29, 44, 0.32),
-    rgba(5, 9, 17, 0.26)
-  );
-  box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.48),
-    inset 0 1px rgba(255, 255, 255, 0.07),
-    inset 0 0 60px rgba(94, 163, 227, 0.04);
-  -webkit-backdrop-filter: blur(30px) saturate(1.35);
-  backdrop-filter: blur(5px) saturate(1.35);
-  cursor: default;
-  user-select: text;
-  overflow: hidden;
-}
-.drawer-left {
-  left: 18px;
-}
-.drawer-right {
-  right: 18px;
-}
-.drawer-left-enter-active,
-.drawer-left-leave-active,
-.drawer-right-enter-active,
-.drawer-right-leave-active {
-  transition:
-    transform 0.3s cubic-bezier(0.22, 0.8, 0.25, 1),
-    opacity 0.25s;
-}
-.drawer-left-enter-from,
-.drawer-left-leave-to {
-  opacity: 0;
-  transform: translateX(-100%);
-}
-.drawer-right-enter-from,
-.drawer-right-leave-to {
-  opacity: 0;
-  transform: translateX(100%);
-}
-.drawer-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 18px;
-}
-.drawer-heading > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.drawer-heading small {
-  color: #77cde8;
-  font-size: 9px;
-  letter-spacing: 0.22em;
-}
-.drawer-heading span {
-  font-size: 20px;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-}
-.drawer-heading > button {
-  --drawer-heading-button-height: 34px;
-  display: grid;
-  width: var(--drawer-heading-button-height);
-  height: var(--drawer-heading-button-height);
-  flex: 0 0 var(--drawer-heading-button-height);
-  box-sizing: border-box;
-  place-items: center;
-  padding: 0 0 2px;
-  border: 1px solid transparent;
-  border-radius: 50%;
-  color: rgba(255, 255, 255, 0.65);
-  background: transparent;
-  font-family: Arial, sans-serif;
-  font-size: 24px;
-  line-height: var(--drawer-heading-button-height);
-  transform-origin: 50% 50%;
-  cursor: pointer;
-  transition: 0.2s;
-  &:hover {
-    border-color: rgba(255, 255, 255, 0.2);
-    color: white;
-    background: rgba(255, 255, 255, 0.08);
-    transform: rotate(90deg);
-  }
-}
-.drawer-tabs {
-  display: flex;
-  gap: 5px;
-  margin-bottom: 14px;
-  padding: 4px;
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.045);
-}
-.drawer-tabs button {
-  flex: 1;
-  border: 0;
-  border-radius: 8px;
-  padding: 9px 5px;
-  color: rgba(255, 255, 255, 0.46);
-  background: transparent;
-  cursor: pointer;
-  transition: 0.2s;
-}
-.drawer-tabs button:hover {
-  color: white;
-}
-.drawer-tabs button.active {
-  color: #eefaff;
-  background: rgba(90, 174, 219, 0.18);
-  box-shadow: inset 0 0 0 1px rgba(121, 210, 255, 0.16);
-}
-.drawer-tabs i {
-  margin-left: 4px;
-  color: #7fd5ef;
-  font-size: 10px;
-  font-style: normal;
-}
-.drawer-current {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 10px;
-  padding: 11px;
-  border: 1px solid rgba(128, 214, 255, 0.13);
-  border-radius: 13px;
-  background: linear-gradient(
-    110deg,
-    rgba(72, 157, 200, 0.14),
-    rgba(255, 255, 255, 0.025)
-  );
-}
-.drawer-current img {
-  width: 54px;
-  height: 54px;
-  border-radius: 9px;
-  object-fit: cover;
-}
-.drawer-current div {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  justify-content: center;
-}
-.drawer-current small {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: #80d9f1;
-  font-size: 9px;
-}
-.drawer-current small i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #7de5b9;
-  box-shadow: 0 0 8px #7de5b9;
-}
-.drawer-current b,
-.drawer-current span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.drawer-current b {
-  margin-top: 4px;
-  font-size: 13px;
-}
-.drawer-current span {
-  margin-top: 2px;
-  color: rgba(255, 255, 255, 0.42);
-  font-size: 10px;
-}
-.drawer-scroll,
-.chat-list {
-  min-height: 0;
-  overflow: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(124, 200, 235, 0.25) transparent;
-}
-.drawer-scroll {
-  flex: 1;
-  padding-right: 3px;
-}
-.drawer-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  padding: 8px 5px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
-  border-radius: 9px;
-  transition: background 0.18s;
-  &:hover {
-    .drawer-actions {
-      opacity: 1;
-    }
-  }
-}
-.drawer-row:hover {
-  background: rgba(255, 255, 255, 0.045);
-}
-.drawer-row > img {
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
-  border-radius: 7px;
-  object-fit: cover;
-}
-.drawer-row > div {
-  min-width: 0;
-  flex: 1;
-}
-.drawer-row b,
-.drawer-row small {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.drawer-row b {
-  font-size: 12px;
-  font-weight: 550;
-}
-.drawer-row small {
-  margin-top: 5px;
-  color: rgba(255, 255, 255, 0.38);
-  font-size: 10px;
-}
-.drawer-index {
-  width: 21px;
-  color: rgba(255, 255, 255, 0.24);
-  font: 10px/1 monospace;
-  text-align: center;
-}
-.drawer-actions {
-  display: flex;
-  gap: 2px;
-  opacity: 0;
-  .el-button {
-    --music-button-margin: 2px;
-    padding: 8px;
-  }
-}
-.drawer-actions button,
-.requeue-button {
-  border: 1px solid transparent;
-  border-radius: 7px;
-  color: rgba(255, 255, 255, 0.42);
-  background: transparent;
-  cursor: pointer;
-  transition: 0.18s;
-}
-.drawer-actions button {
-  width: 27px;
-  height: 27px;
-}
-.drawer-actions button:hover {
-  border-color: rgba(126, 211, 240, 0.28);
-  color: #9ce7ff;
-  background: rgba(83, 174, 211, 0.12);
-}
-.requeue-button {
-  padding: 5px 8px;
-  color: #87d9ee;
-  border-color: rgba(126, 211, 240, 0.2);
-}
-.requeue-button:hover {
-  color: #07131b;
-  background: #8edcf0;
-}
-.drawer-empty {
-  display: flex;
-  min-height: 170px;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 9px;
-  color: rgba(255, 255, 255, 0.3);
-  font-size: 11px;
-  text-align: center;
-}
-.drawer-empty b {
-  color: rgba(123, 210, 239, 0.42);
-  font-size: 28px;
-  font-weight: 400;
-}
-.chat-latest {
-  position: absolute;
-  z-index: 2;
-  top: 116px;
-  left: 50%;
-  border: 1px solid rgba(129, 215, 240, 0.24);
-  border-radius: 99px;
-  padding: 6px 10px;
-  color: #a6e8f7;
-  background: rgba(16, 42, 57, 0.92);
-  box-shadow: 0 5px 18px rgba(0, 0, 0, 0.3);
-  transform: translateX(-50%);
-  cursor: pointer;
-}
-.chat-list {
-  flex: 1;
-  padding: 2px 3px 12px;
-}
-.chat-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 8px 0;
-}
-.chat-avatar {
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
-  border-radius: 50%;
-  object-fit: cover;
-  cursor: pointer;
-}
-.chat-body {
-  min-width: 0;
-  max-width: calc(100% - 42px);
-}
-.chat-body > b {
-  display: flex;
-  gap: 7px;
-  align-items: center;
-  color: rgba(255, 255, 255, 0.52);
-  font-size: 10px;
-  font-weight: 400;
-}
-.chat-body > b span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.chat-body time {
-  color: rgba(255, 255, 255, 0.24);
-  font-size: 9px;
-}
-.chat-body p {
-  width: fit-content;
-  max-width: 100%;
-  box-sizing: border-box;
-  margin: 5px 0 0;
-  padding: 8px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 3px 12px 12px 12px;
-  color: rgba(255, 255, 255, 0.84);
-  background: rgba(255, 255, 255, 0.065);
-  font-size: 12px;
-  line-height: 1.55;
-  overflow-wrap: anywhere;
-}
-.chat-image {
-  display: block;
-  max-width: 190px;
-  max-height: 190px;
-  margin-top: 6px;
-  border-radius: 10px;
-  object-fit: contain;
-}
-.chat-row.self {
-  flex-direction: row-reverse;
-}
-.chat-row.self .chat-body {
-  display: flex;
-  align-items: flex-end;
-  flex-direction: column;
-}
-.chat-row.self .chat-body > b {
-  flex-direction: row-reverse;
-}
-.chat-row.self .chat-body p {
-  border-radius: 12px 3px 12px 12px;
-  color: #07131b;
-  background: linear-gradient(135deg, #98e4ef, #72c6e7);
-}
-.chat-row.system {
-  justify-content: center;
-  padding: 5px 0;
-}
-.system-text {
-  max-width: 90%;
-  border-radius: 99px;
-  padding: 4px 9px;
-  color: rgba(255, 255, 255, 0.36);
-  background: rgba(255, 255, 255, 0.045);
-  font-size: 9px;
-  text-align: center;
-}
-.emoji-panel {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 3px;
-  margin-bottom: 8px;
-  padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  background: rgba(9, 14, 23, 0.96);
-}
-.emoji-panel button {
-  border: 0;
-  border-radius: 6px;
-  padding: 4px 0;
-  background: transparent;
-  font-size: 17px;
-  cursor: pointer;
-}
-.emoji-panel button:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-.chat-compose {
-  display: flex;
-  gap: 7px;
-  align-items: center;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
-}
-.chat-compose input {
-  min-width: 0;
-  flex: 1;
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 11px;
-  padding: 10px 11px;
-  color: white;
-  background: rgba(255, 255, 255, 0.055);
-  outline: none;
-  user-select: text;
-  transition: 0.2s;
-}
-.chat-compose input:focus {
-  border-color: rgba(126, 214, 240, 0.42);
-  background: rgba(255, 255, 255, 0.075);
-  box-shadow: 0 0 0 3px rgba(83, 182, 221, 0.08);
-}
-.chat-compose button {
-  height: 36px;
-  border: 0;
-  border-radius: 9px;
-  cursor: pointer;
-  transition: 0.18s;
-}
-.emoji-button {
-  width: 36px;
-  color: rgba(255, 255, 255, 0.68);
-  background: rgba(255, 255, 255, 0.08);
-  font-size: 17px;
-}
-.emoji-button:hover {
-  color: white;
-  background: rgba(255, 255, 255, 0.14);
-}
-.send-button {
-  padding: 0 12px;
-  color: #07131b;
-  background: linear-gradient(135deg, #9be9ef, #71c7e8);
-}
-.send-button:hover {
-  filter: brightness(1.1);
-  box-shadow: 0 0 18px rgba(113, 199, 232, 0.25);
-}
-@media (max-width: 560px) {
-  .room-particle-room-name {
-    display: none;
-  }
-  .room-particle-search span {
-    display: none;
-  }
-  .room-particle-settings-wrap {
-    right: 12px;
-    bottom: 12px;
-  }
-  .room-particle-drawer {
-    top: 62px;
-    bottom: 12px;
-    width: calc(100vw - 24px);
-    border-radius: 18px;
-  }
-  .drawer-left {
-    left: 12px;
-  }
-  .drawer-right {
-    right: 12px;
-  }
-}
-</style>
+<style
+  lang="less"
+  scoped
+  src="./particleStage.less"></style>

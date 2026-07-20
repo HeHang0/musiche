@@ -35,7 +35,7 @@ import {
   millisecond2Duration,
   parseLyric
 } from '../utils/utils';
-import RoomParticle from './roomParticle.vue';
+import ParticleStage from '../components/particle/ParticleStage.vue';
 
 const roomStore = useRoomStore();
 const playStore = usePlayStore();
@@ -1074,7 +1074,7 @@ onUnmounted(() => {
     class="music-room"
     v-loading="!loaded || roomStore.loading || routeRoomLoading">
     <template v-if="snapshot">
-      <RoomParticle
+      <ParticleStage
         v-if="particleMode"
         :snapshot="snapshot"
         :current="current"

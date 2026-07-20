@@ -17,6 +17,10 @@ let useHuaweiCloud = proxyAddress.includes('huawei');
 let useLocalAudio = true;
 var localAudio: AudioPlayer | null = null;
 
+export function getLocalAudioElement() {
+  return localAudio?.audio || null;
+}
+
 export function setRemoteMode(remote: boolean) {
   useLocalAudio = !remote;
   if (remote) {

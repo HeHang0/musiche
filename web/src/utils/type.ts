@@ -1,6 +1,11 @@
 export type MusicType = 'cloud' | 'qq' | 'migu' | 'local';
 
-export type PlayDetailMode = 'default' | 'lyric' | 'polar-bear' | 'colorful';
+export type PlayDetailMode =
+  | 'default'
+  | 'lyric'
+  | 'particle'
+  | 'polar-bear'
+  | 'colorful';
 
 export enum RankingType {
   Hot = 'hot',
