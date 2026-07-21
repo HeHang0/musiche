@@ -3,10 +3,12 @@ const open = defineModel<boolean>({ required: true });
 const props = withDefaults(
   defineProps<{
     embedded?: boolean;
+    raised?: boolean;
     visible?: boolean;
   }>(),
   {
     embedded: false,
+    raised: false,
     visible: true
   }
 );
@@ -22,6 +24,7 @@ const props = withDefaults(
     class="particle-console-wrap particle-stage-floating-ui"
     :class="{
       'is-embedded': props.embedded,
+      'is-raised': props.raised,
       'is-hidden': !props.visible
     }"
     @pointerdown.stop
@@ -53,7 +56,7 @@ const props = withDefaults(
   opacity: 1;
   transition: opacity 0.38s ease;
 }
-.particle-console-wrap.is-embedded {
+.particle-console-wrap.is-raised {
   bottom: 100px;
 }
 .particle-console-wrap.is-hidden {

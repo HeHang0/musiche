@@ -158,6 +158,7 @@ watch(() => play.playDetailShow, setTheme);
 <template>
   <el-drawer
     class="music-play-detail"
+    modal-class="music-play-detail-modal"
     v-model="play.playDetailShow"
     direction="btt"
     :with-header="false">
@@ -250,6 +251,20 @@ watch(() => play.playDetailShow, setTheme);
   justify-content: space-between;
   --music-slider-color-start: rgba(92, 213, 229, 0);
   --music-slider-color-end: rgba(92, 213, 229, 1);
+
+  :deep(.particle-console-wrap.is-raised) {
+    bottom: unset;
+    top: 23px;
+    left: 130px;
+    right: unset;
+    .particle-console-fab {
+      border-radius: var(--music-border-radius);
+      border: 1px solid var(--music-button-info-border-color);
+      width: 35px;
+      height: 35px;
+      color: white;
+    }
+  }
 }
 
 .music-play-detail {

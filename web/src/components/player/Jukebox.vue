@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { usePlayStore } from '../../stores/play';
 import { LogoImage } from '../../utils/logo';
-const play = usePlayStore();
+import { usePlaybackController } from './playbackContext';
+const play = usePlaybackController();
 let touching = false;
 function onTouchStart() {
   touching = true;

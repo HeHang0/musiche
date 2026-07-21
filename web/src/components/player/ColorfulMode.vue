@@ -5,9 +5,9 @@ import Disc2Image from '../../assets/images/disc3.png';
 import SmokeVideo from '../../assets/videos/smoke.webm';
 import SmokeRingVideo from '../../assets/videos/smoke-ring.webm';
 import { LogoImage } from '../../utils/logo';
-import { usePlayStore } from '../../stores/play';
 import { useSettingStore } from '../../stores/setting';
 import { isIOS } from '@vueuse/core';
+import { usePlaybackController } from './playbackContext';
 interface Props {
   tools?: boolean;
 }
@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 let colorBase = 0;
-const play = usePlayStore();
+const play = usePlaybackController();
 const setting = useSettingStore();
 const themeColor = ref('rgb(179, 89, 89)');
 function changeColor() {
@@ -61,21 +61,27 @@ function setColor(
   themeColor.value = `rgb(${rBase + r}, ${gBase + g}, ${bBase + b})`;
 }
 let colorInterval: any = null;
+let videoReadyTimer: ReturnType<typeof setTimeout> | null = null;
 onMounted(() => {
-  setTimeout(() => {
+  videoReadyTimer = setTimeout(() => {
     const videos = document.getElementsByClassName(
       'music-mode-colorful-video'
     ) as HTMLCollectionOf<HTMLVideoElement>;
     const v1 = videos[0];
     const v2 = videos[1];
-    v1?.play();
-    v1.playbackRate = 0.8;
-    v2.playbackRate = 0.5;
+    if (v1) {
+      void v1.play();
+      v1.playbackRate = 0.8;
+    }
+    if (v2) v2.playbackRate = 0.5;
   }, 5000);
   colorInterval = setInterval(changeColor, 100);
 });
 
-onUnmounted(() => clearInterval(colorInterval));
+onUnmounted(() => {
+  clearInterval(colorInterval);
+  if (videoReadyTimer) clearTimeout(videoReadyTimer);
+});
 </script>
 <template>
   <div

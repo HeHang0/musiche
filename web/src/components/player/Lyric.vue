@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { usePlayStore } from '../../stores/play';
 import { Ref, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { clearArray } from '../../utils/utils';
 import { useRouter } from 'vue-router';
+import { usePlaybackController } from './playbackContext';
 interface Props {
   pure?: boolean;
 }
 const props = withDefaults(defineProps<Props>(), {
   pure: false
 });
-const play = usePlayStore();
+const play = usePlaybackController();
 const musicLyric: Ref<string[]> = ref([]);
 const currentLine: Ref<number> = ref(0);
 const lyricContainer: Ref<HTMLDivElement | null> = ref(null);

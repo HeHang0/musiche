@@ -52,11 +52,15 @@ const props = withDefaults(
     avatarResolver?: (memberId: string, avatar?: string) => string;
     songPickerOpen?: boolean;
     embedded?: boolean;
+    roomControls?: boolean;
+    consoleRaised?: boolean;
     showCards?: boolean;
     controlsVisible?: boolean;
   }>(),
   {
     embedded: false,
+    roomControls: false,
+    consoleRaised: true,
     showCards: true,
     controlsVisible: true
   }
@@ -2185,7 +2189,7 @@ onUnmounted(() => {
       </header>
 
       <button
-        v-if="!embedded && activePanel !== 'queue'"
+        v-if="roomControls && activePanel !== 'queue'"
         class="edge-button edge-left particle-stage-floating-ui"
         type="button"
         @pointerdown.stop
@@ -2196,7 +2200,7 @@ onUnmounted(() => {
         }}</i>
       </button>
       <button
-        v-if="!embedded && activePanel !== 'chat'"
+        v-if="roomControls && activePanel !== 'chat'"
         class="edge-button edge-right particle-stage-floating-ui"
         type="button"
         @pointerdown.stop
@@ -2208,7 +2212,7 @@ onUnmounted(() => {
       </button>
       <button
         v-if="
-          !embedded &&
+          roomControls &&
           !songPickerOpen &&
           (snapshot.isAdmin || snapshot.allowGuestQueue)
         "
@@ -2433,6 +2437,7 @@ onUnmounted(() => {
       <ParticleVisualConsole
         v-model="settingsOpen"
         :embedded="embedded"
+        :raised="consoleRaised"
         :visible="!floatingControlsHidden">
         <div class="particle-stage-settings">
           <div class="fx-head">

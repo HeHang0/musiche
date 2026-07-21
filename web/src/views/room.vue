@@ -35,14 +35,14 @@ import {
   millisecond2Duration,
   parseLyric
 } from '../utils/utils';
-import ParticleStage from '../components/particle/ParticleStage.vue';
+import RoomPlayDetail from '../components/room/RoomPlayDetail.vue';
 
 const roomStore = useRoomStore();
 const playStore = usePlayStore();
 const settingStore = useSettingStore();
 const route = useRoute();
 const router = useRouter();
-const particleMode = ref(false);
+const roomPlayDetailVisible = ref(false);
 const roomCredentialsKey = 'musiche-room-credentials';
 type RoomCredential = string | { entryPassword?: string };
 
@@ -313,9 +313,14 @@ function currentPosition() {
   );
 }
 
-function toggleParticleMode() {
-  particleMode.value = !particleMode.value;
+function openRoomPlayDetail() {
+  startPlayCheck();
+  roomPlayDetailVisible.value = true;
 }
+
+const roomParticleDetailActive = computed(
+  () => roomPlayDetailVisible.value && playStore.playerMode === 'particle'
+);
 
 function changeProgress(value: number) {
   progressDragging.value = false;
@@ -468,11 +473,10 @@ function routeQueryValue(key: string) {
   return typeof value === 'string' ? value : '';
 }
 
-async function copyRoomLink(particle = false) {
+async function copyRoomLink() {
   if (!snapshot.value) return;
   const link = new URL(
-    router.resolve(roomPath(snapshot.value.room.id)).href +
-      (particle ? '?particle=1' : ''),
+    router.resolve(roomPath(snapshot.value.room.id)).href,
     location.origin
   ).toString();
   try {
@@ -494,7 +498,6 @@ async function pauseOriginalPlayer() {
 }
 
 async function openRouteRoom() {
-  particleMode.value = routeQueryValue('particle') === '1';
   const routeID = typeof route.params.id === 'string' ? route.params.id : '';
   const legacyID = routeQueryValue('room');
   if (!routeID && legacyID) {
@@ -1074,40 +1077,7 @@ onUnmounted(() => {
     class="music-room"
     v-loading="!loaded || roomStore.loading || routeRoomLoading">
     <template v-if="snapshot">
-      <ParticleStage
-        v-if="particleMode"
-        :snapshot="snapshot"
-        :current="current"
-        :lyric="currentRoomLyric"
-        :lyrics-text="currentRoomLyricsText"
-        :position="currentPosition()"
-        :duration="playbackLength"
-        :volume="roomStore.volume"
-        :playing="Boolean(playback?.playing && roomStore.localPlaying)"
-        :audio="roomStore.audio"
-        :current-avatar="selectedAvatar"
-        :avatar-resolver="chatAvatar"
-        :song-picker-open="searchVisible"
-        :chat-messages="roomStore.chatMessages"
-        @close="toggleParticleMode"
-        @share="copyRoomLink(true)"
-        @toggle-play="roomStore.togglePlayerAction"
-        @next="roomStore.next"
-        @toggle-random="roomStore.toggleRandomPlayback"
-        @seek="roomStore.seek"
-        @set-volume="roomStore.setVolume"
-        @resume="roomStore.resumeAudio"
-        @remove-queue="removeQueue"
-        @pin-queue="roomStore.togglePinQueue"
-        @add-queue="roomStore.addQueue"
-        @pat-member="patMember"
-        @edit-profile="openNicknameDialog"
-        @request-song="openSearchDrawer"
-        @send-chat="roomStore.chat" />
-      <section
-        v-if="!particleMode"
-        class="music-room-active"
-        @click="startPlayCheck">
+      <section class="music-room-active" @click="startPlayCheck">
         <header class="music-room-active-header">
           <div class="music-room-active-header-title">
             <span class="music-icon" @click="leaveRoom">左</span>
@@ -1126,14 +1096,7 @@ onUnmounted(() => {
             </span>
           </div>
           <div class="music-room-active-header-actions">
-            <el-button
-              class="music-room-active-particle-button"
-              type="primary"
-              @click="toggleParticleMode"
-              style="background: #00a5c2">
-              {{ particleMode ? '退出沉浸' : '沉浸模式' }}
-            </el-button>
-            <el-button :icon="Share" type="success" @click="copyRoomLink(false)"
+            <el-button :icon="Share" type="success" @click="copyRoomLink"
               >分享</el-button
             >
             <el-button :icon="Setting" @click="openSettings">设置</el-button>
@@ -1260,7 +1223,14 @@ onUnmounted(() => {
 
           <section class="music-room-control">
             <div class="music-room-player">
-              <div class="music-room-player-image">
+              <div
+                class="music-room-player-image"
+                role="button"
+                tabindex="0"
+                title="打开播放详情"
+                @click.stop="openRoomPlayDetail"
+                @keydown.enter.stop="openRoomPlayDetail"
+                @keydown.space.prevent.stop="openRoomPlayDetail">
                 <img
                   class="music-room-player-image-disc rotation-animation"
                   :class="
@@ -1481,6 +1451,36 @@ onUnmounted(() => {
           <span>♪</span>点歌
         </el-button>
       </section>
+      <RoomPlayDetail
+        v-model="roomPlayDetailVisible"
+        :snapshot="snapshot"
+        :current="current"
+        :lyric="currentRoomLyric"
+        :lyrics-text="currentRoomLyricsText"
+        :position="currentPosition()"
+        :duration="playbackLength"
+        :volume="roomStore.volume"
+        :playing="Boolean(playback?.playing && roomStore.localPlaying)"
+        :loading="playLoading"
+        :audio="roomStore.audio"
+        :current-avatar="selectedAvatar"
+        :avatar-resolver="chatAvatar"
+        :song-picker-open="searchVisible"
+        :chat-messages="roomStore.chatMessages"
+        @share="copyRoomLink"
+        @toggle-play="roomStore.togglePlayerAction"
+        @next="roomStore.next"
+        @toggle-random="roomStore.toggleRandomPlayback"
+        @seek="roomStore.seek"
+        @set-volume="roomStore.setVolume"
+        @resume="roomStore.resumeAudio"
+        @remove-queue="removeQueue"
+        @pin-queue="roomStore.togglePinQueue"
+        @add-queue="roomStore.addQueue"
+        @pat-member="patMember"
+        @edit-profile="openNicknameDialog"
+        @request-song="openSearchDrawer"
+        @send-chat="roomStore.chat" />
     </template>
 
     <el-dialog
@@ -1629,19 +1629,19 @@ onUnmounted(() => {
 
     <el-drawer
       v-model="searchVisible"
-      :direction="particleMode ? 'btt' : 'rtl'"
-      :size="particleMode ? '50%' : 'min(520px, 100%)'"
+      :direction="roomParticleDetailActive ? 'btt' : 'rtl'"
+      :size="roomParticleDetailActive ? '50%' : 'min(520px, 100%)'"
       :with-header="false"
       append-to-body
       :class="[
         'music-room-search-drawer',
-        { 'music-room-search-drawer-particle': particleMode }
+        { 'music-room-search-drawer-particle': roomParticleDetailActive }
       ]"
       @close="backToPlaylistSearch">
       <div class="music-room-search-drawer-content" @click="startPlayCheck">
         <div class="music-room-search-head">
           <div class="music-room-search-title">
-            <small v-if="particleMode">SONG REQUEST</small>
+            <small v-if="roomParticleDetailActive">SONG REQUEST</small>
             <h2>{{ playlistTitle || '点歌' }}</h2>
           </div>
           <button
@@ -1649,7 +1649,9 @@ onUnmounted(() => {
             type="button"
             title="关闭"
             @click="closeSearchDrawer">
-            <span class="music-icon">{{ particleMode ? '×' : '关' }}</span>
+            <span class="music-icon">{{
+              roomParticleDetailActive ? '×' : '关'
+            }}</span>
           </button>
         </div>
         <div v-if="!playlistTitle" class="music-room-search-input">
@@ -1789,28 +1791,6 @@ onUnmounted(() => {
         align-items: center;
         gap: 8px;
         white-space: nowrap;
-      }
-    }
-    &-particle-button {
-      position: relative;
-      overflow: visible;
-      &::before {
-        content: 'BETA';
-        position: absolute;
-        z-index: 1;
-        top: -9px;
-        right: -10px;
-        padding: 1px 5px;
-        border: 1px solid rgba(255, 255, 255, 0.55);
-        border-radius: 999px;
-        color: #fff;
-        background: linear-gradient(135deg, #7868ff, #df63c4);
-        box-shadow: 0 3px 9px rgba(79, 55, 178, 0.28);
-        font-size: 8px;
-        font-weight: 700;
-        line-height: 13px;
-        letter-spacing: 0.4px;
-        pointer-events: none;
       }
     }
     &-main {
@@ -2074,6 +2054,18 @@ onUnmounted(() => {
       align-items: center;
       justify-content: center;
       position: relative;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: filter 0.2s ease;
+      &:hover,
+      &:focus-visible {
+        filter: brightness(1.12) drop-shadow(0 0 12px rgba(108, 218, 238, 0.22));
+      }
+      &:focus-visible {
+        outline: 2px solid
+          color-mix(in srgb, var(--music-primary-color) 72%, transparent);
+        outline-offset: 4px;
+      }
       img {
         border-radius: 50%;
         object-fit: cover;

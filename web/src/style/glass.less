@@ -185,7 +185,7 @@ html.glass {
     }
   }
 
-  .el-drawer:not(.music-play-detail) {
+  .el-drawer:not(.music-play-detail, .room-play-detail) {
     margin: var(--music-flex-gap);
     border: 1px solid var(--music-side-divider-color);
     border-radius: var(--music-border-radius);
@@ -198,7 +198,7 @@ html.glass {
 
   .el-dialog,
   .el-message-box,
-  .el-drawer:not(.music-room-search-drawer-particle),
+  .el-drawer:not(.music-room-search-drawer-particle, .music-play-detail, .room-play-detail),
   .el-dropdown-menu,
   .el-select-dropdown {
     background: rgba(239, 247, 255, 0.72) !important;
@@ -208,7 +208,7 @@ html.glass {
     backdrop-filter: blur(28px) saturate(140%);
   }
 
-  .el-overlay {
+  .el-overlay:not(.music-play-detail-modal) {
     background: rgba(113, 139, 166, 0.12) !important;
     -webkit-backdrop-filter: blur(5px);
     backdrop-filter: blur(5px);

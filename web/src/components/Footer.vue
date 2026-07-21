@@ -1,15 +1,40 @@
 <script setup lang="ts">
-import { usePlayStore } from '../stores/play';
+import { computed } from 'vue';
 import { SortType } from '../utils/type';
 import { LogoImage } from '../utils/logo';
 import { isMobile } from '../utils/utils';
+import { usePlaybackController } from './player/playbackContext';
+
+interface FooterCapabilities {
+  favorite?: boolean;
+  sort?: boolean;
+  previous?: boolean;
+  play?: boolean;
+  next?: boolean;
+  desktopLyric?: boolean;
+  queue?: boolean;
+  volume?: boolean;
+}
+
 interface Props {
   full?: boolean;
+  capabilities?: FooterCapabilities;
 }
 const props = withDefaults(defineProps<Props>(), {
-  full: false
+  full: false,
+  capabilities: () => ({})
 });
-const play = usePlayStore();
+const play = usePlaybackController();
+const capabilities = computed(() => ({
+  favorite: props.capabilities.favorite !== false,
+  sort: props.capabilities.sort !== false,
+  previous: props.capabilities.previous !== false,
+  play: props.capabilities.play !== false,
+  next: props.capabilities.next !== false,
+  desktopLyric: props.capabilities.desktopLyric !== false,
+  queue: props.capabilities.queue !== false,
+  volume: props.capabilities.volume !== false
+}));
 </script>
 <template>
   <el-footer
@@ -18,13 +43,19 @@ const play = usePlayStore();
     <div class="music-footer-layout">
       <div v-if="props.full" class="music-footer-layout-left">
         <span
+          v-if="
+            capabilities.favorite &&
+            play.myLover[play.music.type + play.music.id]
+          "
           class="music-icon"
           style="color: red"
-          v-if="play.myLover[play.music.type + play.music.id]"
           @click="play.addMyLove([play.music], true)">
           爱
         </span>
-        <span class="music-icon" v-else @click="play.addMyLove([play.music])">
+        <span
+          v-else-if="capabilities.favorite"
+          class="music-icon"
+          @click="play.addMyLove([play.music])">
           恨
         </span>
         <span class="music-footer-second-text">
@@ -61,38 +92,42 @@ const play = usePlayStore();
       <div class="music-footer-layout-center">
         <div class="music-footer-layout-center-operate">
           <span
-            v-if="play.sortType == SortType.Order"
+            v-if="capabilities.sort && play.sortType == SortType.Order"
             class="music-icon"
             title="顺序播放"
             @click="play.setSortType(SortType.Random)">
             顺
           </span>
           <span
-            v-else-if="play.sortType == SortType.Random"
+            v-else-if="capabilities.sort && play.sortType == SortType.Random"
             class="music-icon"
             title="随机播放"
             @click="play.setSortType(SortType.Single)">
             随
           </span>
           <span
-            v-else-if="play.sortType == SortType.Single"
+            v-else-if="capabilities.sort && play.sortType == SortType.Single"
             class="music-icon"
             title="单曲循环"
             @click="play.setSortType(SortType.Loop)">
             单
           </span>
           <span
-            v-else
+            v-else-if="capabilities.sort"
             class="music-icon"
             title="列表循环"
             @click="play.setSortType(SortType.Order)">
             环
           </span>
-          <span class="music-icon opacity-8" @click="play.last" title="上一首">
+          <span
+            v-if="capabilities.previous"
+            class="music-icon opacity-8"
+            @click="play.last"
+            title="上一首">
             前
           </span>
           <span
-            v-if="play.playStatus.playing"
+            v-if="capabilities.play && play.playStatus.playing"
             class="music-icon music-footer-play"
             :class="play.playStatus.loading ? 'music-footer-play-loading' : ''"
             title="暂停"
@@ -100,17 +135,22 @@ const play = usePlayStore();
             停
           </span>
           <span
-            v-else
+            v-else-if="capabilities.play"
             class="music-icon music-footer-play"
             :class="play.playStatus.loading ? 'music-footer-play-loading' : ''"
             @click="play.play()"
             title="播放">
             播
           </span>
-          <span class="music-icon" @click="play.next()" title="下一首">
+          <span
+            v-if="capabilities.next"
+            class="music-icon"
+            @click="play.next()"
+            title="下一首">
             后
           </span>
           <span
+            v-if="capabilities.desktopLyric"
             class="music-icon"
             @click="play.showDesktopLyric(!play.desktopLyricShow)"
             title="桌面歌词"
@@ -140,6 +180,7 @@ const play = usePlayStore();
       </div>
       <div class="music-footer-layout-right">
         <el-popover
+          v-if="capabilities.queue"
           :visible="play.currentListPopover.show"
           placement="bottom"
           width="130"
@@ -155,7 +196,8 @@ const play = usePlayStore();
             </span>
           </template>
         </el-popover>
-        <template v-if="!isMobile || !play.config.remote">
+        <template
+          v-if="capabilities.volume && (!isMobile || !play.config.remote)">
           <el-popover
             placement="top"
             :width="30"
@@ -243,6 +285,7 @@ const play = usePlayStore();
     background-color: rgba(255, 255, 255, 0.1);
     color: white;
     border-top: none;
+    backdrop-filter: none !important;
     .music-footer-play {
       background-color: rgba(255, 255, 255, 0.1);
     }
@@ -261,6 +304,9 @@ const play = usePlayStore();
     &-left {
       .music-footer-second-text {
         margin-left: 20px;
+        &:first-child {
+          margin-left: 0;
+        }
       }
     }
     &-left,

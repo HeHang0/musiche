@@ -6,10 +6,10 @@ import PausedVideo from '../../assets/videos/paused.webm';
 import PlayVideo from '../../assets/videos/play-start.webm';
 import PlayingVideo from '../../assets/videos/playing.webm';
 import { LogoImage } from '../../utils/logo';
-import { usePlayStore } from '../../stores/play';
 import { Ref, onMounted, onUnmounted, ref, watch } from 'vue';
 import Lyric from './Lyric.vue';
 import Snowflakes from 'magic-snowflakes';
+import { usePlaybackController } from './playbackContext';
 
 interface Props {
   tools?: boolean;
@@ -25,7 +25,7 @@ let getSnowflakes = async () => {
   return result;
 };
 
-const play = usePlayStore();
+const play = usePlaybackController();
 const videoSrc = ref(play.playStatus.playing ? PlayingVideo : PausedVideo);
 const videoLoop = ref(true);
 const lyricLine = ref('');
