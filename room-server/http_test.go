@@ -160,6 +160,44 @@ func TestRoomHTTPFlow(t *testing.T) {
 	}
 }
 
+func TestSuperAdminPasswordCanJoinLockedRoom(t *testing.T) {
+	store, err := newRoomStore(Config{
+		DataDir: t.TempDir(), MaxRooms: 50, MaxMembersPerRoom: 30,
+		EmptyTTL: 30 * time.Minute, MaxChatMessages: 500,
+		TokenSecret:        []byte("test-token-secret-test-token-secret"),
+		SuperAdminPassword: "super-room-password",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := (&server{store: store}).routes()
+	createBody, _ := json.Marshal(CreateRoomRequest{
+		Name: "加锁房间", Nickname: "房主", VisitorID: "owner", Fingerprint: "owner-browser",
+		EntryPassword: "entry-password", AdminPassword: "administrator-password",
+	})
+	create := httptest.NewRecorder()
+	handler.ServeHTTP(create, httptest.NewRequest(http.MethodPost, "/api/v1/rooms", bytes.NewReader(createBody)))
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create status: %d, body: %s", create.Code, create.Body.String())
+	}
+	var created struct {
+		Snapshot Snapshot `json:"snapshot"`
+	}
+	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	joinBody, _ := json.Marshal(JoinRequest{
+		Nickname: "超级管理员", VisitorID: "super-admin", Fingerprint: "super-admin-browser",
+		EntryPassword: "super-room-password",
+	})
+	join := httptest.NewRecorder()
+	handler.ServeHTTP(join, httptest.NewRequest(http.MethodPost, "/api/v1/rooms/"+created.Snapshot.Room.ID+"/join", bytes.NewReader(joinBody)))
+	if join.Code != http.StatusOK {
+		t.Fatalf("super admin join status: %d, body: %s", join.Code, join.Body.String())
+	}
+}
+
 func TestProxyRoute(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")

@@ -7,6 +7,10 @@ import { currentRoomKey, useRoomStore } from '../stores/room';
 import { usePlayStore } from '../stores/play';
 import { RoomRequestError } from '../utils/room';
 import { messageOption } from '../utils/utils';
+import {
+  generateRoomChatKey,
+  roomChatKeyHash
+} from '../utils/room-chat-crypto';
 
 const roomStore = useRoomStore();
 const playStore = usePlayStore();
@@ -29,7 +33,13 @@ const joinLoading = ref(false);
 const targetRoomId = ref('');
 const nickname = ref(localStorage.getItem('musiche-room-nickname') || '');
 const joinPassword = ref('');
-const createForm = ref({ name: '', entryPassword: '', adminPassword: '' });
+const createForm = ref({
+  name: '',
+  entryPassword: '',
+  adminPassword: '',
+  chatEncrypted: false
+});
+const targetRoomEncrypted = ref(false);
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
 function roomPath(roomId: string) {
@@ -117,7 +127,8 @@ function openCreate() {
   createForm.value = {
     name: '',
     entryPassword: '',
-    adminPassword: generatePassword()
+    adminPassword: generatePassword(),
+    chatEncrypted: false
   };
   createVisible.value = true;
 }
@@ -129,15 +140,20 @@ async function createRoom() {
   }
   createLoading.value = true;
   try {
+    const chatKey = createForm.value.chatEncrypted ? generateRoomChatKey() : '';
     await roomStore.create({
       ...createForm.value,
-      nickname: nickname.value.trim()
+      nickname: nickname.value.trim(),
+      chatKey
     });
     await pauseOriginalPlayer();
     localStorage.setItem('musiche-room-nickname', nickname.value.trim());
     if (roomStore.room) {
       saveRoomCredential(roomStore.room.id, createForm.value.entryPassword);
-      await router.replace(roomPath(roomStore.room.id));
+      await router.replace({
+        path: roomPath(roomStore.room.id),
+        hash: roomChatKeyHash(chatKey)
+      });
     }
   } catch (error: any) {
     ElMessage(messageOption(error?.message || '创建歌房失败'));
@@ -148,8 +164,9 @@ async function createRoom() {
 
 async function openJoin(room: any) {
   targetRoomId.value = room.id;
+  targetRoomEncrypted.value = Boolean(room.chatEncrypted);
   const saved = getRoomCredential(room.id);
-  if (saved !== null) {
+  if (saved !== null && !targetRoomEncrypted.value) {
     joinPassword.value = saved;
     await joinRoom(true);
     return;
@@ -272,7 +289,9 @@ watch(keyword, () => {
         </el-empty>
         <article v-for="item in rooms" :key="item.id" class="music-room-card">
           <div class="music-room-card-title">
-            <span class="text-overflow-1">{{ item.name }}</span
+            <span class="text-overflow-1">{{ item.name }}</span>
+            <small v-if="item.chatEncrypted" class="music-room-card-encrypted">
+              端到端加密聊天 </small
             ><el-icon><Lock v-if="item.locked" /><Unlock v-else /></el-icon>
           </div>
           <div>{{ item.onlineCount }} / {{ item.maxMembers }} 人在线</div>
@@ -327,6 +346,19 @@ watch(keyword, () => {
               知道管理员密码的人都能控制播放、改设置或解散房间。
             </p></el-form-item
           >
+          <el-form-item label="聊天隐私">
+            <el-switch
+              v-model="createForm.chatEncrypted"
+              :disabled="!roomStore.config?.chatEncryptionSupported"
+              active-text="端到端加密聊天" />
+            <p class="music-room-dialog-tip">
+              {{
+                roomStore.config?.chatEncryptionSupported
+                  ? '密钥只保存在完整邀请链接的 #key 中，服务器无法解密聊天内容。'
+                  : '暂不可用端到端加密。'
+              }}
+            </p>
+          </el-form-item>
         </el-form>
         <template #footer
           ><el-button @click="createVisible = false">取消</el-button
@@ -343,16 +375,21 @@ watch(keyword, () => {
         title="进入歌房"
         width="400px"
         append-to-body>
-        <el-form label-position="top"
-          ><el-form-item label="昵称"
-            ><el-input v-model="nickname" maxlength="24" /></el-form-item
-          ><el-form-item label="房间密码"
-            ><el-input
+        <el-form label-position="top">
+          <el-form-item label="昵称">
+            <el-input v-model="nickname" maxlength="24" />
+          </el-form-item>
+          <el-form-item label="房间密码">
+            <el-input
               v-model="joinPassword"
               type="password"
               show-password
-              placeholder="公开房间可留空" /></el-form-item
-        ></el-form>
+              placeholder="公开房间可留空" />
+          </el-form-item>
+          <p v-if="targetRoomEncrypted" class="music-room-dialog-tip">
+            此房间聊天已端到端加密。通过大厅进入时没有聊天密钥，需使用房主分享的完整邀请链接才能查看和发送消息。
+          </p>
+        </el-form>
         <template #footer
           ><el-button @click="joinVisible = false">取消</el-button
           ><el-button type="primary" :loading="joinLoading" @click="joinRoom()"
@@ -439,6 +476,16 @@ watch(keyword, () => {
   p {
     margin: 0;
     opacity: 0.65;
+  }
+  .music-room-card-encrypted {
+    width: fit-content;
+    padding: 1px 5px;
+    border: 1px solid
+      color-mix(in srgb, var(--music-primary-color) 28%, transparent);
+    border-radius: 999px;
+    color: var(--music-primary-color);
+    background: color-mix(in srgb, var(--music-primary-color) 9%, transparent);
+    font-size: 10px;
   }
   .el-button {
     align-self: flex-end;

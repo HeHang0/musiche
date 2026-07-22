@@ -31,7 +31,7 @@ func TestRoomPersistenceAndIdentity(t *testing.T) {
 	if current == nil || current.Name != "测试歌房" {
 		t.Fatal("room was not found through its persisted browser identity")
 	}
-	if _, err := room.join("visitor-2", "browser-2", "小红", ""); err != nil {
+	if _, err := room.join("visitor-2", "browser-2", "小红", "", ""); err != nil {
 		t.Fatal(err)
 	}
 	if got := room.config.Members[fingerprintHash("visitor-2", "browser-2")].Nickname; got != "小红" {
@@ -139,13 +139,13 @@ func TestRoomJoinChecksEntryPasswordForKnownMembers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := room.join("visitor", "browser", "访客", "wrong-password"); err == nil {
+	if _, err := room.join("visitor", "browser", "访客", "wrong-password", ""); err == nil {
 		t.Fatal("a wrong entry password must be rejected for a new member")
 	}
-	if _, err := room.join("visitor", "browser", "访客", "entry-password"); err != nil {
+	if _, err := room.join("visitor", "browser", "访客", "entry-password", ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := room.join("visitor", "browser", "访客", "wrong-password"); err == nil {
+	if _, err := room.join("visitor", "browser", "访客", "wrong-password", ""); err == nil {
 		t.Fatal("a wrong entry password must be rejected for a known member")
 	}
 	if _, err := room.connectMember(fingerprintHash("visitor", "browser")); err != nil {

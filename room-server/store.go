@@ -82,6 +82,9 @@ func newRoomStore(config Config) (*RoomStore, error) {
 	if config.MaxChatImageBytes <= 0 {
 		config.MaxChatImageBytes = 512 * 1024
 	}
+	if config.MaxEncryptedChatBytes <= 0 {
+		config.MaxEncryptedChatBytes = 1024 * 1024
+	}
 	if config.AudioCacheTTL <= 0 {
 		config.AudioCacheTTL = 5 * time.Minute
 	}
@@ -179,7 +182,7 @@ func (s *RoomStore) createRoom(request CreateRoomRequest) (*Room, string, error)
 	}
 	now := time.Now().UTC()
 	room := &Room{
-		config:      RoomConfig{ID: roomID, Name: name, AdminPasswordHash: hashPassword(request.AdminPassword), AdminVersion: 1, MaxMembers: s.config.MaxMembersPerRoom, CreatedAt: now, Members: map[string]Member{}, Credentials: map[string]SecretInfo{}},
+		config:      RoomConfig{ID: roomID, Name: name, ChatEncrypted: request.ChatEncrypted, AdminPasswordHash: hashPassword(request.AdminPassword), AdminVersion: 1, MaxMembers: s.config.MaxMembersPerRoom, CreatedAt: now, Members: map[string]Member{}, Credentials: map[string]SecretInfo{}},
 		state:       RoomState{Version: 1, Queue: []QueueItem{}, History: []QueueItem{}, Playback: PlaybackState{UpdatedAt: now}},
 		connections: map[*RoomConnection]struct{}{},
 		path:        filepath.Join(s.config.DataDir, roomID),
@@ -298,7 +301,7 @@ func (s *RoomStore) removeExpiredRooms() {
 	}
 }
 
-func (r *Room) join(visitorID, fingerprint, nickname, entryPassword string) (string, error) {
+func (r *Room) join(visitorID, fingerprint, nickname, entryPassword, superAdminPassword string) (string, error) {
 	memberID := fingerprintHash(visitorID, fingerprint)
 	nickname = sanitizeName(nickname, 24)
 	if strings.TrimSpace(visitorID) == "" || strings.TrimSpace(fingerprint) == "" || nickname == "" {
@@ -308,7 +311,9 @@ func (r *Room) join(visitorID, fingerprint, nickname, entryPassword string) (str
 	defer r.mu.Unlock()
 	member, known := r.config.Members[memberID]
 	if r.config.EntryPasswordHash != "" && !verifyPassword(r.config.EntryPasswordHash, entryPassword) {
-		return "", errors.New("房间密码错误")
+		if superAdminPassword == "" || !constantTimeStringEqual(superAdminPassword, entryPassword) {
+			return "", errors.New("房间密码错误")
+		}
 	}
 	if !known {
 		now := time.Now().UTC()
@@ -353,7 +358,7 @@ func (r *Room) summaryLocked() RoomSummary {
 		item := r.state.Current.Music
 		current = &item
 	}
-	return RoomSummary{ID: r.config.ID, Name: r.config.Name, Locked: r.config.EntryPasswordHash != "", OnlineCount: len(r.connections), MaxMembers: r.config.MaxMembers, CurrentMusic: current, CreatedAt: r.config.CreatedAt}
+	return RoomSummary{ID: r.config.ID, Name: r.config.Name, Locked: r.config.EntryPasswordHash != "", ChatEncrypted: r.config.ChatEncrypted, OnlineCount: len(r.connections), MaxMembers: r.config.MaxMembers, CurrentMusic: current, CreatedAt: r.config.CreatedAt}
 }
 
 func (r *Room) snapshotLocked(memberID, token string, secret []byte) Snapshot {
@@ -420,4 +425,5 @@ type CreateRoomRequest struct {
 	Nickname      string `json:"nickname"`
 	VisitorID     string `json:"visitorId"`
 	Fingerprint   string `json:"fingerprint"`
+	ChatEncrypted bool   `json:"chatEncrypted"`
 }

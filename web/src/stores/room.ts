@@ -15,11 +15,19 @@ import {
   type RoomSummary
 } from '../utils/room';
 import { RoomRealtimeTransport } from '../utils/room-transport';
+import {
+  decryptRoomChatPayload,
+  encryptRoomChatPayload,
+  normalizeRoomChatKey,
+  rememberedRoomChatKey,
+  rememberRoomChatKey
+} from '../utils/room-chat-crypto';
 
 export const currentRoomKey = 'musiche-room-current-id';
 const adminTokensKey = 'musiche-room-admin-tokens';
 const roomVolumeKey = 'musiche-room-volume';
 const title = useTitle();
+let chatReceiveQueue = Promise.resolve();
 
 function readAdminTokens(): Record<string, string> {
   try {
@@ -69,11 +77,18 @@ export const useRoomStore = defineStore('room', {
     adminCookieSyncing: false,
     syncingAudio: false,
     audioSyncPending: false,
+    chatKey: '',
+    chatKeyRoomId: '',
     chatMessages: [] as RoomChatMessage[]
   }),
   getters: {
     room: state => state.snapshot?.room || null,
     isAdmin: state => Boolean(state.snapshot?.isAdmin),
+    hasChatKey: state =>
+      Boolean(
+        state.chatKey &&
+          state.snapshot?.room.id.toUpperCase() === state.chatKeyRoomId
+      ),
     adminToken(state) {
       const id = state.snapshot?.room.id;
       return id ? readAdminTokens()[id] || '' : '';
@@ -153,17 +168,23 @@ export const useRoomStore = defineStore('room', {
       entryPassword: string;
       adminPassword: string;
       nickname: string;
+      chatEncrypted: boolean;
+      chatKey?: string;
     }) {
+      if (payload.chatEncrypted && !this.config?.chatEncryptionSupported)
+        throw new Error('当前歌房服务版本不支持端到端加密，请更新并重启服务');
+      const { chatKey = '', ...request } = payload;
       const response = await roomRequest<{
         snapshot: RoomSnapshot;
         adminToken: string;
         memberToken: string;
       }>('/api/v1/rooms', {
         method: 'POST',
-        body: JSON.stringify({ ...payload, ...this.identity })
+        body: JSON.stringify({ ...request, ...this.identity })
       });
       this.memberToken = response.memberToken;
       this.saveAdminToken(response.snapshot.room.id, response.adminToken);
+      this.setRoomChatKey(response.snapshot.room.id, chatKey);
       this.setSnapshot(response.snapshot);
       this.connect();
     },
@@ -171,6 +192,8 @@ export const useRoomStore = defineStore('room', {
       roomId: string,
       payload: { nickname: string; entryPassword: string }
     ) {
+      if (this.chatKeyRoomId !== roomId.toUpperCase())
+        this.setRoomChatKey(roomId, rememberedRoomChatKey(roomId));
       const token = readAdminTokens()[roomId] || '';
       const response = await roomRequest<{
         snapshot: RoomSnapshot;
@@ -189,6 +212,8 @@ export const useRoomStore = defineStore('room', {
       this.connect();
     },
     async open(roomId: string, connect = true) {
+      if (this.chatKeyRoomId !== roomId.toUpperCase())
+        this.setRoomChatKey(roomId, rememberedRoomChatKey(roomId));
       const token = readAdminTokens()[roomId] || '';
       const query = new URLSearchParams({
         visitorId: this.identity.visitorId,
@@ -221,6 +246,14 @@ export const useRoomStore = defineStore('room', {
       localStorage.setItem(currentRoomKey, snapshot.room.id);
       if (snapshot.isAdmin) void this.syncAdminCookies();
       this.scheduleAudioSync();
+    },
+    setRoomChatKey(roomId: string, key: string) {
+      const normalizedRoomId = roomId.trim().toUpperCase();
+      const normalizedKey = normalizeRoomChatKey(key);
+      this.chatKeyRoomId = normalizedRoomId;
+      this.chatKey = normalizedKey;
+      if (normalizedKey) rememberRoomChatKey(normalizedRoomId, normalizedKey);
+      return Boolean(normalizedKey);
     },
     connect() {
       if (!this.snapshot) return;
@@ -319,7 +352,11 @@ export const useRoomStore = defineStore('room', {
         } else if (event.type === 'chat' && this.snapshot) {
           const chat = event.data as RoomChatMessage;
           if (!this.chatMessages.some(item => item.id === chat.id)) {
-            this.chatMessages.push(chat);
+            if (chat.encrypted) {
+              chatReceiveQueue = chatReceiveQueue
+                .then(() => this.receiveEncryptedChatMessage(chat))
+                .catch(() => {});
+            } else this.chatMessages.push(chat);
           }
         } else if (event.type === 'audio_ready' && this.snapshot) {
           const active = this.snapshot.state.current;
@@ -376,10 +413,48 @@ export const useRoomStore = defineStore('room', {
       }
       return '';
     },
+    async receiveEncryptedChatMessage(chat: RoomChatMessage) {
+      const roomId = this.snapshot?.room.id;
+      if (!roomId || !chat.encrypted) return;
+      const appendMessage = (changes: Partial<RoomChatMessage>) => {
+        if (
+          this.snapshot?.room.id !== roomId ||
+          this.chatMessages.some(item => item.id === chat.id)
+        )
+          return;
+        this.chatMessages.push({ ...chat, ...changes });
+      };
+      if (!this.hasChatKey) {
+        appendMessage({
+          content: '🔒 需要包含聊天密钥的邀请链接才能查看此消息',
+          image: '',
+          decryptionFailed: true
+        });
+        return;
+      }
+      try {
+        const payload = await decryptRoomChatPayload(
+          roomId,
+          this.chatKey,
+          chat.encrypted
+        );
+        appendMessage({
+          content: payload.content,
+          image: payload.image,
+          decryptionFailed: false
+        });
+      } catch {
+        appendMessage({
+          content: '🔒 消息解密失败，邀请链接中的密钥可能不正确',
+          image: '',
+          decryptionFailed: true
+        });
+      }
+    },
     command(action: string, data: Record<string, any> = {}) {
       if (!this.transport?.isOpen()) {
         this.lastError = '正在连接歌房服务';
-        return;
+        return false;
       }
       if (
         !this.transport.send({
@@ -390,6 +465,8 @@ export const useRoomStore = defineStore('room', {
         })
       )
         this.lastError = '歌房实时消息发送失败';
+      else return true;
+      return false;
     },
     addQueue(music: Music) {
       this.command('queue_add', { music: { ...music, url: '', lyricUrl: '' } });
@@ -422,8 +499,26 @@ export const useRoomStore = defineStore('room', {
       console.log('[在线歌房] seek', positionMs);
       this.command('seek', { positionMs: Math.round(positionMs) });
     },
-    chat(content: string, image = '', avatar = '') {
-      this.command('chat', { content, image, avatar });
+    async chat(content: string, image = '', avatar = '') {
+      const room = this.snapshot?.room;
+      if (!room) return false;
+      if (!room.chatEncrypted)
+        return this.command('chat', { content, image, avatar });
+      if (!this.hasChatKey) {
+        this.lastError = '当前歌房聊天已端到端加密，请使用完整邀请链接进入';
+        return false;
+      }
+      try {
+        const encrypted = await encryptRoomChatPayload(
+          room.id,
+          this.chatKey,
+          { content, image }
+        );
+        return this.command('chat', { encrypted, avatar });
+      } catch (error: any) {
+        this.lastError = error?.message || '聊天消息加密失败';
+        return false;
+      }
     },
     pat(memberId: string) {
       if (!this.snapshot || memberId === this.snapshot.memberId) return;
@@ -861,6 +956,8 @@ export const useRoomStore = defineStore('room', {
       this.audioNeedsGesture = false;
       this.memberToken = '';
       this.snapshot = null;
+      this.chatKey = '';
+      this.chatKeyRoomId = '';
       this.chatMessages = [];
       this.loadedMusicKey = '';
       this.loadedQueueId = '';

@@ -13,6 +13,7 @@ import (
 )
 
 var builtInChatAvatarName = regexp.MustCompile(`^(?:animal_(?:[1-9]|[12][0-9]|3[0-8])|female_(?:[1-9]|1[0-9]|2[0-6])|male_(?:[1-9]|[12][0-9])|qq_[1-3])\.jpg$`)
+var encryptedChatEnvelope = regexp.MustCompile(`^v1\.[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]+$`)
 
 type RoomConnection struct {
 	id         string
@@ -61,6 +62,7 @@ type ClientCommand struct {
 	MemberID   string `json:"memberId,omitempty"`
 	Content    string `json:"content,omitempty"`
 	Image      string `json:"image,omitempty"`
+	Encrypted  string `json:"encrypted,omitempty"`
 	Avatar     string `json:"avatar,omitempty"`
 }
 
@@ -593,18 +595,34 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 		}
 		return err
 	case "chat":
+		c.room.mu.RLock()
+		chatEncrypted := c.room.config.ChatEncrypted
+		c.room.mu.RUnlock()
+		encrypted := strings.TrimSpace(command.Encrypted)
 		content := sanitizeName(command.Content, c.store.config.MaxChatMessageBytes)
 		image := sanitizeChatImage(command.Image, c.store.config.MaxChatImageBytes)
 		avatar := sanitizeChatAvatar(command.Avatar)
+		if chatEncrypted {
+			if encrypted == "" {
+				return errors.New("当前歌房聊天已端到端加密")
+			}
+			if len(encrypted) > c.store.config.MaxEncryptedChatBytes || !encryptedChatEnvelope.MatchString(encrypted) {
+				return errors.New("聊天密文格式无效或内容过大")
+			}
+			content = ""
+			image = ""
+		} else if encrypted != "" {
+			return errors.New("当前歌房未开启端到端加密")
+		}
 		if strings.TrimSpace(command.Image) != "" && image == "" {
 			return errors.New("图片格式不支持或图片过大")
 		}
-		if content == "" && image == "" {
+		if content == "" && image == "" && encrypted == "" {
 			return nil
 		}
 		c.room.mu.Lock()
 		member := c.room.config.Members[c.memberID]
-		message := ChatMessage{ID: randomID(10), MemberID: c.memberID, Nickname: member.Nickname, Content: content, Image: image, Avatar: avatar, CreatedAt: time.Now().UTC()}
+		message := ChatMessage{ID: randomID(10), MemberID: c.memberID, Nickname: member.Nickname, Content: content, Image: image, Encrypted: encrypted, Avatar: avatar, CreatedAt: time.Now().UTC()}
 		c.room.mu.Unlock()
 		c.broadcast(Event{Type: "chat", Data: message})
 		return nil

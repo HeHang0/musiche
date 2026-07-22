@@ -2,6 +2,18 @@ package main
 
 import "testing"
 
+type recordingRoomEventSender struct {
+	events []Event
+}
+
+func (s *recordingRoomEventSender) Send(event Event) error {
+	s.events = append(s.events, event)
+	return nil
+}
+
+func (s *recordingRoomEventSender) Close() error { return nil }
+func (s *recordingRoomEventSender) Kind() string { return "test" }
+
 func TestSanitizeChatAvatar(t *testing.T) {
 	for _, avatar := range []string{"animal_38.jpg", "female_1.jpg", "male_29.jpg", "qq_3.jpg"} {
 		if got := sanitizeChatAvatar(avatar); got != avatar {
@@ -88,5 +100,47 @@ func TestTrackUnavailableSkipsOnlyNoRightCurrentSong(t *testing.T) {
 	}
 	if len(room.state.History) != 0 {
 		t.Fatalf("unavailable song should not enter history: %#v", room.state.History)
+	}
+}
+
+func TestEncryptedRoomChatOnlyBroadcastsCiphertext(t *testing.T) {
+	memberID := "member-1"
+	recorder := &recordingRoomEventSender{}
+	room := &Room{
+		config: RoomConfig{
+			ID:            "ROOM1",
+			ChatEncrypted: true,
+			Members: map[string]Member{
+				memberID: {ID: memberID, Nickname: "测试成员"},
+			},
+		},
+		connections: map[*RoomConnection]struct{}{},
+		path:        t.TempDir(),
+	}
+	recipient := &RoomConnection{id: "recipient", sender: recorder, room: room, memberID: memberID}
+	room.connections[recipient] = struct{}{}
+	connection := &RoomConnection{
+		room:     room,
+		memberID: memberID,
+		store: &RoomStore{config: Config{
+			MaxChatMessageBytes:   600,
+			MaxChatImageBytes:     512 * 1024,
+			MaxEncryptedChatBytes: 1024 * 1024,
+		}},
+	}
+
+	if err := connection.handle(ClientCommand{Action: "chat", Content: "不应接受的明文"}); err == nil {
+		t.Fatal("encrypted room accepted plaintext chat")
+	}
+	encrypted := "v1.ABCDEFGHIJKLMNOP.ciphertext_123"
+	if err := connection.handle(ClientCommand{Action: "chat", Encrypted: encrypted, Avatar: "qq_1.jpg"}); err != nil {
+		t.Fatalf("encrypted chat failed: %v", err)
+	}
+	if len(recorder.events) != 1 || recorder.events[0].Type != "chat" {
+		t.Fatalf("unexpected encrypted chat events: %#v", recorder.events)
+	}
+	message, ok := recorder.events[0].Data.(ChatMessage)
+	if !ok || message.Encrypted != encrypted || message.Content != "" || message.Image != "" {
+		t.Fatalf("server exposed or changed encrypted payload: %#v", recorder.events[0].Data)
 	}
 }

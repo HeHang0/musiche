@@ -42,7 +42,7 @@ func (s *server) health(w http.ResponseWriter, _ *http.Request) {
 	writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true})
 }
 func (s *server) config(w http.ResponseWriter, _ *http.Request) {
-	writeJSONResponse(w, http.StatusOK, map[string]any{"maxRooms": s.store.config.MaxRooms, "maxMembersPerRoom": s.store.config.MaxMembersPerRoom, "maxQueueItems": s.store.config.MaxQueueItems, "listPageSize": s.store.config.ListPageSize, "listMaxPageSize": s.store.config.ListMaxPageSize, "credentialUploadEnabled": len(s.store.config.CookieKey) > 0, "superAdminEnabled": s.store.config.SuperAdminPassword != ""})
+	writeJSONResponse(w, http.StatusOK, map[string]any{"maxRooms": s.store.config.MaxRooms, "maxMembersPerRoom": s.store.config.MaxMembersPerRoom, "maxQueueItems": s.store.config.MaxQueueItems, "listPageSize": s.store.config.ListPageSize, "listMaxPageSize": s.store.config.ListMaxPageSize, "credentialUploadEnabled": len(s.store.config.CookieKey) > 0, "superAdminEnabled": s.store.config.SuperAdminPassword != "", "chatEncryptionSupported": true})
 }
 func (s *server) emptyConfig(w http.ResponseWriter, _ *http.Request) {
 	writeJSONResponse(w, http.StatusOK, map[string]any{})
@@ -219,7 +219,7 @@ func (s *server) join(w http.ResponseWriter, r *http.Request, room *Room) {
 		writeError(w, 400, "请求格式错误")
 		return
 	}
-	memberID, err := room.join(request.VisitorID, request.Fingerprint, request.Nickname, request.EntryPassword)
+	memberID, err := room.join(request.VisitorID, request.Fingerprint, request.Nickname, request.EntryPassword, s.store.config.SuperAdminPassword)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return
@@ -577,7 +577,7 @@ func positiveInt(value string, fallback int) int {
 }
 func decodeJSON(r *http.Request, target interface{}) error {
 	defer r.Body.Close()
-	return json.NewDecoder(io.LimitReader(r.Body, 1024*1024)).Decode(target)
+	return json.NewDecoder(io.LimitReader(r.Body, 2*1024*1024)).Decode(target)
 }
 func writeJSONResponse(w http.ResponseWriter, status int, value interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

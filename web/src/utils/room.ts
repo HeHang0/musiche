@@ -6,6 +6,7 @@ export interface RoomSummary {
   id: string;
   name: string;
   locked: boolean;
+  chatEncrypted: boolean;
   onlineCount: number;
   maxMembers: number;
   currentMusic?: Music;
@@ -40,6 +41,8 @@ export interface RoomChatMessage {
   nickname: string;
   content: string;
   image?: string;
+  encrypted?: string;
+  decryptionFailed?: boolean;
   avatar?: string;
   system?: boolean;
   createdAt: string;
@@ -71,6 +74,7 @@ export interface RoomServiceConfig {
   listPageSize: number;
   listMaxPageSize: number;
   credentialUploadEnabled: boolean;
+  chatEncryptionSupported?: boolean;
 }
 
 export interface RoomIdentity {

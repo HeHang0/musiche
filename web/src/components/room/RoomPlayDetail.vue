@@ -33,6 +33,8 @@ const props = defineProps<{
   avatarResolver?: (memberId: string, avatar?: string) => string;
   songPickerOpen?: boolean;
   chatMessages: RoomChatMessage[];
+  chatEnabled?: boolean;
+  chatPlaceholder?: string;
 }>();
 
 const emit = defineEmits<{
@@ -127,6 +129,7 @@ onUnmounted(() => {
     v-model="open"
     class="room-play-detail"
     direction="btt"
+    destroy-on-close
     :with-header="false"
     append-to-body>
     <div
@@ -216,6 +219,8 @@ onUnmounted(() => {
           :avatar-resolver="avatarResolver"
           :song-picker-open="songPickerOpen"
           :chat-messages="chatMessages"
+          :chat-enabled="chatEnabled"
+          :chat-placeholder="chatPlaceholder"
           :controls-visible="!mouseStillness"
           embedded
           room-controls

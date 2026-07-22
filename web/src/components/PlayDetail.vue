@@ -161,6 +161,7 @@ watch(() => play.playDetailShow, setTheme);
     modal-class="music-play-detail-modal"
     v-model="play.playDetailShow"
     direction="btt"
+    destroy-on-close
     :with-header="false">
     <div
       class="music-play-detail-layout"

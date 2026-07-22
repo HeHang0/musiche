@@ -7,6 +7,7 @@ import { LogoImage } from '../../utils/logo';
 import { parseHttpProxyAddress } from '../../utils/http';
 import { StorageKey, storage } from '../../utils/storage';
 import ParticleVisualConsole from './ParticleVisualConsole.vue';
+import RoomChatContent from '../room/RoomChatContent.vue';
 import {
   PARTICLE_FRAGMENT_SHADER,
   PARTICLE_VERTEX_SHADER
@@ -48,6 +49,8 @@ const props = withDefaults(
     playing: boolean;
     audio?: HTMLAudioElement | null;
     chatMessages: RoomChatMessage[];
+    chatEnabled?: boolean;
+    chatPlaceholder?: string;
     currentAvatar?: string;
     avatarResolver?: (memberId: string, avatar?: string) => string;
     songPickerOpen?: boolean;
@@ -62,7 +65,9 @@ const props = withDefaults(
     roomControls: false,
     consoleRaised: true,
     showCards: true,
-    controlsVisible: true
+    controlsVisible: true,
+    chatEnabled: true,
+    chatPlaceholder: '说点什么…（可粘贴图片）'
   }
 );
 
@@ -463,7 +468,7 @@ function rebuildParticleGeometry() {
 
 function sendChat() {
   const text = chatDraft.value.trim();
-  if (!text) return;
+  if (!text || !props.chatEnabled) return;
   emit('sendChat', text, '', props.currentAvatar || '');
   chatDraft.value = '';
 }
@@ -544,6 +549,7 @@ function resizeChatImage(file: File): Promise<string> {
 }
 
 async function handleChatPaste(event: ClipboardEvent) {
+  if (!props.chatEnabled) return;
   const file = Array.from(event.clipboardData?.items || [])
     .find(item => item.kind === 'file' && item.type.startsWith('image/'))
     ?.getAsFile();
@@ -2393,13 +2399,12 @@ onUnmounted(() => {
                       }}]</span
                     ><time>{{ formatChatTime(message.createdAt) }}</time></b
                   >
-                  <p v-if="message.content">{{ message.content }}</p>
-                  <img
-                    v-if="message.image"
-                    class="chat-image"
-                    :src="message.image"
-                    alt="聊天图片"
-                    @load="chatAtBottom && scrollChatToBottom()" />
+                  <RoomChatContent
+                    :content="message.content"
+                    :image="message.image"
+                    :self="message.memberId === snapshot.memberId"
+                    variant="particle"
+                    @media-load="chatAtBottom && scrollChatToBottom()" />
                 </div>
               </template>
             </div>
@@ -2419,17 +2424,21 @@ onUnmounted(() => {
           <form class="chat-compose" @submit.prevent="sendChat">
             <input
               v-model="chatDraft"
-              maxlength="200"
-              placeholder="说点什么…（可粘贴图片）"
+              maxlength="600"
+              :disabled="!chatEnabled"
+              :placeholder="chatPlaceholder"
               @paste="handleChatPaste" />
             <button
               class="emoji-button"
               type="button"
               title="表情"
+              :disabled="!chatEnabled"
               @click="emojiOpen = !emojiOpen">
               ☺
             </button>
-            <button class="send-button" type="submit">发送</button>
+            <button class="send-button" type="submit" :disabled="!chatEnabled">
+              发送
+            </button>
           </form>
         </aside>
       </Transition>

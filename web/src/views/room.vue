@@ -4,7 +4,6 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
 import {
   ArrowDown,
-  CloseBold,
   DeleteFilled,
   EditPen,
   Lock,
@@ -36,6 +35,11 @@ import {
   parseLyric
 } from '../utils/utils';
 import RoomPlayDetail from '../components/room/RoomPlayDetail.vue';
+import RoomChatContent from '../components/room/RoomChatContent.vue';
+import {
+  readRoomChatKeyFromHash,
+  roomChatKeyHash
+} from '../utils/room-chat-crypto';
 
 const roomStore = useRoomStore();
 const playStore = usePlayStore();
@@ -239,6 +243,14 @@ watch(
 );
 
 const snapshot = computed(() => roomStore.snapshot);
+const chatAvailable = computed(
+  () => !snapshot.value?.room.chatEncrypted || roomStore.hasChatKey
+);
+const chatPlaceholder = computed(() =>
+  chatAvailable.value
+    ? '说点什么…'
+    : '聊天已加密，请使用完整邀请链接进入'
+);
 const current = computed(() => snapshot.value?.state.current || null);
 const playback = computed(() => snapshot.value?.state.playback);
 function musicPlaybackLength(music?: Music) {
@@ -478,12 +490,23 @@ async function copyRoomLink() {
   const link = new URL(
     router.resolve(roomPath(snapshot.value.room.id)).href,
     location.origin
-  ).toString();
+  );
+  if (snapshot.value.room.chatEncrypted) {
+    if (!roomStore.hasChatKey) {
+      ElMessage({
+        ...messageOption('当前页面没有聊天密钥，无法生成加密邀请链接'),
+        type: 'warning'
+      });
+      return;
+    }
+    link.hash = roomChatKeyHash(roomStore.chatKey);
+  }
+  const value = link.toString();
   try {
-    await navigator.clipboard?.writeText(link);
+    await navigator.clipboard?.writeText(value);
     ElMessage(messageOption('房间链接已复制'));
   } catch {
-    ElMessage(messageOption(link));
+    ElMessage(messageOption(value));
   }
 }
 
@@ -503,11 +526,13 @@ async function openRouteRoom() {
   if (!routeID && legacyID) {
     const query = { ...route.query };
     delete query.room;
-    await router.replace({ path: roomPath(legacyID), query });
+    await router.replace({ path: roomPath(legacyID), query, hash: route.hash });
     return;
   }
   if (!routeID) return;
   const id = routeID.toUpperCase();
+  const hashKey = readRoomChatKeyFromHash(route.hash);
+  if (hashKey) roomStore.setRoomChatKey(id, hashKey);
   if (
     roomStore.room?.id.toUpperCase() === id &&
     roomStore.snapshot &&
@@ -538,7 +563,8 @@ async function openRouteRoom() {
     await pauseOriginalPlayer();
     // Do not retain entry or administrator passwords in the address bar or
     // browser history after they have been consumed.
-    if (Object.keys(route.query).length > 0) await router.replace(roomPath(id));
+    if (Object.keys(route.query).length > 0)
+      await router.replace({ path: roomPath(id), hash: route.hash });
   } catch (error: any) {
     if (isRoomRequestStatus(error, 404)) {
       clearMissingRoomCache(id);
@@ -698,11 +724,10 @@ function removeQueue(id: string) {
   roomStore.removeQueue(id);
 }
 
-function sendChat() {
+async function sendChat() {
   const text = chatText.value.trim();
-  if (!text) return;
-  roomStore.chat(text, '', selectedAvatar.value);
-  chatText.value = '';
+  if (!text || !chatAvailable.value) return;
+  if (await roomStore.chat(text, '', selectedAvatar.value)) chatText.value = '';
 }
 
 function patMember(memberId: string) {
@@ -741,6 +766,7 @@ function resizeChatImage(file: File): Promise<string> {
 }
 
 async function handleChatPaste(event: ClipboardEvent) {
+  if (!chatAvailable.value) return;
   const items = event.clipboardData?.items;
   if (!items) return;
   let imageFile: File | null = null;
@@ -772,7 +798,7 @@ async function handleChatPaste(event: ClipboardEvent) {
   URL.revokeObjectURL(previewURL);
   try {
     const dataURL = await resizeChatImage(imageFile);
-    roomStore.chat('', dataURL, selectedAvatar.value);
+    await roomStore.chat('', dataURL, selectedAvatar.value);
   } catch (error: any) {
     ElMessage({
       ...messageOption(error?.message || '图片处理失败'),
@@ -1100,17 +1126,13 @@ onUnmounted(() => {
               >分享</el-button
             >
             <el-button :icon="Setting" @click="openSettings">设置</el-button>
-            <el-button type="warning" :icon="CloseBold" @click="leaveRoom"
-              >离开</el-button
-            >
-            <button
+            <el-button
               class="music-room-member-profile"
-              type="button"
               title="修改用户信息"
               @click="openNicknameDialog">
               <img :src="chatAvatar(snapshot.memberId)" alt="我的头像" />
               <span class="text-overflow-1">{{ snapshot.nickname }}</span>
-            </button>
+            </el-button>
           </div>
         </header>
         <main class="music-room-active-main">
@@ -1228,9 +1250,7 @@ onUnmounted(() => {
                 role="button"
                 tabindex="0"
                 title="打开播放详情"
-                @click.stop="openRoomPlayDetail"
-                @keydown.enter.stop="openRoomPlayDetail"
-                @keydown.space.prevent.stop="openRoomPlayDetail">
+                @click.stop="openRoomPlayDetail">
                 <img
                   class="music-room-player-image-disc rotation-animation"
                   :class="
@@ -1332,7 +1352,9 @@ onUnmounted(() => {
                       @input="roomStore.setVolume" />
                   </div>
                 </div>
-                <div class="music-room-player-lyric text-overflow-1">
+                <div
+                  class="music-room-player-lyric text-overflow-1"
+                  @click.stop="openRoomPlayDetail">
                   {{
                     roomLyricLoading ? '歌词加载中…' : currentRoomLyric || ''
                   }}
@@ -1342,6 +1364,9 @@ onUnmounted(() => {
             <div class="music-room-chat">
               <div class="music-room-panel-title music-room-chat-title">
                 <span>聊天</span>
+                <small v-if="snapshot.room.chatEncrypted">
+                  {{ chatAvailable ? '端到端加密' : '缺少聊天密钥' }}
+                </small>
                 <button
                   v-if="unreadChatCount"
                   class="music-room-chat-unread"
@@ -1398,16 +1423,17 @@ onUnmounted(() => {
                     </b>
                     <div class="music-room-chat-content">
                       <span
-                        v-if="message.content"
-                        class="music-room-chat-text"
-                        >{{ message.content }}</span
-                      >
-                      <img
-                        v-if="message.image"
-                        class="music-room-chat-image"
-                        :src="message.image"
-                        alt="聊天图片"
-                        @load="handleChatImageLoad" />
+                        v-if="message.system && message.content"
+                        class="music-room-chat-text">
+                        {{ message.content }}
+                      </span>
+                      <RoomChatContent
+                        v-else
+                        :content="message.content"
+                        :image="message.image"
+                        :self="message.memberId === snapshot.memberId"
+                        variant="room"
+                        @media-load="handleChatImageLoad" />
                     </div>
                   </div>
                 </div>
@@ -1415,8 +1441,9 @@ onUnmounted(() => {
               <div class="music-room-chat-input">
                 <el-input
                   v-model="chatText"
-                  maxlength="200"
-                  placeholder="说点什么…"
+                  maxlength="600"
+                  :disabled="!chatAvailable"
+                  :placeholder="chatPlaceholder"
                   @keyup.enter="sendChat"
                   @paste="handleChatPaste" />
                 <span>
@@ -1434,11 +1461,17 @@ onUnmounted(() => {
                       <el-button
                         class="music-room-emoji-trigger"
                         title="选择表情"
+                        :disabled="!chatAvailable"
                         >☺</el-button
                       >
                     </template>
                   </el-popover>
-                  <el-button type="primary" @click="sendChat">发送</el-button>
+                  <el-button
+                    type="primary"
+                    :disabled="!chatAvailable"
+                    @click="sendChat">
+                    发送
+                  </el-button>
                 </span>
               </div>
             </div>
@@ -1467,6 +1500,8 @@ onUnmounted(() => {
         :avatar-resolver="chatAvatar"
         :song-picker-open="searchVisible"
         :chat-messages="roomStore.chatMessages"
+        :chat-enabled="chatAvailable"
+        :chat-placeholder="chatPlaceholder"
         @share="copyRoomLink"
         @toggle-play="roomStore.togglePlayerAction"
         @next="roomStore.next"
@@ -1819,7 +1854,7 @@ onUnmounted(() => {
     min-width: 0;
     max-width: 160px;
     padding: 3px 5px;
-    border: 0;
+    border: 1px solid transparent;
     border-radius: var(--music-border-radius);
     background: transparent;
     color: inherit;
@@ -1847,11 +1882,12 @@ onUnmounted(() => {
   &-avatar-picker {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 8px;
+    gap: 2px;
     max-height: 246px;
     overflow-y: auto;
     padding: 2px;
     button {
+      display: inline-flex;
       aspect-ratio: 1;
       padding: 2px;
       border: 2px solid transparent;
@@ -2102,6 +2138,7 @@ onUnmounted(() => {
       color: var(--music-primary-color);
       font-size: 13px;
       opacity: 0.9;
+      cursor: pointer;
     }
     &-progress {
       display: flex;

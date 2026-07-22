@@ -36,6 +36,7 @@ type RoomConfig struct {
 	AdminVersion       int                   `json:"adminVersion"`
 	MaxMembers         int                   `json:"maxMembers"`
 	GuestQueueDisabled bool                  `json:"guestQueueDisabled,omitempty"`
+	ChatEncrypted      bool                  `json:"chatEncrypted,omitempty"`
 	CreatedAt          time.Time             `json:"createdAt"`
 	Members            map[string]Member     `json:"members"`
 	Credentials        map[string]SecretInfo `json:"credentials,omitempty"`
@@ -103,19 +104,21 @@ type ChatMessage struct {
 	Nickname  string    `json:"nickname"`
 	Content   string    `json:"content"`
 	Image     string    `json:"image,omitempty"`
+	Encrypted string    `json:"encrypted,omitempty"`
 	Avatar    string    `json:"avatar,omitempty"`
 	System    bool      `json:"system,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
 type RoomSummary struct {
-	ID           string    `json:"id"`
-	Name         string    `json:"name"`
-	Locked       bool      `json:"locked"`
-	OnlineCount  int       `json:"onlineCount"`
-	MaxMembers   int       `json:"maxMembers"`
-	CurrentMusic *Music    `json:"currentMusic,omitempty"`
-	CreatedAt    time.Time `json:"createdAt"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Locked        bool      `json:"locked"`
+	ChatEncrypted bool      `json:"chatEncrypted"`
+	OnlineCount   int       `json:"onlineCount"`
+	MaxMembers    int       `json:"maxMembers"`
+	CurrentMusic  *Music    `json:"currentMusic,omitempty"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 type Snapshot struct {

@@ -44,6 +44,7 @@ const snapshot = computed<RoomSnapshot>(() => ({
     id: 'local-player',
     name: '本地播放器',
     locked: false,
+    chatEncrypted: false,
     onlineCount: 1,
     maxMembers: 1,
     currentMusic: play.music,

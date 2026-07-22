@@ -915,6 +915,15 @@
   cursor: pointer;
   transition: 0.18s;
 }
+.chat-compose input:disabled,
+.chat-compose button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+.chat-compose input:disabled {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.025);
+}
 .emoji-button {
   width: 36px;
   color: rgba(255, 255, 255, 0.68);
@@ -958,5 +967,4 @@
     right: 12px;
   }
 }
-
 
