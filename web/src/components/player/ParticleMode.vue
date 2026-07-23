@@ -68,6 +68,7 @@ const snapshot = computed<RoomSnapshot>(() => ({
   allowGuestQueue: false,
   memberId: 'local-player',
   nickname: '本地播放器',
+  onlineMembers: [],
   credentialSources: []
 }));
 

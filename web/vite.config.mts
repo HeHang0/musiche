@@ -56,7 +56,6 @@ export default defineConfig({
           return 'assets/[name].[ext]';
         },
         codeSplitting: {
-          includeDependenciesRecursively: false,
           groups: [
             {
               name: 'optional',
@@ -69,17 +68,26 @@ export default defineConfig({
               priority: 40
             },
             {
-              name: 'room',
+              name: 'particle',
               test(id) {
                 const normalizedPath = path.resolve(id).replace(/\\/g, '/');
                 return (
                   normalizedPath.includes('/node_modules/three/') ||
-                  normalizedPath.includes('/src/views/room') ||
-                  normalizedPath.includes('/src/components/room/') ||
                   normalizedPath.includes('/src/components/particle/') ||
                   normalizedPath.endsWith(
                     '/src/components/player/ParticleMode.vue'
-                  ) ||
+                  )
+                );
+              },
+              priority: 35
+            },
+            {
+              name: 'room',
+              test(id) {
+                const normalizedPath = path.resolve(id).replace(/\\/g, '/');
+                return (
+                  normalizedPath.includes('/src/views/room') ||
+                  normalizedPath.includes('/src/components/room/') ||
                   normalizedPath.endsWith('/src/stores/room.ts') ||
                   normalizedPath.endsWith('/src/utils/room.ts') ||
                   normalizedPath.endsWith('/src/utils/room-chat-crypto.ts') ||

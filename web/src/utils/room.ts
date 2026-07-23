@@ -21,9 +21,16 @@ export interface RoomSummary {
 export interface RoomMember {
   id: string;
   nickname: string;
+  avatar?: string;
   fingerprintHash: string;
   firstJoinedAt: string;
   lastJoinedAt: string;
+}
+
+export interface RoomOnlineMember {
+  id: string;
+  nickname: string;
+  avatar?: string;
 }
 
 export interface RoomQueueItem {
@@ -69,6 +76,8 @@ export interface RoomSnapshot {
   allowGuestQueue: boolean;
   memberId: string;
   nickname: string;
+  avatar?: string;
+  onlineMembers: RoomOnlineMember[];
   credentialSources: string[];
 }
 

@@ -190,7 +190,7 @@ func (s *RoomStore) createRoom(request CreateRoomRequest) (*Room, string, error)
 	if password := strings.TrimSpace(request.EntryPassword); password != "" {
 		room.config.EntryPasswordHash = hashPassword(password)
 	}
-	room.config.Members[memberID] = Member{ID: memberID, Nickname: nickname, FingerprintHash: fingerprintHash("", request.Fingerprint), FirstJoinedAt: now, LastJoinedAt: now}
+	room.config.Members[memberID] = Member{ID: memberID, Nickname: nickname, Avatar: sanitizeChatAvatar(request.Avatar), FingerprintHash: fingerprintHash("", request.Fingerprint), FirstJoinedAt: now, LastJoinedAt: now}
 	if err := os.MkdirAll(room.path, 0700); err != nil {
 		return nil, "", err
 	}
@@ -301,7 +301,7 @@ func (s *RoomStore) removeExpiredRooms() {
 	}
 }
 
-func (r *Room) join(visitorID, fingerprint, nickname, entryPassword, superAdminPassword string) (string, error) {
+func (r *Room) join(visitorID, fingerprint, nickname, avatar, entryPassword, superAdminPassword string) (string, error) {
 	memberID := fingerprintHash(visitorID, fingerprint)
 	nickname = sanitizeName(nickname, 24)
 	if strings.TrimSpace(visitorID) == "" || strings.TrimSpace(fingerprint) == "" || nickname == "" {
@@ -317,10 +317,13 @@ func (r *Room) join(visitorID, fingerprint, nickname, entryPassword, superAdminP
 	}
 	if !known {
 		now := time.Now().UTC()
-		member = Member{ID: memberID, Nickname: nickname, FingerprintHash: fingerprintHash("", fingerprint), FirstJoinedAt: now, LastJoinedAt: now}
+		member = Member{ID: memberID, Nickname: nickname, Avatar: sanitizeChatAvatar(avatar), FingerprintHash: fingerprintHash("", fingerprint), FirstJoinedAt: now, LastJoinedAt: now}
 		r.config.Members[memberID] = member
 	} else {
 		member.LastJoinedAt = time.Now().UTC()
+		if selectedAvatar := sanitizeChatAvatar(avatar); selectedAvatar != "" {
+			member.Avatar = selectedAvatar
+		}
 		r.config.Members[memberID] = member
 	}
 	r.state.EmptySince = nil
@@ -367,7 +370,23 @@ func (r *Room) snapshotLocked(memberID, token string, secret []byte) Snapshot {
 	for source := range r.config.Credentials {
 		sources = append(sources, source)
 	}
-	return Snapshot{Room: r.summaryLocked(), State: r.state, IsAdmin: verifyAdminToken(secret, token, r.config.ID, r.config.AdminPasswordHash, r.config.AdminVersion), AllowGuestQueue: !r.config.GuestQueueDisabled, MemberID: memberID, Nickname: member.Nickname, CredentialSources: sources}
+	onlineMembersByID := make(map[string]OnlineMember, len(r.connections))
+	for connection := range r.connections {
+		if online, exists := r.config.Members[connection.memberID]; exists {
+			onlineMembersByID[connection.memberID] = OnlineMember{ID: online.ID, Nickname: online.Nickname, Avatar: online.Avatar}
+		}
+	}
+	onlineMembers := make([]OnlineMember, 0, len(onlineMembersByID))
+	for _, online := range onlineMembersByID {
+		onlineMembers = append(onlineMembers, online)
+	}
+	sort.Slice(onlineMembers, func(i, j int) bool {
+		if onlineMembers[i].Nickname == onlineMembers[j].Nickname {
+			return onlineMembers[i].ID < onlineMembers[j].ID
+		}
+		return onlineMembers[i].Nickname < onlineMembers[j].Nickname
+	})
+	return Snapshot{Room: r.summaryLocked(), State: r.state, IsAdmin: verifyAdminToken(secret, token, r.config.ID, r.config.AdminPasswordHash, r.config.AdminVersion), AllowGuestQueue: !r.config.GuestQueueDisabled, MemberID: memberID, Nickname: member.Nickname, Avatar: member.Avatar, OnlineMembers: onlineMembers, CredentialSources: sources}
 }
 
 func (r *Room) saveLocked() error {
@@ -423,6 +442,7 @@ type CreateRoomRequest struct {
 	EntryPassword string `json:"entryPassword"`
 	AdminPassword string `json:"adminPassword"`
 	Nickname      string `json:"nickname"`
+	Avatar        string `json:"avatar"`
 	VisitorID     string `json:"visitorId"`
 	Fingerprint   string `json:"fingerprint"`
 	ChatEncrypted bool   `json:"chatEncrypted"`

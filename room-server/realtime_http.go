@@ -103,6 +103,7 @@ func (s *server) realtimeStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	connection.broadcast(Event{Type: "presence", Data: roomSummary(connection.room)})
+	broadcastRoomSnapshotExcept(connection.room, connection)
 
 	encoder := json.NewEncoder(w)
 	keepalive := time.NewTicker(20 * time.Second)

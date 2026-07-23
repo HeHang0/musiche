@@ -45,6 +45,7 @@ type RoomConfig struct {
 type Member struct {
 	ID              string    `json:"id"`
 	Nickname        string    `json:"nickname"`
+	Avatar          string    `json:"avatar,omitempty"`
 	FingerprintHash string    `json:"fingerprintHash"`
 	FirstJoinedAt   time.Time `json:"firstJoinedAt"`
 	LastJoinedAt    time.Time `json:"lastJoinedAt"`
@@ -121,14 +122,24 @@ type RoomSummary struct {
 	CreatedAt     time.Time `json:"createdAt"`
 }
 
+// OnlineMember is deliberately limited to the public information needed by
+// the room member list. Fingerprints and join history remain private.
+type OnlineMember struct {
+	ID       string `json:"id"`
+	Nickname string `json:"nickname"`
+	Avatar   string `json:"avatar,omitempty"`
+}
+
 type Snapshot struct {
-	Room              RoomSummary `json:"room"`
-	State             RoomState   `json:"state"`
-	IsAdmin           bool        `json:"isAdmin"`
-	AllowGuestQueue   bool        `json:"allowGuestQueue"`
-	MemberID          string      `json:"memberId"`
-	Nickname          string      `json:"nickname"`
-	CredentialSources []string    `json:"credentialSources"`
+	Room              RoomSummary    `json:"room"`
+	State             RoomState      `json:"state"`
+	IsAdmin           bool           `json:"isAdmin"`
+	AllowGuestQueue   bool           `json:"allowGuestQueue"`
+	MemberID          string         `json:"memberId"`
+	Nickname          string         `json:"nickname"`
+	Avatar            string         `json:"avatar,omitempty"`
+	OnlineMembers     []OnlineMember `json:"onlineMembers"`
+	CredentialSources []string       `json:"credentialSources"`
 }
 
 type Event struct {

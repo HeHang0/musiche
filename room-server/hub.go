@@ -157,6 +157,25 @@ func broadcastRoomSnapshot(room *Room) <-chan struct{} {
 	}
 }
 
+// A newly registered connection already receives its own initial snapshot.
+// Notify only the existing members here so an unauthenticated initial snapshot
+// cannot arrive after that connection has completed administrator auth.
+func broadcastRoomSnapshotExcept(room *Room, except *RoomConnection) {
+	room.mu.RLock()
+	connections := make([]*RoomConnection, 0, len(room.connections))
+	for connection := range room.connections {
+		if connection != except {
+			connections = append(connections, connection)
+		}
+	}
+	room.mu.RUnlock()
+	for _, connection := range connections {
+		if err := connection.send(Event{Type: "snapshot", Data: connection.snapshot()}); err != nil {
+			connection.store.logf("realtime_send_failed transport=%s connection_id=%s room_id=%q member_id=%s event=snapshot error=%q", connection.transportKind(), connection.id, room.config.ID, shortLogID(connection.memberID), err)
+		}
+	}
+}
+
 func (s *RoomStore) registerRoomConnection(roomID, memberToken, connectionID string, sender roomEventSender) (*RoomConnection, Snapshot, *connectionFailure) {
 	if roomID == "" {
 		return nil, Snapshot{}, &connectionFailure{Status: 400, Code: "missing_room_id", Message: "缺少房间号"}
@@ -221,6 +240,7 @@ func (s *RoomStore) unregisterRoomConnection(connection *RoomConnection, request
 	room.mu.Unlock()
 	s.releaseConnection()
 	connection.broadcast(Event{Type: "presence", Data: roomSummary(room)})
+	broadcastRoomSnapshot(room)
 	_ = connection.sender.Close()
 	s.logf("realtime_disconnected transport=%s request_id=%s connection_id=%s room_id=%q member_id=%s duration_ms=%d reason=%s", connection.transportKind(), requestID, connection.id, roomID, shortLogID(connection.memberID), time.Since(connectedAt).Milliseconds(), reason)
 }
@@ -305,6 +325,7 @@ func (s *RoomStore) serveWebSocket(ws *websocket.Conn) {
 		return
 	}
 	connection.broadcast(Event{Type: "presence", Data: roomSummary(connection.room)})
+	broadcastRoomSnapshotExcept(connection.room, connection)
 	for {
 		command := ClientCommand{}
 		if err := websocket.JSON.Receive(ws, &command); err != nil {
@@ -622,6 +643,9 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 		}
 		c.room.mu.Lock()
 		member := c.room.config.Members[c.memberID]
+		if avatar == "" {
+			avatar = member.Avatar
+		}
 		message := ChatMessage{ID: randomID(10), MemberID: c.memberID, Nickname: member.Nickname, Content: content, Image: image, Encrypted: encrypted, Avatar: avatar, CreatedAt: time.Now().UTC()}
 		c.room.mu.Unlock()
 		c.broadcast(Event{Type: "chat", Data: message})

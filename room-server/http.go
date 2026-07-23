@@ -208,6 +208,7 @@ func (s *server) room(w http.ResponseWriter, r *http.Request) {
 type JoinRequest struct {
 	EntryPassword string `json:"entryPassword"`
 	Nickname      string `json:"nickname"`
+	Avatar        string `json:"avatar"`
 	VisitorID     string `json:"visitorId"`
 	Fingerprint   string `json:"fingerprint"`
 	AdminToken    string `json:"adminToken"`
@@ -219,7 +220,7 @@ func (s *server) join(w http.ResponseWriter, r *http.Request, room *Room) {
 		writeError(w, 400, "请求格式错误")
 		return
 	}
-	memberID, err := room.join(request.VisitorID, request.Fingerprint, request.Nickname, request.EntryPassword, s.store.config.SuperAdminPassword)
+	memberID, err := room.join(request.VisitorID, request.Fingerprint, request.Nickname, request.Avatar, request.EntryPassword, s.store.config.SuperAdminPassword)
 	if err != nil {
 		writeError(w, 400, err.Error())
 		return
@@ -235,6 +236,7 @@ func (s *server) join(w http.ResponseWriter, r *http.Request, room *Room) {
 
 type NicknameRequest struct {
 	Nickname    string `json:"nickname"`
+	Avatar      string `json:"avatar"`
 	VisitorID   string `json:"visitorId"`
 	Fingerprint string `json:"fingerprint"`
 	AdminToken  string `json:"adminToken"`
@@ -268,6 +270,9 @@ func (s *server) nickname(w http.ResponseWriter, r *http.Request, room *Room) {
 		return
 	}
 	member.Nickname = nickname
+	if avatar := sanitizeChatAvatar(request.Avatar); avatar != "" {
+		member.Avatar = avatar
+	}
 	room.config.Members[memberID] = member
 	if err := room.saveConfigLocked(); err != nil {
 		room.mu.Unlock()

@@ -48,6 +48,7 @@ const settingStore = useSettingStore();
 const route = useRoute();
 const router = useRouter();
 const roomPlayDetailVisible = ref(false);
+const membersPopoverVisible = ref(false);
 const roomCredentialsKey = 'musiche-room-credentials';
 type RoomCredential = string | { entryPassword?: string };
 
@@ -244,6 +245,18 @@ watch(
 );
 
 const snapshot = computed(() => roomStore.snapshot);
+const onlineMembers = computed(() => {
+  const members = snapshot.value?.onlineMembers || [];
+  if (members.length || !snapshot.value?.memberId) return members;
+  // Gracefully handle a rolling deployment where the connected room service
+  // has not yet started sending the new member-list field.
+  return [
+    {
+      id: snapshot.value.memberId,
+      nickname: snapshot.value.nickname
+    }
+  ];
+});
 const chatAvailable = computed(
   () => !snapshot.value?.room.chatEncrypted || roomStore.hasChatKey
 );
@@ -414,6 +427,20 @@ function chatAvatar(memberId: string, avatar = '') {
   return fallbackAvatar(memberId);
 }
 
+function applyRoomAvatar(avatar = '') {
+  if (!builtInAvatars.some(item => item.key === avatar)) return false;
+  selectedAvatar.value = avatar;
+  draftAvatar.value = avatar;
+  localStorage.setItem(roomAvatarKey, avatar);
+  return true;
+}
+
+async function syncRoomAvatar() {
+  const roomSnapshot = roomStore.snapshot;
+  if (!roomSnapshot || applyRoomAvatar(roomSnapshot.avatar)) return;
+  await roomStore.updateNickname(roomSnapshot.nickname, selectedAvatar.value);
+}
+
 function updateChatScrollPosition() {
   const wrap = chatScrollbar.value?.wrapRef as HTMLElement | undefined;
   if (!wrap) return;
@@ -552,10 +579,12 @@ async function openRouteRoom() {
   try {
     await roomStore.join(id, {
       nickname: joinNickname,
-      entryPassword
+      entryPassword,
+      avatar: selectedAvatar.value
     });
     if (roomStore.snapshot?.nickname !== joinNickname)
-      await roomStore.updateNickname(joinNickname);
+      await roomStore.updateNickname(joinNickname, selectedAvatar.value);
+    await syncRoomAvatar();
     nickname.value = joinNickname;
     localStorage.setItem('musiche-room-nickname', joinNickname);
     saveRoomCredential(id, entryPassword);
@@ -605,7 +634,7 @@ async function saveNickname() {
   }
   nicknameLoading.value = true;
   try {
-    await roomStore.updateNickname(value);
+    await roomStore.updateNickname(value, draftAvatar.value);
     selectedAvatar.value = draftAvatar.value;
     localStorage.setItem(roomAvatarKey, selectedAvatar.value);
     nickname.value = value;
@@ -1038,17 +1067,22 @@ let stopRoomWatch = () => {};
 let stopErrorWatch = () => {};
 let stopGuestQueueWatch = () => {};
 let stopChatWatch = () => {};
+function closeMembersPopover() {
+  membersPopoverVisible.value = false;
+}
 onMounted(async () => {
   setBodyClass(true);
   try {
     await roomStore.initialize();
     await openRouteRoom();
+    await syncRoomAvatar();
   } catch (error: any) {
     ElMessage(messageOption(error?.message || '在线歌房初始化失败'));
   } finally {
     loaded.value = true;
   }
   clockTimer = setInterval(() => (clock.value = Date.now()), 500);
+  document.addEventListener('click', closeMembersPopover);
 
   stopRoomWatch = watch(
     () => route.params.id,
@@ -1095,6 +1129,7 @@ onUnmounted(() => {
   stopGuestQueueWatch();
   stopChatWatch();
   roomStore.leave();
+  document.removeEventListener('click', closeMembersPopover);
   document.body.classList.remove(classBodyName);
 });
 </script>
@@ -1109,12 +1144,39 @@ onUnmounted(() => {
           <div class="music-room-active-header-title">
             <span class="music-icon" @click="leaveRoom">左</span>
             <span class="text-overflow-1">{{ snapshot.room.name }}</span>
-            <small>
-              <el-icon v-if="snapshot.room.locked"><Lock /></el-icon>
-              <el-icon v-else><Unlock /></el-icon>
-              {{ snapshot.room.onlineCount }} /
-              {{ snapshot.room.maxMembers }} 人</small
-            >
+            <div class="music-room-online-members-wrap" @click.stop>
+              <button
+                class="music-room-online-members"
+                type="button"
+                :aria-expanded="membersPopoverVisible"
+                @click="membersPopoverVisible = !membersPopoverVisible">
+                <el-icon v-if="snapshot.room.locked"><Lock /></el-icon>
+                <el-icon v-else><Unlock /></el-icon>
+                {{ snapshot.room.onlineCount }} /
+                {{ snapshot.room.maxMembers }} 人
+              </button>
+              <div
+                v-if="membersPopoverVisible"
+                class="music-room-online-member-popover">
+                <div class="music-room-online-member-list">
+                  <div
+                    v-for="member in onlineMembers"
+                    :key="member.id"
+                    class="music-room-online-member">
+                    <img
+                      :src="chatAvatar(member.id, member.avatar)"
+                      alt="用户头像" />
+                    <span class="text-overflow-1">{{ member.nickname }}</span>
+                    <small v-if="member.id === snapshot.memberId">我</small>
+                  </div>
+                  <div
+                    v-if="onlineMembers.length === 0"
+                    class="music-room-online-member-empty">
+                    暂无在线用户
+                  </div>
+                </div>
+              </div>
+            </div>
             <span v-if="roomStore.connected" class="music-room-connected"
               >已连接</span
             >
@@ -1847,6 +1909,77 @@ onUnmounted(() => {
     border-radius: 10px;
     font-size: 11px;
     font-weight: normal;
+  }
+  &-online-members {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 5px;
+    border: 0;
+    border-radius: 8px;
+    color: inherit;
+    background: transparent;
+    font: inherit;
+    font-weight: normal;
+    opacity: 0.6;
+    white-space: nowrap;
+    cursor: pointer;
+    &:hover {
+      opacity: 1;
+      background: var(--music-background-hover);
+    }
+  }
+  &-online-members-wrap {
+    position: relative;
+  }
+  &-online-member-popover {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 7px);
+    left: 0;
+    width: 220px;
+    padding: 8px;
+    border: 1px solid var(--music-border-color);
+    border-radius: var(--music-border-radius);
+    background: var(--music-background);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  }
+  &-online-member-list {
+    max-height: 260px;
+    overflow-y: auto;
+  }
+  &-online-member {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    padding: 7px;
+    border-radius: 8px;
+    &:hover {
+      background: var(--music-background-hover);
+    }
+    img {
+      width: 30px;
+      height: 30px;
+      flex: 0 0 30px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+    span {
+      min-width: 0;
+      flex: 1;
+      font-size: 13px;
+    }
+    small {
+      opacity: 0.55;
+      font-size: 11px;
+    }
+  }
+  &-online-member-empty {
+    padding: 14px 7px;
+    color: var(--music-text-color-secondary);
+    text-align: center;
+    font-size: 13px;
   }
   &-member-profile {
     display: inline-flex;

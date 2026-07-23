@@ -174,6 +174,7 @@ export const useRoomStore = defineStore('room', {
       entryPassword: string;
       adminPassword: string;
       nickname: string;
+      avatar?: string;
       chatEncrypted: boolean;
       chatKey?: string;
     }) {
@@ -197,7 +198,7 @@ export const useRoomStore = defineStore('room', {
     },
     async join(
       roomId: string,
-      payload: { nickname: string; entryPassword: string }
+      payload: { nickname: string; entryPassword: string; avatar?: string }
     ) {
       await this.ensureIdentity();
       if (this.chatKeyRoomId !== roomId.toUpperCase())
@@ -554,7 +555,7 @@ export const useRoomStore = defineStore('room', {
         await this.open(roomId);
       }
     },
-    async updateNickname(nickname: string) {
+    async updateNickname(nickname: string, avatar = '') {
       if (!this.snapshot || !this.memberToken) return;
       const response = await roomRequest<{ snapshot: RoomSnapshot }>(
         `/api/v1/rooms/${this.snapshot.room.id}/nickname`,
@@ -563,6 +564,7 @@ export const useRoomStore = defineStore('room', {
           headers: { Authorization: `Bearer ${this.memberToken}` },
           body: JSON.stringify({
             nickname,
+            avatar,
             ...this.identity,
             adminToken: this.adminToken
           })
