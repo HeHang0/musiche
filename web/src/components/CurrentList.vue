@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ElMessageBox } from 'element-plus';
+import { ElMessageBox } from 'element-plus/es/components/message-box/index';
 import MusicList from './MusicList.vue';
 import { usePlayStore } from '../stores/play';
 import { scrollToElement } from '../utils/utils';

@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import {
-  Card as AnimalCard,
-  Divider as AnimalDivider
-} from 'animal-island-ui-vue';
+import { computed, defineAsyncComponent } from 'vue';
 import { useSettingStore } from '../stores/setting';
+
+const AnimalCard = defineAsyncComponent(() =>
+  import('animal-island-ui-vue').then(module => module.Card)
+);
+const AnimalDivider = defineAsyncComponent(() =>
+  import('animal-island-ui-vue').then(module => module.Divider)
+);
 
 interface Props {
   title?: string;

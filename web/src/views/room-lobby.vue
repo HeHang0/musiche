@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from 'element-plus/es/components/message/index';
 import { Lock, Search, Unlock } from '@element-plus/icons-vue';
 import { useRoute, useRouter } from 'vue-router';
 import { currentRoomKey, useRoomStore } from '../stores/room';

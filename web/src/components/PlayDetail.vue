@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { Ref, onMounted, onUnmounted, ref, watch } from 'vue';
+import {
+  Ref,
+  defineAsyncComponent,
+  onMounted,
+  onUnmounted,
+  ref,
+  watch
+} from 'vue';
 import { useRouter } from 'vue-router';
 import { useThrottleFn } from '@vueuse/core';
 
@@ -15,9 +22,12 @@ import DefaultMode from './player/DefaultMode.vue';
 import LyricMode from './player/LyricMode.vue';
 import PolarBearMode from './player/PolarBearMode.vue';
 import ColorfulMode from './player/ColorfulMode.vue';
-import ParticleMode from './player/ParticleMode.vue';
 import { updateTheme } from '../utils/http';
 import { PlayDetailMode } from '../utils/type';
+
+const ParticleMode = defineAsyncComponent(
+  () => import('./player/ParticleMode.vue')
+);
 
 const { beforeResolve } = useRouter();
 const play = usePlayStore();

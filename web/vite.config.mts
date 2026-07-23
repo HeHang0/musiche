@@ -28,7 +28,14 @@ const plugins = [
   })
 ];
 process.env.BUILD_ZIP === '1' && plugins.push(ZipPlugin());
-const asyncJsList = ['magic-snowflakes', 'qrcode', 'crypto-js', 'jsmediatags'];
+const asyncJsList = [
+  'magic-snowflakes',
+  'qrcode',
+  'crypto-js',
+  'jsmediatags',
+  'jsqr',
+  'colorthief'
+];
 // https://vitejs.dev/config/
 export default defineConfig({
   base: '/' + (process.env.ROUTER_PREFIX || ''),
@@ -48,21 +55,45 @@ export default defineConfig({
           }
           return 'assets/[name].[ext]';
         },
-        manualChunks(id, meta) {
-          const filePath = path.resolve(id);
-          const isAsync = asyncJsList.findIndex(m => filePath.includes(m)) >= 0;
-          if (
-            !filePath.includes('index.html') &&
-            (filePath.endsWith('.css') || filePath.endsWith('.less'))
-          ) {
-            return 'style';
-          } else if (isAsync) {
-            return 'async';
-          } else if (path.resolve(id).includes('node_modules')) {
-            return 'modules';
-          } else {
-            return 'main';
-          }
+        codeSplitting: {
+          includeDependenciesRecursively: false,
+          groups: [
+            {
+              name: 'optional',
+              test(id) {
+                const normalizedPath = path.resolve(id).replace(/\\/g, '/');
+                return asyncJsList.some(moduleName =>
+                  normalizedPath.includes(`/node_modules/${moduleName}/`)
+                );
+              },
+              priority: 40
+            },
+            {
+              name: 'room',
+              test(id) {
+                const normalizedPath = path.resolve(id).replace(/\\/g, '/');
+                return (
+                  normalizedPath.includes('/node_modules/three/') ||
+                  normalizedPath.includes('/src/views/room') ||
+                  normalizedPath.includes('/src/components/room/') ||
+                  normalizedPath.includes('/src/components/particle/') ||
+                  normalizedPath.endsWith(
+                    '/src/components/player/ParticleMode.vue'
+                  ) ||
+                  normalizedPath.endsWith('/src/stores/room.ts') ||
+                  normalizedPath.endsWith('/src/utils/room.ts') ||
+                  normalizedPath.endsWith('/src/utils/room-chat-crypto.ts') ||
+                  normalizedPath.endsWith('/src/utils/room-transport.ts')
+                );
+              },
+              priority: 30
+            },
+            {
+              name: 'app',
+              test: () => true,
+              priority: 10
+            }
+          ]
         }
       }
     }

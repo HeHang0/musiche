@@ -11,7 +11,7 @@ import QQMusicImage from '../assets/images/qq-music.png';
 import MiguMusicImage from '../assets/images/migu-music.webp';
 import { useSettingStore } from '../stores/setting';
 import { isMobile, isWindows, messageOption } from '../utils/utils';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from 'element-plus/es/components/message/index';
 interface Props {
   list: Music[];
   loading?: boolean;

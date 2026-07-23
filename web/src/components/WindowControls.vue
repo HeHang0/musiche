@@ -1,5 +1,7 @@
 <script lang="ts" setup>
-import { ElCheckbox, ElMessageBox, ElRadio, ElRadioGroup } from 'element-plus';
+import { ElCheckbox } from 'element-plus/es/components/checkbox/index';
+import { ElMessageBox } from 'element-plus/es/components/message-box/index';
+import { ElRadio, ElRadioGroup } from 'element-plus/es/components/radio/index';
 import { useSettingStore } from '../stores/setting';
 import { h, ref } from 'vue';
 import { CloseType } from '../utils/type';

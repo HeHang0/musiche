@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus/es/components/message/index';
+import { ElMessageBox } from 'element-plus/es/components/message-box/index';
 import { Ref, h, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { WarningFilled, PictureFilled } from '@element-plus/icons-vue';
-import QRCode from 'qrcode';
 
 import Login from '../components/Login.vue';
 import LoginSyncScanner from '../components/LoginSyncScanner.vue';
@@ -17,8 +17,10 @@ import {
   getProxyAddress,
   isHuaweiCloud
 } from '../utils/http';
-import { getRoomServerAddress, setRoomServerAddress } from '../utils/room';
-import { useRoomStore } from '../stores/room';
+import {
+  getRoomServerAddress,
+  setRoomServerAddress
+} from '../utils/room-config';
 import { musicTypeInfo, musicTypeInfoAll } from '../utils/platform';
 import {
   AppTheme,
@@ -169,7 +171,6 @@ const roomServerAddressReadonly = ref(true);
 const useHuaweiCloud = ref(isHuaweiCloud());
 const setting = useSettingStore();
 const play = usePlayStore();
-const room = useRoomStore();
 const currentVersion = ref('');
 const remoteVersion = ref('');
 const localNetworkProxy = ref<'system' | 'none'>('system');
@@ -444,6 +445,7 @@ async function showLoginSyncQRCode(type: MusicType) {
     ElMessage.warning(`当前没有可同步的${musicTypeInfo[type].name}登录信息`);
     return;
   }
+  const QRCode = (await import('qrcode')).default;
   loginSyncQrCode.value = await QRCode.toDataURL(
     JSON.stringify({
       type: 'musiche-login-sync',
@@ -590,17 +592,22 @@ function onProxyAddressChanged(value: string) {
   }
 }
 
+async function refreshRoomAvailability() {
+  const { useRoomStore } = await import('../stores/room');
+  useRoomStore().checkAvailability();
+}
+
 function onRoomServerAddressChanged(value: string) {
   if (!value || value.startsWith(location.origin)) {
     setRoomServerAddress('');
     roomServerAddress.value = getRoomServerAddress();
-    room.checkAvailability();
+    void refreshRoomAvailability();
     return;
   }
   if (value.startsWith('http://') || value.startsWith('https://')) {
     setRoomServerAddress(value);
     roomServerAddress.value = getRoomServerAddress();
-    room.checkAvailability();
+    void refreshRoomAvailability();
   }
 }
 

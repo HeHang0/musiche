@@ -1,6 +1,11 @@
-import { StorageKey } from './storage';
 import type { Music } from './type';
-import CryptoJS from 'crypto-js';
+import { getRoomServerAddress } from './room-config';
+
+export {
+  getRoomServerAddress,
+  hasRoomServerAddressConfigured,
+  setRoomServerAddress
+} from './room-config';
 
 export interface RoomSummary {
   id: string;
@@ -92,24 +97,6 @@ export class RoomRequestError extends Error {
   }
 }
 
-const roomServiceConfigKey = 'musiche-' + StorageKey.RoomServerAddress;
-export function getRoomServerAddress() {
-  const saved = localStorage.getItem(roomServiceConfigKey)?.trim();
-  if (saved) return saved.replace(/\/+$/, '');
-  if (import.meta.env.DEV) return 'http://127.0.0.1:8738';
-  return `${location.protocol}//${location.hostname}`;
-}
-
-export function hasRoomServerAddressConfigured() {
-  return Boolean(getRoomServerAddress()?.trim());
-}
-
-export function setRoomServerAddress(value: string) {
-  const normalized = value.trim().replace(/\/+$/, '');
-  if (!normalized) localStorage.removeItem(roomServiceConfigKey);
-  else localStorage.setItem(roomServiceConfigKey, normalized);
-}
-
 export async function roomRequest<T>(
   path: string,
   options?: RequestInit
@@ -131,7 +118,7 @@ export async function roomRequest<T>(
   return data as T;
 }
 
-export function createRoomIdentity(): RoomIdentity {
+export async function createRoomIdentity(): Promise<RoomIdentity> {
   const idKey = 'musiche-room-visitor-id';
   let visitorId = localStorage.getItem(idKey);
   if (!visitorId) {
@@ -148,10 +135,29 @@ export function createRoomIdentity(): RoomIdentity {
   // The raw browser characteristics are only used as input. Keep the value
   // sent to the room server short and URL-safe so it does not expose the full
   // fingerprint in WebSocket URLs or access logs.
-  const digest = CryptoJS.SHA256(rawFingerprint);
-  const fingerprint = CryptoJS.enc.Base64.stringify(digest)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
+  let fingerprint = '';
+  if (crypto.subtle) {
+    const digest = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(rawFingerprint)
+    );
+    let binary = '';
+    for (const byte of new Uint8Array(digest))
+      binary += String.fromCharCode(byte);
+    fingerprint = btoa(binary)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '');
+  } else {
+    // Keep ordinary rooms working in older/insecure browser contexts. Modern
+    // HTTPS and localhost sessions never download this compatibility chunk.
+    const CryptoJS = (await import('crypto-js')).default;
+    fingerprint = CryptoJS.enc.Base64.stringify(
+      CryptoJS.SHA256(rawFingerprint)
+    )
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '');
+  }
   return { visitorId, fingerprint };
 }

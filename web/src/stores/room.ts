@@ -59,7 +59,7 @@ export const useRoomStore = defineStore('room', {
     reconnectTimer: null as ReturnType<typeof setTimeout> | null,
     transport: null as RoomRealtimeTransport | null,
     transportFailureCode: '',
-    identity: createRoomIdentity() as RoomIdentity,
+    identity: { visitorId: '', fingerprint: '' } as RoomIdentity,
     memberToken: '',
     config: null as RoomServiceConfig | null,
     snapshot: null as RoomSnapshot | null,
@@ -105,6 +105,12 @@ export const useRoomStore = defineStore('room', {
       }
   },
   actions: {
+    async ensureIdentity() {
+      if (this.identity.visitorId && this.identity.fingerprint)
+        return this.identity;
+      this.identity = await createRoomIdentity();
+      return this.identity;
+    },
     async checkAvailability() {
       console.log('[在线歌房] 检查服务可用性');
       if (!hasRoomServerAddressConfigured()) {
@@ -171,6 +177,7 @@ export const useRoomStore = defineStore('room', {
       chatEncrypted: boolean;
       chatKey?: string;
     }) {
+      await this.ensureIdentity();
       if (payload.chatEncrypted && !this.config?.chatEncryptionSupported)
         throw new Error('当前歌房服务版本不支持端到端加密，请更新并重启服务');
       const { chatKey = '', ...request } = payload;
@@ -192,6 +199,7 @@ export const useRoomStore = defineStore('room', {
       roomId: string,
       payload: { nickname: string; entryPassword: string }
     ) {
+      await this.ensureIdentity();
       if (this.chatKeyRoomId !== roomId.toUpperCase())
         this.setRoomChatKey(roomId, rememberedRoomChatKey(roomId));
       const token = readAdminTokens()[roomId] || '';
@@ -212,6 +220,7 @@ export const useRoomStore = defineStore('room', {
       this.connect();
     },
     async open(roomId: string, connect = true) {
+      await this.ensureIdentity();
       if (this.chatKeyRoomId !== roomId.toUpperCase())
         this.setRoomChatKey(roomId, rememberedRoomChatKey(roomId));
       const token = readAdminTokens()[roomId] || '';

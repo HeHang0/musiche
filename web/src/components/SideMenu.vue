@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { usePlayStore } from '../stores/play';
 import { LogoImage, LogoCircleImage } from '../utils/logo';
 import { useSettingStore } from '../stores/setting';
 import { getServiceWorkerRegistration } from '../sw/register';
-import { useRoomStore } from '../stores/room';
 const { options, push } = useRouter();
 const route = useRoute();
 const play = usePlayStore();
 const setting = useSettingStore();
-const room = useRoomStore();
 
 const playListName = ref('');
 const createPlaylistShow = ref(false);
@@ -36,11 +34,13 @@ function toHome() {
   push('/');
 }
 async function openRoomLobby() {
-  if (route.path.startsWith('/room/')) room.leave();
+  if (route.path.startsWith('/room/')) {
+    const { useRoomStore } = await import('../stores/room');
+    useRoomStore().leave();
+  }
   if (route.path !== '/room') await push('/room');
 }
 const canDirectoryPicker = Boolean((window as any).showDirectoryPicker);
-onMounted(() => room.initialize());
 </script>
 
 <template>
@@ -66,15 +66,13 @@ onMounted(() => room.initialize());
             :index="'/' + item.key"
             :id="'/' + item.key"
             v-if="
-              item.key === 'room' && !room.serviceAvailable
-                ? false
-                : item.key === 'yours'
-                  ? Boolean(
-                      setting.userInfo.cloud.id ||
-                      setting.userInfo.qq.id ||
-                      setting.userInfo.migu.id
-                    )
-                  : true
+              item.key === 'yours'
+                ? Boolean(
+                    setting.userInfo.cloud.id ||
+                    setting.userInfo.qq.id ||
+                    setting.userInfo.migu.id
+                  )
+                : true
             "
             :class="route.meta.key == item.key ? 'is-active' : ''"
             @click="item.key === 'room' && openRoomLobby()">

@@ -6,7 +6,7 @@ import { useSettingStore } from './setting';
 import { registerServiceWorker } from '../sw/register';
 import { LyricManager } from '../utils/lyric';
 import * as local from '../utils/api/local';
-import { ElMessage } from 'element-plus';
+import { ElMessage } from 'element-plus/es/components/message/index';
 import { messageOption } from '../utils/utils';
 
 export class MusicConnection {

@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { onMounted, onUnmounted, ref } from 'vue';
-import jsQR from 'jsqr';
 
 const emit = defineEmits({
   sync: (_text: string) => true
@@ -13,6 +12,7 @@ let stopped = false;
 let scanTimer: number | null = null;
 let canvas: HTMLCanvasElement | null = null;
 let canvasContext: CanvasRenderingContext2D | null = null;
+let decodeQRCode: typeof import('jsqr').default | null = null;
 
 function stopCamera() {
   stopped = true;
@@ -29,7 +29,7 @@ function stopCamera() {
 
 function scan() {
   const video = videoEle.value;
-  if (!video || !canvas || !canvasContext || stopped) return;
+  if (!video || !canvas || !canvasContext || !decodeQRCode || stopped) return;
   const width = video.videoWidth;
   const height = video.videoHeight;
   if (!width || !height) {
@@ -41,7 +41,7 @@ function scan() {
     canvas.height = height;
     canvasContext.drawImage(video, 0, 0, width, height);
     const imageData = canvasContext.getImageData(0, 0, width, height);
-    const qrCode = jsQR(imageData.data, width, height, {
+    const qrCode = decodeQRCode(imageData.data, width, height, {
       inversionAttempts: 'attemptBoth'
     });
     if (qrCode?.data) {
@@ -77,6 +77,7 @@ function getCameraErrorMessage(error: unknown) {
 
 onMounted(async () => {
   try {
+    decodeQRCode = (await import('jsqr')).default;
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment' },
       audio: false

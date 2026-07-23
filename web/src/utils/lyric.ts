@@ -1,4 +1,5 @@
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus/es/components/message/index';
+import { ElMessageBox } from 'element-plus/es/components/message-box/index';
 import { LyricLine, LyricOptionsKey, Music } from './type';
 import * as api from './api/api';
 import {

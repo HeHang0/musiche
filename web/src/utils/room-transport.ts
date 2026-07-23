@@ -1,4 +1,4 @@
-import { getRoomServerAddress } from './room';
+import { getRoomServerAddress } from './room-config';
 
 const fallbackStorageKey = 'musiche-room-realtime-http-fallback';
 const connectionErrorCodes = new Set([

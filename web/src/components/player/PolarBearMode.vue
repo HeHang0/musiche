@@ -8,7 +8,7 @@ import PlayingVideo from '../../assets/videos/playing.webm';
 import { LogoImage } from '../../utils/logo';
 import { Ref, onMounted, onUnmounted, ref, watch } from 'vue';
 import Lyric from './Lyric.vue';
-import Snowflakes from 'magic-snowflakes';
+import type Snowflakes from 'magic-snowflakes';
 import { usePlaybackController } from './playbackContext';
 
 interface Props {

@@ -10,14 +10,12 @@ import WindowHelper from './components/WindowHelper.vue';
 import { MusicConnection } from './stores/connection';
 import { usePlayStore } from './stores/play';
 import { useSettingStore } from './stores/setting';
-import { useRoomStore } from './stores/room';
 import { LogoImage } from './utils/logo';
 import { fixPwaForIOS } from './utils/utils';
 import { webView2Services } from './utils/files';
 import { getProxyAddress, parseHttpProxyAddress } from './utils/http';
 const play = usePlayStore();
 const setting = useSettingStore();
-const room = useRoomStore();
 const route = useRoute();
 document.addEventListener(
   'error',
@@ -76,7 +74,8 @@ onMounted(() => {
         </el-main>
       </el-container>
     </el-container>
-    <Footer v-show="play.musicList.length > 0 && !room.room" />
+    <Footer
+      v-show="play.musicList.length > 0 && !route.path.startsWith('/room/')" />
     <PlayDetail />
     <WindowHelper v-if="webView2Services.specialService" />
   </el-container>
