@@ -910,3 +910,6 @@ export async function userInfo(cookies: string): Promise<UserInfo | null> {
     image: ret.userInfoItem.smallIcon
   };
 }
+export function refreshCookie(cookies: string | Record<string, string>) {
+  return Promise.resolve(cookies);
+}

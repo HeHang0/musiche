@@ -27,7 +27,7 @@ func newAppLogger(config Config) (*appLogger, error) {
 		return nil, err
 	}
 	return &appLogger{
-		logger: log.New(io.MultiWriter(os.Stdout, writer), "", log.Ldate|log.Ltime|log.Lmicroseconds|log.LUTC),
+		logger: log.New(io.MultiWriter(os.Stdout, writer), "", log.Ldate|log.Ltime|log.LUTC),
 		file:   writer,
 	}, nil
 }
@@ -236,16 +236,14 @@ func (s *server) requestLogger(next http.Handler) http.Handler {
 		if status == 0 {
 			status = http.StatusOK
 		}
-		s.logger.Printf(
-			"http request_id=%s method=%s path=%q status=%d bytes=%d duration_ms=%d host=%q remote=%q forwarded_for=%q real_ip=%q cf_connecting_ip=%q proto=%q tls=%t forwarded_proto=%q upgrade=%q connection=%q websocket_version=%q websocket_protocol=%q origin=%q cf_ray=%q user_agent=%q",
-			requestID, r.Method, r.URL.Path, status, writer.bytes, time.Since(startedAt).Milliseconds(),
-			cleanLogValue(r.Host, 240), cleanLogValue(r.RemoteAddr, 160), cleanLogValue(r.Header.Get("X-Forwarded-For"), 240),
-			cleanLogValue(r.Header.Get("X-Real-IP"), 100), cleanLogValue(r.Header.Get("CF-Connecting-IP"), 100), r.Proto, r.TLS != nil,
-			cleanLogValue(r.Header.Get("X-Forwarded-Proto"), 32), cleanLogValue(r.Header.Get("Upgrade"), 32),
-			cleanLogValue(r.Header.Get("Connection"), 80), cleanLogValue(r.Header.Get("Sec-WebSocket-Version"), 32),
-			cleanLogValue(r.Header.Get("Sec-WebSocket-Protocol"), 160), cleanLogValue(r.Header.Get("Origin"), 240),
-			cleanLogValue(r.Header.Get("CF-Ray"), 100), cleanLogValue(r.UserAgent(), 300),
-		)
+		duration := time.Since(startedAt)
+		// 连接生命周期和业务事件另有专门日志；这里仅保留异常和慢请求，避免流式连接造成大量无用记录。
+		if status >= http.StatusBadRequest || duration >= time.Second {
+			s.logger.Printf(
+				"http request_id=%s method=%s path=%q status=%d duration_ms=%d",
+				requestID, r.Method, r.URL.Path, status, duration.Milliseconds(),
+			)
+		}
 	})
 }
 

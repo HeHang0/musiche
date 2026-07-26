@@ -1038,14 +1038,95 @@ export async function userInfo(cookies: string): Promise<UserInfo | null> {
   const cookieNewObject = {
     uin: cookieObj.uin || '',
     qm_keyst: cookieObj.qm_keyst || '',
-    qqmusic_key: cookieObj.qqmusic_key || ''
+    qqmusic_key: cookieObj.qqmusic_key || '',
+    psrf_qqrefresh_token: cookieObj.psrf_qqrefresh_token || '',
+    psrf_qqaccess_token: cookieObj.psrf_qqaccess_token || '',
+    psrf_musickey_createtime: cookieObj.psrf_musickey_createtime || ''
   };
   if (cookieNewObject) {
-    qqCookie = formatCookies(cookieNewObject);
+    // qqCookie = formatCookies(cookieNewObject);
   }
   return {
     id: creator.encrypt_uin,
     name: creator.nick,
     image: creator.headpic
   };
+}
+
+const oneDayMs = 24 * 60 * 60 * 1000;
+
+export async function refreshCookie(cookies: string | Record<string, string>) {
+  if (!cookies) {
+    return cookies;
+  }
+  const cookie = formatCookies(cookies);
+  const cookieObj = parseCookieText(cookie);
+  const createTime = Number(`${cookieObj.psrf_musickey_createtime}000`);
+  const currentTime = new Date().valueOf();
+  if (!Number.isNaN(createTime) && currentTime - createTime < oneDayMs) {
+    return cookies;
+  }
+  var res = await httpProxy({
+    url: 'https://u.y.qq.com/cgi-bin/musicu.fcg',
+    method: 'POST',
+    data: JSON.stringify({
+      req: {
+        module: 'music.login.LoginServer',
+        method: 'Login',
+        param: {
+          openid: cookieObj.psrf_qqopenid || cookieObj.wxopenid,
+          access_token: cookieObj.psrf_qqaccess_token,
+          refresh_token:
+            cookieObj.psrf_qqrefresh_token || cookieObj.wxrefresh_token,
+          expired_in: Number(cookieObj.psrf_access_token_expiresAt) || 0,
+          musicid: Number(cookieObj['uin']),
+          musickey: cookieObj.qqmusic_key || cookieObj.qm_keyst,
+          refresh_key: cookieObj.refresh_key || '',
+          unionid: cookieObj.psrf_qqunionid || cookieObj.wxunionid,
+          loginMode: 2
+        }
+      }
+    }),
+    headers: {
+      'content-type': 'application/json',
+      Referer: 'https://y.qq.com',
+      Cookie: cookie
+    },
+    setCookieRename: true
+  });
+  const ret = await res.json();
+  const data = ret?.req?.data;
+  if (!data || !data.musickey) {
+    return cookies;
+  }
+  if (cookieObj.psrf_qqopenid) {
+    cookieObj.psrf_qqopenid = data.openid || cookieObj.psrf_qqopenid;
+  } else if (cookieObj.wxopenid) {
+    cookieObj.wxopenid = data.openid || cookieObj.wxopenid;
+  }
+  if (cookieObj.psrf_qqrefresh_token) {
+    cookieObj.psrf_qqrefresh_token =
+      data.refresh_token || cookieObj.psrf_qqrefresh_token;
+  } else if (cookieObj.wxrefresh_token) {
+    cookieObj.wxrefresh_token = data.refresh_token || cookieObj.wxrefresh_token;
+  }
+  cookieObj.psrf_access_token_expiresAt =
+    data.expired_at || cookieObj.psrf_access_token_expiresAt;
+  if (cookieObj.qqmusic_key) {
+    cookieObj.qqmusic_key = data.musickey || cookieObj.qqmusic_key;
+  } else if (cookieObj.qm_keyst) {
+    cookieObj.qm_keyst = data.musickey || cookieObj.qm_keyst;
+  }
+  cookieObj.psrf_musickey_createtime =
+    data.musickeyCreateTime || cookieObj.psrf_musickey_createtime;
+  cookieObj.psrf_qqaccess_token =
+    data.access_token || cookieObj.psrf_qqaccess_token;
+  if (cookieObj.psrf_qqunionid) {
+    cookieObj.psrf_qqunionid = data.unionid || cookieObj.psrf_qqunionid;
+  } else if (cookieObj.wxunionid) {
+    cookieObj.wxunionid = data.unionid || cookieObj.wxunionid;
+  }
+  qqCookie = formatCookies(cookieObj);
+  onCookieChanged && onCookieChanged(qqCookie);
+  return qqCookie;
 }

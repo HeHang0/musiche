@@ -127,10 +127,43 @@ func TestRequestLoggerSupportsWebSocketAndOmitsQuerySecrets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(data, []byte("ws_rejected")) || !bytes.Contains(data, []byte(`path="/ws"`)) {
+	if !bytes.Contains(data, []byte("ws_rejected")) {
 		t.Fatalf("WebSocket diagnostics were not written: %s", data)
 	}
 	if bytes.Contains(data, []byte(secretToken)) {
 		t.Fatal("memberToken leaked into the log file")
+	}
+}
+
+func TestRequestLoggerOnlyWritesSlowOrFailedRequests(t *testing.T) {
+	logFile := filepath.Join(t.TempDir(), "server.log")
+	writer, err := newRotatingLogWriter(logFile, 1024*1024, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logger := &appLogger{logger: log.New(writer, "", 0), file: writer}
+	server := &server{logger: logger}
+
+	ok := httptest.NewRecorder()
+	server.requestLogger(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})).ServeHTTP(ok, httptest.NewRequest(http.MethodGet, "/health", nil))
+
+	failed := httptest.NewRecorder()
+	server.requestLogger(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	})).ServeHTTP(failed, httptest.NewRequest(http.MethodGet, "/api/v1/rooms", nil))
+	if err := logger.Close(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(data, []byte(`path="/health"`)) {
+		t.Fatalf("successful request should not be logged: %s", data)
+	}
+	if !bytes.Contains(data, []byte(`path="/api/v1/rooms"`)) || bytes.Contains(data, []byte("user_agent=")) || bytes.Contains(data, []byte("host=")) {
+		t.Fatalf("failed request log should be concise: %s", data)
 	}
 }

@@ -316,6 +316,14 @@ export function subscribeCookieChanged(
   musicAPI.get(type)?.subscribeCookieChanged?.call(null, func);
 }
 
+export async function refreshCookie(
+  type: MusicType,
+  cookie: string | Record<string, string>
+): Promise<string | Record<string, string>> {
+  const result = await musicAPI.get(type)?.refreshCookie?.call(null, cookie);
+  return result || cookie;
+}
+
 export function getCookie(type: MusicType) {
   switch (type) {
     case 'cloud':

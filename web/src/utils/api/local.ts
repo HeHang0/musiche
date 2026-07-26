@@ -339,3 +339,6 @@ export async function musicDetailWeb(music: Music): Promise<Music> {
   }
   return music;
 }
+export function refreshCookie(cookies: string) {
+  return Promise.resolve(cookies);
+}

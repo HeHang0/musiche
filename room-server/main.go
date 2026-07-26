@@ -28,6 +28,13 @@ func main() {
 			store.removeExpiredRooms()
 		}
 	}()
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			store.refreshCredentials()
+		}
+	}()
 	logger.Printf("service_started address=%q data_dir=%q log_file=%q log_api_enabled=%t", config.Address, config.DataDir, config.LogFile, config.LogViewToken != "")
 	if err := http.ListenAndServe(config.Address, (&server{store: store, logger: logger}).routes()); err != nil {
 		logger.Printf("fatal component=http error=%q", err)

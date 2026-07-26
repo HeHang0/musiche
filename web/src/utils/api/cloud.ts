@@ -766,3 +766,6 @@ export async function userInfo(
     image: (ret.profile.avatarUrl || '').replace('http://', 'https://')
   };
 }
+export function refreshCookie(cookies: string | Record<string, string>) {
+  return Promise.resolve(cookies);
+}

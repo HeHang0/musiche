@@ -222,7 +222,8 @@ export const useSettingStore = defineStore('setting', {
         image: ''
       }
     } as Record<MusicType, UserInfo>,
-    remoteClients: [] as RemoteClient[]
+    remoteClients: [] as RemoteClient[],
+    updateCookieTimer: null as any
   }),
   actions: {
     setMaximized(maximized: boolean) {
@@ -587,6 +588,27 @@ export const useSettingStore = defineStore('setting', {
         }
       }
     },
+    async updateCookie(type?: MusicType) {
+      const types: { type: MusicType; info: UserInfo }[] = type
+        ? [{ type: type, info: this.userInfo[type] }]
+        : [
+            { type: 'qq', info: this.userInfo.qq },
+            { type: 'cloud', info: this.userInfo.cloud },
+            { type: 'migu', info: this.userInfo.migu }
+          ];
+      for (let i = 0; i < types.length; i++) {
+        const musicType = types[i].type;
+        const userInfo = types[i].info;
+        if (userInfo && userInfo.cookie) {
+          try {
+            userInfo.cookie = await api.refreshCookie(
+              musicType,
+              userInfo.cookie
+            );
+          } catch {}
+        }
+      }
+    },
     async initValue(remoteConfig: Config, storages: Record<string, any>) {
       this.setRemoteConfig(remoteConfig);
       this.setCustomTheme(storages[StorageKey.CustomTheme], false);
@@ -693,6 +715,7 @@ export const useSettingStore = defineStore('setting', {
             this.userInfo[musicType as MusicType].cookie =
               userInfo?.cookie || '';
             try {
+              await this.updateCookie(musicType as MusicType);
               await this.setUserInfo(musicType as MusicType);
             } catch {}
           }
@@ -708,6 +731,11 @@ export const useSettingStore = defineStore('setting', {
         this.playQuality = 'PQ';
         this.downloadQuality = 'PQ';
       }
+      clearInterval(this.updateCookieTimer);
+      this.updateCookieTimer = setInterval(
+        this.updateCookie,
+        24 * 60 * 60 * 1000
+      );
     },
     async waitLoaded() {
       if (this.settingLoaded) return Promise.resolve();

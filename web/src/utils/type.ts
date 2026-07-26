@@ -283,4 +283,7 @@ export interface PlatformAPI {
   subscribeCookieChanged?(
     func: ((cookie: string | Record<string, string>) => void) | null
   ): void;
+  refreshCookie?(
+    cookie: Record<string, string> | string
+  ): Promise<string | Record<string, string>>;
 }
