@@ -261,9 +261,7 @@ const chatAvailable = computed(
   () => !snapshot.value?.room.chatEncrypted || roomStore.hasChatKey
 );
 const chatPlaceholder = computed(() =>
-  chatAvailable.value
-    ? '说点什么…'
-    : '聊天已加密，请使用完整邀请链接进入'
+  chatAvailable.value ? '说点什么…' : '聊天已加密，请使用完整邀请链接进入'
 );
 const current = computed(() => snapshot.value?.state.current || null);
 const playback = computed(() => snapshot.value?.state.playback);
@@ -303,6 +301,13 @@ const randomPlaybackType = computed(() => {
     return snapshot.value?.state.randomPlayback ? 'default' : 'primary';
   } else {
     return snapshot.value?.state.randomPlayback ? 'primary' : 'default';
+  }
+});
+const queueLoopType = computed(() => {
+  if (settingStore.appTheme.id === 'animal-island') {
+    return snapshot.value?.state.queueLoop ? 'default' : 'primary';
+  } else {
+    return snapshot.value?.state.queueLoop ? 'primary' : 'default';
   }
 });
 let lastRoomLyricKey = 0;
@@ -1388,6 +1393,18 @@ onUnmounted(() => {
                       :aria-pressed="snapshot.state.randomPlayback"
                       @click="roomStore.toggleRandomPlayback"
                       ><span class="music-icon">随</span></el-button
+                    >
+                    <el-button
+                      circle
+                      :type="queueLoopType"
+                      :title="
+                        snapshot.state.queueLoop
+                          ? '列表循环：已开启'
+                          : '列表循环：未开启'
+                      "
+                      :aria-pressed="snapshot.state.queueLoop"
+                      @click="roomStore.toggleQueueLoop"
+                      ><span class="music-icon">环</span></el-button
                     >
                   </template>
                   <template v-else>

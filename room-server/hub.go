@@ -501,7 +501,7 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 			c.broadcastSnapshot()
 		}
 		return err
-	case "play_toggle", "next", "random_playback_toggle", "seek":
+	case "play_toggle", "next", "random_playback_toggle", "queue_loop_toggle", "seek":
 		if !c.isAdmin(command.AdminToken) {
 			return errors.New("请输入管理员密码后再操作")
 		}
@@ -527,7 +527,7 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 				operation = "暂停播放：《" + sanitizeName(c.room.state.Current.Music.Name, 120) + "》"
 			}
 		case "next":
-			c.room.state.Current = advanceQueueItem(&c.room.state)
+			c.room.state.Current = advanceQueueItem(&c.room.state, c.room.state.QueueLoop)
 			c.room.state.Playback = PlaybackState{Playing: c.room.state.Current != nil, PositionMS: 0, UpdatedAt: now}
 			if c.room.state.Current == nil {
 				operation = "切歌，点歌列表已播放完"
@@ -540,6 +540,13 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 				operation = "开启了随机切歌"
 			} else {
 				operation = "关闭了随机切歌"
+			}
+		case "queue_loop_toggle":
+			c.room.state.QueueLoop = !c.room.state.QueueLoop
+			if c.room.state.QueueLoop {
+				operation = "开启了列表循环"
+			} else {
+				operation = "关闭了列表循环"
 			}
 		case "seek":
 			if c.room.state.Current == nil {
@@ -572,7 +579,7 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 		}
 		member := c.room.config.Members[c.memberID]
 		now := time.Now().UTC()
-		c.room.state.Current = advanceQueueItem(&c.room.state)
+		c.room.state.Current = advanceQueueItem(&c.room.state, c.room.state.QueueLoop)
 		c.room.state.Playback = PlaybackState{Playing: c.room.state.Current != nil, UpdatedAt: now}
 		operation := "播放结束，点歌列表已播放完"
 		if c.room.state.Current != nil {
@@ -732,14 +739,31 @@ func nextQueueItem(state *RoomState) *QueueItem {
 
 const maxHistoryItems = 100
 
-func advanceQueueItem(state *RoomState) *QueueItem {
+// advanceQueueItem moves the playing song into history and returns the next
+// queued song. When loopCurrent is enabled, the played song is appended after
+// choosing the next item, so it goes to the end of the list and cannot be
+// selected twice in a row while other songs wait.
+func advanceQueueItem(state *RoomState, loopCurrent bool) *QueueItem {
+	var played *QueueItem
 	if state.Current != nil {
 		state.History = append([]QueueItem{*state.Current}, state.History...)
 		if len(state.History) > maxHistoryItems {
 			state.History = state.History[:maxHistoryItems]
 		}
+		if loopCurrent {
+			item := *state.Current
+			played = &item
+		}
 	}
-	return nextQueueItem(state)
+	next := nextQueueItem(state)
+	if played != nil {
+		state.Queue = append(state.Queue, *played)
+		// A one-song queue needs to start that same song again immediately.
+		if next == nil {
+			return queueHead(state)
+		}
+	}
+	return next
 }
 
 // randomQueueItem picks one waiting song without shuffling the remaining

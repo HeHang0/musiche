@@ -63,6 +63,7 @@ type RoomState struct {
 	History        []QueueItem   `json:"history"`
 	Playback       PlaybackState `json:"playback"`
 	RandomPlayback bool          `json:"randomPlayback,omitempty"`
+	QueueLoop      bool          `json:"queueLoop,omitempty"`
 	EmptySince     *time.Time    `json:"emptySince,omitempty"`
 }
 

@@ -69,12 +69,37 @@ func TestAdvanceQueueItemMovesCurrentIntoHistory(t *testing.T) {
 		Current: &QueueItem{ID: "playing"},
 		Queue:   []QueueItem{{ID: "next"}},
 	}
-	next := advanceQueueItem(&state)
+	next := advanceQueueItem(&state, false)
 	if next == nil || next.ID != "next" {
 		t.Fatalf("expected next queued item, got %#v", next)
 	}
 	if len(state.History) != 1 || state.History[0].ID != "playing" {
 		t.Fatalf("current song was not added to history: %#v", state.History)
+	}
+}
+
+func TestAdvanceQueueItemLoopsCurrentToQueueTail(t *testing.T) {
+	state := RoomState{
+		Current: &QueueItem{ID: "playing"},
+		Queue:   []QueueItem{{ID: "next"}, {ID: "later"}},
+	}
+	next := advanceQueueItem(&state, true)
+	if next == nil || next.ID != "next" {
+		t.Fatalf("expected next queued item, got %#v", next)
+	}
+	if len(state.Queue) != 2 || state.Queue[0].ID != "later" || state.Queue[1].ID != "playing" {
+		t.Fatalf("played song was not moved to queue tail: %#v", state.Queue)
+	}
+	if len(state.History) != 1 || state.History[0].ID != "playing" {
+		t.Fatalf("current song was not added to history: %#v", state.History)
+	}
+}
+
+func TestAdvanceQueueItemLoopsOnlySong(t *testing.T) {
+	state := RoomState{Current: &QueueItem{ID: "playing"}}
+	next := advanceQueueItem(&state, true)
+	if next == nil || next.ID != "playing" || len(state.Queue) != 0 {
+		t.Fatalf("expected only song to restart, got next=%#v queue=%#v", next, state.Queue)
 	}
 }
 

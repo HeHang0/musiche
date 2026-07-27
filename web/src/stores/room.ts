@@ -505,6 +505,9 @@ export const useRoomStore = defineStore('room', {
     toggleRandomPlayback() {
       this.command('random_playback_toggle');
     },
+    toggleQueueLoop() {
+      this.command('queue_loop_toggle');
+    },
     seek(positionMs: number) {
       console.log('[在线歌房] seek', positionMs);
       this.command('seek', { positionMs: Math.round(positionMs) });

@@ -67,6 +67,7 @@ export interface RoomState {
   history?: RoomQueueItem[];
   playback: RoomPlaybackState;
   randomPlayback: boolean;
+  queueLoop: boolean;
 }
 
 export interface RoomSnapshot {

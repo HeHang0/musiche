@@ -62,7 +62,8 @@ const snapshot = computed<RoomSnapshot>(() => ({
       ),
       updatedAt: new Date(0).toISOString()
     },
-    randomPlayback: play.sortType === SortType.Random
+    randomPlayback: play.sortType === SortType.Random,
+    queueLoop: false
   },
   isAdmin: false,
   allowGuestQueue: false,
