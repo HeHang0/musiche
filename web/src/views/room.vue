@@ -8,6 +8,7 @@ import {
   DeleteFilled,
   EditPen,
   Lock,
+  Notification as NotificationIcon,
   Search,
   Setting,
   Share,
@@ -29,7 +30,7 @@ import type {
 } from '../utils/type';
 import { LogoImage } from '../utils/logo';
 import { musicTypeInfo } from '../utils/platform';
-import { RoomRequestError } from '../utils/room';
+import { RoomRequestError, type RoomChatMessage } from '../utils/room';
 import {
   messageOption,
   millisecond2Duration,
@@ -168,6 +169,10 @@ const queuePanel = ref<'queue' | 'history'>('queue');
 const chatScrollbar = ref<any>(null);
 const chatShouldStickToBottom = ref(true);
 const unreadChatCount = ref(0);
+const roomDetailChatVisible = ref(false);
+const notificationPermission = ref<NotificationPermission | 'unsupported'>(
+  typeof Notification === 'undefined' ? 'unsupported' : Notification.permission
+);
 const emojiList = [
   '😀',
   '😃',
@@ -245,6 +250,11 @@ watch(
 );
 
 const snapshot = computed(() => roomStore.snapshot);
+const chatDirectlyVisible = computed(() =>
+  roomPlayDetailVisible.value
+    ? roomDetailChatVisible.value
+    : chatShouldStickToBottom.value
+);
 const onlineMembers = computed(() => {
   const members = snapshot.value?.onlineMembers || [];
   if (members.length || !snapshot.value?.memberId) return members;
@@ -346,6 +356,7 @@ function currentPosition() {
 
 function openRoomPlayDetail() {
   startPlayCheck();
+  roomDetailChatVisible.value = false;
   roomPlayDetailVisible.value = true;
 }
 
@@ -454,6 +465,43 @@ function updateChatScrollPosition() {
   chatShouldStickToBottom.value =
     wrap.scrollHeight - wrap.clientHeight - wrap.scrollTop <= 48;
   if (chatShouldStickToBottom.value) unreadChatCount.value = 0;
+}
+
+async function enableChatNotifications(silent = false) {
+  if (typeof Notification === 'undefined') return;
+  try {
+    notificationPermission.value = await Notification.requestPermission();
+    if (notificationPermission.value === 'denied' && !silent)
+      ElMessage(messageOption('系统消息提醒已被浏览器禁止'));
+  } catch {
+    if (silent) return;
+    ElMessage(messageOption('无法开启系统消息提醒'));
+  }
+}
+
+function notifyChatMessage(message: RoomChatMessage) {
+  if (
+    message.system ||
+    message.memberId === snapshot.value?.memberId ||
+    notificationPermission.value !== 'granted'
+  )
+    return;
+  try {
+    const roomName = snapshot.value?.room.name || '在线歌房';
+    const content = message.content.trim() || (message.image ? '[图片]' : '');
+    const notification = new Notification(`${roomName} · ${message.nickname}`, {
+      body: content.slice(0, 160),
+      tag: `musiche-room-${snapshot.value?.room.id || ''}`,
+      icon: chatAvatar(message.memberId, message.avatar)
+    });
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+  } catch {
+    // Some desktop shells expose Notification but cannot create it. The chat
+    // itself remains fully functional, so avoid surfacing a noisy error.
+  }
 }
 
 function scrollChatToBottom(force = false, smooth = false) {
@@ -1077,6 +1125,8 @@ function closeMembersPopover() {
 }
 onMounted(async () => {
   setBodyClass(true);
+  if (notificationPermission.value === 'default')
+    void enableChatNotifications(true);
   try {
     await roomStore.initialize();
     await openRouteRoom();
@@ -1110,17 +1160,26 @@ onMounted(async () => {
   );
   stopChatWatch = watch(
     () => roomStore.chatMessages.length,
-    (length, previousLength) => {
+    (length, previousLength = 0) => {
       if (length === 0) {
         unreadChatCount.value = 0;
         return;
       }
       if (length <= previousLength) return;
-      if (chatShouldStickToBottom.value) scrollChatToBottom();
-      else unreadChatCount.value += length - previousLength;
+      const messages = roomStore.chatMessages.slice(previousLength, length);
+      const userMessages = messages.filter(message => !message.system);
+      const directlyVisible =
+        document.visibilityState === 'visible' && chatDirectlyVisible.value;
+      if (directlyVisible) {
+        if (roomPlayDetailVisible.value) unreadChatCount.value = 0;
+        else scrollChatToBottom();
+      } else unreadChatCount.value += userMessages.length;
+      if (!directlyVisible)
+        messages.forEach(message => notifyChatMessage(message));
     },
     { flush: 'post' }
   );
+  document.addEventListener('visibilitychange', handleVisibilityChange);
   if (!document.body.className.includes(classBodyName)) {
     document.body.classList.add(classBodyName);
   }
@@ -1135,7 +1194,21 @@ onUnmounted(() => {
   stopChatWatch();
   roomStore.leave();
   document.removeEventListener('click', closeMembersPopover);
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
   document.body.classList.remove(classBodyName);
+});
+
+function handleVisibilityChange() {
+  if (
+    document.visibilityState === 'visible' &&
+    !roomPlayDetailVisible.value &&
+    chatShouldStickToBottom.value
+  )
+    scrollChatToBottom();
+}
+
+watch(roomPlayDetailVisible, visible => {
+  if (!visible) roomDetailChatVisible.value = false;
 });
 </script>
 
@@ -1447,7 +1520,15 @@ onUnmounted(() => {
                 <small v-if="snapshot.room.chatEncrypted">
                   {{ chatAvailable ? '端到端加密' : '缺少聊天密钥' }}
                 </small>
-                <button
+                <el-button
+                  v-if="notificationPermission === 'default'"
+                  class="music-room-chat-notification"
+                  type="button"
+                  title="开启系统消息提醒"
+                  @click="enableChatNotifications">
+                  <el-icon><NotificationIcon /></el-icon>
+                </el-button>
+                <el-button
                   v-if="unreadChatCount"
                   class="music-room-chat-unread"
                   type="button"
@@ -1455,7 +1536,7 @@ onUnmounted(() => {
                   @click="followLatestChat">
                   {{ unreadChatCount > 99 ? '99+' : unreadChatCount }} 条新消息
                   <el-icon><ArrowDown /></el-icon>
-                </button>
+                </el-button>
               </div>
               <el-scrollbar
                 ref="chatScrollbar"
@@ -1586,6 +1667,7 @@ onUnmounted(() => {
         @toggle-play="roomStore.togglePlayerAction"
         @next="roomStore.next"
         @toggle-random="roomStore.toggleRandomPlayback"
+        @chat-visibility="visible => (roomDetailChatVisible = visible)"
         @seek="roomStore.seek"
         @set-volume="roomStore.setVolume"
         @resume="roomStore.resumeAudio"
@@ -2350,6 +2432,26 @@ onUnmounted(() => {
       align-items: center;
       gap: 10px;
     }
+    &-notification {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      min-height: 0 !important;
+      flex: 0 0 auto;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: inherit;
+      opacity: 0.62;
+      cursor: pointer;
+      &:hover {
+        background: var(--music-background-hover);
+        opacity: 1;
+      }
+    }
     &-unread {
       display: inline-flex;
       align-items: center;
@@ -2358,6 +2460,7 @@ onUnmounted(() => {
       padding: 4px 8px;
       border: 0;
       border-radius: 999px;
+      min-height: 0 !important;
       background: var(--music-button-info-border-color);
       color: var(--music-primary-color);
       font-size: 12px;

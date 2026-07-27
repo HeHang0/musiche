@@ -77,6 +77,7 @@ const emit = defineEmits<{
   togglePlay: [];
   next: [];
   toggleRandom: [];
+  chatVisibility: [visible: boolean];
   seek: [position: number];
   setVolume: [volume: number];
   resume: [];
@@ -581,8 +582,17 @@ watch(
     if (length <= previous) return;
     if (activePanel.value === 'chat' && chatAtBottom.value)
       scrollChatToBottom();
-    else unreadChatCount.value += length - previous;
+    else
+      unreadChatCount.value += props.chatMessages
+        .slice(previous, length)
+        .filter(message => !message.system).length;
   }
+);
+
+watch(
+  () => [activePanel.value, chatAtBottom.value],
+  () => emit('chatVisibility', activePanel.value === 'chat' && chatAtBottom.value),
+  { immediate: true }
 );
 
 function getCurrentCardPoint(

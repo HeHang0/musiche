@@ -42,6 +42,7 @@ const emit = defineEmits<{
   togglePlay: [];
   next: [];
   toggleRandom: [];
+  chatVisibility: [visible: boolean];
   seek: [position: number];
   setVolume: [volume: number];
   resume: [];
@@ -229,6 +230,7 @@ onUnmounted(() => {
           @toggle-play="emit('togglePlay')"
           @next="emit('next')"
           @toggle-random="emit('toggleRandom')"
+          @chat-visibility="visible => emit('chatVisibility', visible)"
           @seek="value => emit('seek', value)"
           @set-volume="value => emit('setVolume', value)"
           @resume="emit('resume')"

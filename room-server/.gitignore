@@ -3,3 +3,4 @@ room-data/
 *.exe
 .idea/
 go.sum
+deploy.sh
