@@ -45,7 +45,13 @@ const routers: RouteRecordRaw[] = [
     path: '/room/:id',
     name: '歌房详情',
     meta: { key: 'room', show: false },
-    component: () => import(`../views/room.vue`)
+    component: () => import(`../views/room-entry.vue`)
+  },
+  {
+    path: '/relay',
+    name: '旧版局域网歌房入口',
+    meta: { key: 'room', show: false, relayGuest: true },
+    component: () => import(`../views/room-relay.vue`)
   },
   {
     path: '/search/:type/:searchType/:keywords',

@@ -169,3 +169,36 @@ func TestEncryptedRoomChatOnlyBroadcastsCiphertext(t *testing.T) {
 		t.Fatalf("server exposed or changed encrypted payload: %#v", recorder.events[0].Data)
 	}
 }
+
+func TestRelayChatKeepsGuestProfileSeparateFromConnectionMember(t *testing.T) {
+	memberID := "member-1"
+	recorder := &recordingRoomEventSender{}
+	room := &Room{
+		config: RoomConfig{ID: "ROOM1", Members: map[string]Member{
+			memberID: {ID: memberID, Nickname: "分享者", Avatar: "qq_1.jpg"},
+		}},
+		connections: map[*RoomConnection]struct{}{},
+		path:        t.TempDir(),
+	}
+	recipient := &RoomConnection{id: "recipient", sender: recorder, room: room, memberID: memberID}
+	room.connections[recipient] = struct{}{}
+	connection := &RoomConnection{
+		room: room, memberID: memberID,
+		store: &RoomStore{config: Config{MaxChatMessageBytes: 600, MaxChatImageBytes: 512 * 1024}},
+	}
+
+	err := connection.handle(ClientCommand{
+		Action: "relay_chat", RelayID: "browser-guest", Nickname: "局域网访客",
+		Content: "你好", Avatar: "animal_1.jpg",
+	})
+	if err != nil {
+		t.Fatalf("relay chat failed: %v", err)
+	}
+	message, ok := recorder.events[0].Data.(ChatMessage)
+	if !ok || message.Nickname != "局域网访客" || message.Avatar != "animal_1.jpg" || message.Content != "你好" {
+		t.Fatalf("unexpected relay chat: %#v", recorder.events[0].Data)
+	}
+	if message.MemberID == memberID || message.MemberID == "" {
+		t.Fatalf("relay guest reused sharing member identity: %#v", message)
+	}
+}

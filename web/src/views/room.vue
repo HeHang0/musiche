@@ -30,7 +30,11 @@ import type {
 } from '../utils/type';
 import { LogoImage } from '../utils/logo';
 import { musicTypeInfo } from '../utils/platform';
-import { RoomRequestError, type RoomChatMessage } from '../utils/room';
+import {
+  getRoomServerAddress,
+  RoomRequestError,
+  type RoomChatMessage
+} from '../utils/room';
 import {
   messageOption,
   millisecond2Duration,
@@ -42,6 +46,15 @@ import {
   readRoomChatKeyFromHash,
   roomChatKeyHash
 } from '../utils/room-chat-crypto';
+import {
+  decodeRoomRelayPayload,
+  encodeRoomRelayPayload,
+  randomRelaySecret,
+  roomRelayProtocol,
+  waitForIceGathering,
+  type RoomRelayAnswer,
+  type RoomRelayOffer
+} from '../utils/room-relay';
 
 const roomStore = useRoomStore();
 const playStore = usePlayStore();
@@ -56,7 +69,8 @@ type RoomTabMessage = {
   tabId: string;
 };
 const roomTabId =
-  crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  crypto.randomUUID?.() ||
+  `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const roomTabChannel =
   typeof BroadcastChannel === 'undefined'
     ? null
@@ -209,6 +223,12 @@ const nicknameVisible = ref(false);
 const adminVisible = ref(false);
 const settingsVisible = ref(false);
 const searchVisible = ref(false);
+const relayVisible = ref(false);
+const relayCreating = ref(false);
+const relayInviteLink = ref('');
+const relayAnswer = ref('');
+const relayStatus = ref('尚未创建邀请');
+const relayConnectedCount = ref(0);
 const routeRoomLoading = ref(false);
 const nicknameLoading = ref(false);
 const adminLoading = ref(false);
@@ -236,6 +256,329 @@ const searchPlaylists = ref<RoomPlaylistItem[]>([]);
 const playlistMusics = ref<Music[]>([]);
 const playlistTitle = ref('');
 const activeShortcut = ref<ShortcutKey | ''>('');
+interface RelayHostSession {
+  offer: RoomRelayOffer;
+  peer: RTCPeerConnection;
+  channel: RTCDataChannel;
+  connected: boolean;
+  lastSeen: number;
+  lastLyricsText: string;
+}
+const relaySessions = new Map<string, RelayHostSession>();
+let relayStateTimer: ReturnType<typeof setInterval> | null = null;
+let relayAudioContext: AudioContext | null = null;
+let relayAudioSourceNode: MediaElementAudioSourceNode | null = null;
+let relayAudioDestination: MediaStreamAudioDestinationNode | null = null;
+let relayLocalGainNode: GainNode | null = null;
+interface RelayAudioElement extends HTMLAudioElement {
+  __musicheLocalGain?: GainNode;
+  __musicheRelayGraph?: {
+    context: AudioContext;
+    source: MediaElementAudioSourceNode;
+    destination: MediaStreamAudioDestinationNode;
+    localGain?: GainNode;
+  };
+}
+
+watch(
+  () => roomStore.volume,
+  value => {
+    if (!relayLocalGainNode) return;
+    const contextTime = relayAudioContext?.currentTime || 0;
+    relayLocalGainNode.gain.setValueAtTime(value / 100, contextTime);
+    const audio = roomStore.audio as RelayAudioElement | null;
+    if (audio) audio.volume = 1;
+  }
+);
+
+function closeRoomRelay() {
+  if (relayStateTimer) clearInterval(relayStateTimer);
+  relayStateTimer = null;
+  for (const session of relaySessions.values()) {
+    session.channel.close();
+    session.peer.close();
+  }
+  relaySessions.clear();
+  relayConnectedCount.value = 0;
+}
+
+function refreshRelayCount() {
+  relayConnectedCount.value = Array.from(relaySessions.values()).filter(
+    session => session.connected && session.channel.readyState === 'open'
+  ).length;
+}
+
+function removeRelaySession(sessionId: string) {
+  const session = relaySessions.get(sessionId);
+  if (!session) return;
+  relaySessions.delete(sessionId);
+  session.channel.close();
+  session.peer.close();
+  refreshRelayCount();
+  relayStatus.value = relayConnectedCount.value
+    ? `已通过 WebRTC 连接 ${relayConnectedCount.value} 人`
+    : '暂无 WebRTC 访客连接';
+}
+
+function relaySnapshot() {
+  if (!roomStore.snapshot) return null;
+  const value = JSON.parse(JSON.stringify(roomStore.snapshot));
+  value.isAdmin = false;
+  value.allowGuestQueue = false;
+  value.credentialSources = [];
+  for (const item of [
+    ...(value.state.queue || []),
+    ...(value.state.history || [])
+  ]) {
+    item.music.image = '';
+    item.music.mediumImage = '';
+    item.music.largeImage = '';
+  }
+  if (value.state.current?.music) {
+    value.state.current.music.url = '';
+    value.state.current.music.lyricUrl = '';
+  }
+  return value;
+}
+
+function sendRelayState() {
+  const now = Date.now();
+  for (const [sessionId, session] of relaySessions) {
+    if (!session.connected && session.offer.expiresAt < now)
+      removeRelaySession(sessionId);
+    else if (session.connected && now - session.lastSeen > 10000)
+      removeRelaySession(sessionId);
+  }
+  const snapshot = relaySnapshot();
+  if (!snapshot) return;
+  const chatMessages = roomStore.chatMessages.slice(-100).map(message => ({
+    ...message,
+    image: ''
+  }));
+  for (const session of relaySessions.values()) {
+    if (session.channel.readyState !== 'open') continue;
+    const lyricsText = currentRoomLyricsText.value;
+    const includeLyrics = session.lastLyricsText !== lyricsText;
+    session.lastLyricsText = lyricsText;
+    session.channel.send(
+      JSON.stringify({
+        type: 'state',
+        secret: session.offer.secret,
+        snapshot,
+        chatMessages,
+        lyric: currentRoomLyric.value,
+        ...(includeLyrics ? { lyricsText } : {}),
+        sentAt: Date.now()
+      })
+    );
+  }
+}
+
+async function prepareRelayAudioSource() {
+  const audio = roomStore.audio as RelayAudioElement | null;
+  const sourceURL = audio?.currentSrc || audio?.src;
+  if (!audio || !sourceURL) throw new Error('当前没有可中继的歌曲音频');
+  const server = getRoomServerAddress();
+  if (!sourceURL.startsWith(`${server}/api/v1/proxy?url=`)) {
+    const position = audio.currentTime;
+    const shouldPlay = !audio.paused;
+    audio.pause();
+    audio.crossOrigin = 'anonymous';
+    audio.src = `${server}/api/v1/proxy?url=${encodeURIComponent(sourceURL)}`;
+    await new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        cleanup();
+        reject(new Error('中继音频代理加载超时'));
+      }, 15000);
+      const loaded = () => {
+        cleanup();
+        resolve();
+      };
+      const failed = () => {
+        cleanup();
+        reject(new Error('歌房服务无法代理当前歌曲'));
+      };
+      const cleanup = () => {
+        clearTimeout(timeout);
+        audio.removeEventListener('loadedmetadata', loaded);
+        audio.removeEventListener('error', failed);
+      };
+      audio.addEventListener('loadedmetadata', loaded, { once: true });
+      audio.addEventListener('error', failed, { once: true });
+      audio.load();
+    });
+    if (Number.isFinite(position)) audio.currentTime = position;
+    if (shouldPlay) await audio.play();
+  }
+  if (audio.__musicheRelayGraph) {
+    relayAudioContext = audio.__musicheRelayGraph.context;
+    relayAudioSourceNode = audio.__musicheRelayGraph.source;
+    relayAudioDestination = audio.__musicheRelayGraph.destination;
+    relayLocalGainNode = audio.__musicheRelayGraph.localGain || null;
+    if (!relayLocalGainNode) {
+      // Upgrade an audio graph retained by Vite HMR from the older layout.
+      relayAudioSourceNode.disconnect();
+      relayLocalGainNode = relayAudioContext.createGain();
+      relayAudioSourceNode.connect(relayLocalGainNode);
+      relayLocalGainNode.connect(relayAudioContext.destination);
+      relayAudioSourceNode.connect(relayAudioDestination);
+      audio.__musicheRelayGraph.localGain = relayLocalGainNode;
+    }
+  } else if (!relayAudioContext) {
+    relayAudioContext = new AudioContext();
+    relayAudioSourceNode = relayAudioContext.createMediaElementSource(audio);
+    relayAudioDestination = relayAudioContext.createMediaStreamDestination();
+    relayLocalGainNode = relayAudioContext.createGain();
+    relayLocalGainNode.gain.value = roomStore.volume / 100;
+    relayAudioSourceNode.connect(relayLocalGainNode);
+    relayLocalGainNode.connect(relayAudioContext.destination);
+    relayAudioSourceNode.connect(relayAudioDestination);
+    audio.__musicheLocalGain = relayLocalGainNode;
+    audio.volume = 1;
+    audio.__musicheRelayGraph = {
+      context: relayAudioContext,
+      source: relayAudioSourceNode,
+      destination: relayAudioDestination,
+      localGain: relayLocalGainNode
+    };
+  }
+  audio.__musicheLocalGain = relayLocalGainNode || undefined;
+  audio.volume = 1;
+  if (relayLocalGainNode)
+    relayLocalGainNode.gain.value = roomStore.volume / 100;
+  if (relayAudioContext.state === 'suspended') await relayAudioContext.resume();
+  const track = relayAudioDestination?.stream.getAudioTracks()[0];
+  if (!track) throw new Error('无法创建中继音轨');
+  return track;
+}
+
+async function createRelayInvite() {
+  if (!roomStore.snapshot) return;
+  if (relaySessions.size >= roomStore.snapshot.room.maxMembers) {
+    ElMessage.warning('WebRTC 分享会话已达到房间人数上限');
+    return;
+  }
+  relayCreating.value = true;
+  let peer: RTCPeerConnection | null = null;
+  try {
+    const audioTrack = await prepareRelayAudioSource();
+    peer = new RTCPeerConnection({ iceServers: [] });
+    peer.addTrack(audioTrack, relayAudioDestination!.stream);
+    const channel = peer.createDataChannel('musiche-room-relay', {
+      ordered: true
+    });
+    const secret = randomRelaySecret();
+    const sessionId = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+    channel.addEventListener('open', () => {
+      const hostSession = relaySessions.get(sessionId);
+      if (!hostSession) return;
+      hostSession.connected = true;
+      hostSession.lastSeen = Date.now();
+      refreshRelayCount();
+      relayStatus.value = `已通过 WebRTC 连接 ${relayConnectedCount.value} 人`;
+      sendRelayState();
+    });
+    channel.addEventListener('close', () => removeRelaySession(sessionId));
+    channel.addEventListener('message', event => {
+      try {
+        const message = JSON.parse(String(event.data));
+        const hostSession = relaySessions.get(sessionId);
+        if (!hostSession || message.secret !== hostSession.offer.secret) return;
+        hostSession.lastSeen = Date.now();
+        if (message.type === 'relay_ack') return;
+        if (
+          message.type !== 'relay_chat' ||
+          typeof message.content !== 'string'
+        )
+          return;
+        const content = message.content.trim().slice(0, 600);
+        if (content)
+          void roomStore.relayChat(
+            String(message.relayId || ''),
+            String(message.nickname || '局域网访客'),
+            content,
+            String(message.avatar || '')
+          );
+      } catch {
+        // Ignore malformed or unsupported guest commands.
+      }
+    });
+    peer.addEventListener('connectionstatechange', () => {
+      if (['failed', 'closed'].includes(peer?.connectionState || ''))
+        removeRelaySession(sessionId);
+    });
+    await peer.setLocalDescription(await peer.createOffer());
+    await waitForIceGathering(peer);
+    const offer: RoomRelayOffer = {
+      version: roomRelayProtocol,
+      kind: 'offer',
+      sessionId,
+      secret,
+      roomId: roomStore.snapshot.room.id,
+      roomName: roomStore.snapshot.room.name,
+      chatKey: roomStore.hasChatKey ? roomStore.chatKey : undefined,
+      description: peer.localDescription!.toJSON(),
+      expiresAt: Date.now() + 10 * 60 * 1000
+    };
+    const url = new URL(
+      router.resolve(`/room/${encodeURIComponent(offer.roomId)}`).href,
+      location.href
+    );
+    url.hash = `relay=${encodeRoomRelayPayload(offer)}`;
+    relaySessions.set(sessionId, {
+      offer,
+      peer,
+      channel,
+      connected: false,
+      lastSeen: Date.now(),
+      lastLyricsText: ''
+    });
+    relayInviteLink.value = url.toString();
+    relayAnswer.value = '';
+    relayStatus.value = relayConnectedCount.value
+      ? `已连接 ${relayConnectedCount.value} 人，等待新访客应答`
+      : '等待访客返回应答链接';
+    if (!relayStateTimer) relayStateTimer = setInterval(sendRelayState, 1000);
+  } catch (error: any) {
+    peer?.close();
+    relayStatus.value = error?.message || '创建中继邀请失败';
+  } finally {
+    relayCreating.value = false;
+  }
+}
+
+async function copyRelayInvite() {
+  await navigator.clipboard.writeText(relayInviteLink.value);
+  ElMessage.success('局域网分享邀请已复制');
+}
+
+async function openRelayDialog() {
+  if (relayCreating.value) return;
+  relayInviteLink.value = '';
+  relayAnswer.value = '';
+  relayVisible.value = true;
+  await createRelayInvite();
+}
+
+async function acceptRelayAnswer() {
+  try {
+    const answer = decodeRoomRelayPayload<RoomRelayAnswer>(relayAnswer.value);
+    const session = relaySessions.get(answer.sessionId);
+    if (
+      !session ||
+      answer.kind !== 'answer' ||
+      answer.version !== roomRelayProtocol ||
+      answer.secret !== session.offer.secret
+    )
+      throw new Error('应答不属于当前邀请');
+    await session.peer.setRemoteDescription(answer.description);
+    relayStatus.value = '正在建立局域网连接…';
+    relayVisible.value = false;
+    ElMessage.success('已接回应答，正在建立局域网连接');
+  } catch (error: any) {
+    ElMessage.error(error?.message || '无法读取应答链接');
+  }
+}
 
 function musicSourceLogo(type: MusicType) {
   return type === 'cloud' || type === 'qq' || type === 'migu'
@@ -866,10 +1209,12 @@ async function updateCookie(source: (typeof musicSources)[number]) {
   }
 }
 
-function leaveRoom(options: {
-  skipRoomRestore?: boolean;
-  afterLeave?: () => void;
-} = {}) {
+function leaveRoom(
+  options: {
+    skipRoomRestore?: boolean;
+    afterLeave?: () => void;
+  } = {}
+) {
   if (options.skipRoomRestore)
     sessionStorage.setItem(skipRoomRestoreOnceKey, '1');
   roomStore.leave();
@@ -1285,6 +1630,7 @@ onMounted(async () => {
 });
 const classBodyName = 'music-room-detail';
 onUnmounted(() => {
+  closeRoomRelay();
   deactivateRoomTab();
   roomTabChannel?.close();
   setBodyClass(false);
@@ -1364,6 +1710,7 @@ watch(roomPlayDetailVisible, visible => {
             </span>
           </div>
           <div class="music-room-active-header-actions">
+            <el-button @click="openRelayDialog">局域网分享</el-button>
             <el-button :icon="Share" type="success" @click="copyRoomLink"
               >分享</el-button
             >
@@ -1782,6 +2129,52 @@ watch(roomPlayDetailVisible, visible => {
     </template>
 
     <el-dialog
+      v-model="relayVisible"
+      title="局域网分享（WebRTC）"
+      width="620px"
+      append-to-body>
+      <p class="music-room-dialog-tip">
+        不使用信令服务器。访客只能听歌和发送文字消息，并使用各自保存在本地的昵称与头像。
+      </p>
+      <el-alert :title="relayStatus" type="info" :closable="false" />
+      <p class="music-room-dialog-tip">
+        当前通过 WebRTC 连接 {{ relayConnectedCount }} 人
+      </p>
+      <template v-if="relayInviteLink">
+        <el-form-item label="1. 把邀请链接发给局域网访客">
+          <el-input
+            :model-value="relayInviteLink"
+            readonly
+            type="textarea"
+            :rows="4" />
+        </el-form-item>
+        <el-button type="primary" @click="copyRelayInvite"
+          >复制邀请链接</el-button
+        >
+        <el-form-item
+          label="2. 粘贴访客返回的应答链接"
+          style="margin-top: 18px">
+          <el-input v-model="relayAnswer" type="textarea" :rows="4" />
+        </el-form-item>
+        <el-button
+          type="primary"
+          :disabled="!relayAnswer.trim()"
+          @click="acceptRelayAnswer">
+          接回应答并连接
+        </el-button>
+      </template>
+      <template #footer>
+        <el-button @click="relayVisible = false">关闭窗口</el-button>
+        <el-button
+          type="primary"
+          :loading="relayCreating"
+          @click="createRelayInvite">
+          {{ relayInviteLink ? '新增访客邀请' : '创建邀请' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
       v-model="nicknameVisible"
       title="修改用户信息"
       width="360px"
@@ -2049,7 +2442,7 @@ watch(roomPlayDetailVisible, visible => {
   </div>
 </template>
 
-<style lang="less" scoped>
+<style lang="less">
 .music-room {
   height: 100%;
   color: var(--music-text-color);

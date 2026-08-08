@@ -29,6 +29,22 @@ const roomVolumeKey = 'musiche-room-volume';
 const title = useTitle();
 let chatReceiveQueue = Promise.resolve();
 
+interface RoomAudioElement extends HTMLAudioElement {
+  __musicheLocalGain?: GainNode;
+}
+
+function applyRoomAudioVolume(audio: HTMLAudioElement, volume: number) {
+  const localGain = (audio as RoomAudioElement).__musicheLocalGain;
+  if (localGain) {
+    // Keep the media element at full volume so the WebRTC branch receives an
+    // unattenuated signal. Only the sharing host's speaker uses this gain.
+    audio.volume = 1;
+    localGain.gain.value = volume / 100;
+    return;
+  }
+  audio.volume = volume / 100;
+}
+
 function readAdminTokens(): Record<string, string> {
   try {
     return JSON.parse(localStorage.getItem(adminTokensKey) || '{}');
@@ -538,6 +554,34 @@ export const useRoomStore = defineStore('room', {
         return false;
       }
     },
+    async relayChat(
+      relayId: string,
+      nickname: string,
+      content: string,
+      avatar = ''
+    ) {
+      const room = this.snapshot?.room;
+      if (!room) return false;
+      if (!room.chatEncrypted)
+        return this.command('relay_chat', {
+          relayId,
+          nickname,
+          content,
+          avatar
+        });
+      if (!this.hasChatKey) return false;
+      const encrypted = await encryptRoomChatPayload(
+        room.id,
+        this.chatKey,
+        { content, image: '' }
+      );
+      return this.command('relay_chat', {
+        relayId,
+        nickname,
+        encrypted,
+        avatar
+      });
+    },
     pat(memberId: string) {
       if (!this.snapshot || memberId === this.snapshot.memberId) return;
       this.command('pat', { memberId });
@@ -736,7 +780,7 @@ export const useRoomStore = defineStore('room', {
     setVolume(value: number) {
       this.volume = Math.max(0, Math.min(100, value));
       localStorage.setItem(roomVolumeKey, this.volume.toString());
-      if (this.audio) this.audio.volume = this.volume / 100;
+      if (this.audio) applyRoomAudioVolume(this.audio, this.volume);
     },
     resetLoadedAudio() {
       this.audioResolveAbort?.abort();
@@ -788,8 +832,10 @@ export const useRoomStore = defineStore('room', {
       const expectedKey = `${current.id}:${current.music.type}:${current.music.id}`;
       try {
         if (!this.audio) {
-          this.audio = new Audio();
-          this.audio.volume = this.volume / 100;
+          // Media elements carry the relay Web Audio graph as native object
+          // references and must not be wrapped by Vue's reactive proxy.
+          this.audio = markRaw(new Audio());
+          applyRoomAudioVolume(this.audio, this.volume);
           this.audio.addEventListener('playing', () => {
             this.localPlaying = true;
             this.audioNeedsGesture = false;

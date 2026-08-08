@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import { RouterView, useRoute } from 'vue-router';
 import SideMenu from './components/SideMenu.vue';
 import Header from './components/Header.vue';
@@ -17,6 +17,9 @@ import { getProxyAddress, parseHttpProxyAddress } from './utils/http';
 const play = usePlayStore();
 const setting = useSettingStore();
 const route = useRoute();
+const relayGuestMode = computed(
+  () => Boolean(route.meta.relayGuest) || route.hash.startsWith('#relay=')
+);
 document.addEventListener(
   'error',
   function (event: ErrorEvent) {
@@ -64,19 +67,23 @@ onMounted(() => {
     <el-container
       class="music-layout-top"
       :class="play.musicList.length > 0 ? '' : 'music-layout-top-full'">
-      <SideMenu />
+      <SideMenu v-if="!relayGuestMode" />
 
       <el-container class="music-layout-right" direction="vertical">
         <Header v-if="route.meta.key !== 'room'" />
         <el-main class="music-main">
           <RouterView />
-          <CurrentList />
+          <CurrentList v-if="!relayGuestMode" />
         </el-main>
       </el-container>
     </el-container>
     <Footer
-      v-show="play.musicList.length > 0 && !route.path.startsWith('/room/')" />
-    <PlayDetail />
+      v-if="
+        play.musicList.length > 0 &&
+        !route.path.startsWith('/room/') &&
+        !relayGuestMode
+      " />
+    <PlayDetail v-if="!relayGuestMode" />
     <WindowHelper v-if="webView2Services.specialService" />
   </el-container>
 </template>

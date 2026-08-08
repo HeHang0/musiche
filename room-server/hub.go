@@ -64,6 +64,8 @@ type ClientCommand struct {
 	Image      string `json:"image,omitempty"`
 	Encrypted  string `json:"encrypted,omitempty"`
 	Avatar     string `json:"avatar,omitempty"`
+	RelayID    string `json:"relayId,omitempty"`
+	Nickname   string `json:"nickname,omitempty"`
 }
 
 func (c *RoomConnection) send(event Event) error {
@@ -621,7 +623,7 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 			c.broadcast(Event{Type: "chat", Data: operationChatMessage(c.memberID, member.Nickname, operation, now, false)})
 		}
 		return err
-	case "chat":
+	case "chat", "relay_chat":
 		c.room.mu.RLock()
 		chatEncrypted := c.room.config.ChatEncrypted
 		c.room.mu.RUnlock()
@@ -649,10 +651,23 @@ func (c *RoomConnection) handle(command ClientCommand) error {
 		}
 		c.room.mu.Lock()
 		member := c.room.config.Members[c.memberID]
-		if avatar == "" {
-			avatar = member.Avatar
+		memberID := c.memberID
+		nickname := member.Nickname
+		if command.Action == "relay_chat" {
+			relayID := sanitizeName(command.RelayID, 64)
+			nickname = sanitizeName(command.Nickname, 24)
+			if relayID == "" || nickname == "" {
+				c.room.mu.Unlock()
+				return errors.New("中继访客信息无效")
+			}
+			memberID = "relay-" + fingerprintHash(c.memberID, relayID)[:16]
 		}
-		message := ChatMessage{ID: randomID(10), MemberID: c.memberID, Nickname: member.Nickname, Content: content, Image: image, Encrypted: encrypted, Avatar: avatar, CreatedAt: time.Now().UTC()}
+		if avatar == "" {
+			if command.Action == "chat" {
+				avatar = member.Avatar
+			}
+		}
+		message := ChatMessage{ID: randomID(10), MemberID: memberID, Nickname: nickname, Content: content, Image: image, Encrypted: encrypted, Avatar: avatar, CreatedAt: time.Now().UTC()}
 		c.room.mu.Unlock()
 		c.broadcast(Event{Type: "chat", Data: message})
 		return nil
