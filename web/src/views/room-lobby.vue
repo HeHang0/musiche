@@ -17,6 +17,7 @@ const playStore = usePlayStore();
 const route = useRoute();
 const router = useRouter();
 const roomCredentialsKey = 'musiche-room-credentials';
+const skipRoomRestoreOnceKey = 'musiche-room-skip-restore-once';
 type RoomCredential = string | { entryPassword?: string };
 
 const rooms = ref<any[]>([]);
@@ -226,6 +227,9 @@ async function redirectToCurrentRoom() {
 }
 
 onMounted(async () => {
+  const skipRoomRestore =
+    sessionStorage.getItem(skipRoomRestoreOnceKey) === '1';
+  if (skipRoomRestore) sessionStorage.removeItem(skipRoomRestoreOnceKey);
   const legacyRoomId =
     typeof route.query.room === 'string' ? route.query.room : '';
   if (legacyRoomId) {
@@ -236,7 +240,7 @@ onMounted(async () => {
   }
   try {
     await roomStore.initialize();
-    if (!(await redirectToCurrentRoom())) await loadRooms();
+    if (skipRoomRestore || !(await redirectToCurrentRoom())) await loadRooms();
   } catch (error: any) {
     ElMessage(messageOption(error?.message || '在线歌房初始化失败'));
   } finally {

@@ -49,6 +49,96 @@ const settingStore = useSettingStore();
 const route = useRoute();
 const router = useRouter();
 const roomPlayDetailVisible = ref(false);
+type RoomTabMessage = {
+  type: 'takeover' | 'released';
+  roomId: string;
+  requestId: string;
+  tabId: string;
+};
+const roomTabId =
+  crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const roomTabChannel =
+  typeof BroadcastChannel === 'undefined'
+    ? null
+    : new BroadcastChannel('musiche-room-tab-coordination');
+const skipRoomRestoreOnceKey = 'musiche-room-skip-restore-once';
+let activeRoomTabId = '';
+const pendingRoomTabTakeovers = new Map<string, () => void>();
+let roomTabReleasedForTakeover = false;
+
+function normalizeRoomTabId(roomId: string) {
+  return roomId.trim().toUpperCase();
+}
+
+roomTabChannel?.addEventListener('message', event => {
+  const message = event.data as Partial<RoomTabMessage>;
+  if (
+    !message ||
+    message.tabId === roomTabId ||
+    typeof message.roomId !== 'string' ||
+    typeof message.requestId !== 'string'
+  )
+    return;
+  const roomId = normalizeRoomTabId(message.roomId);
+  if (message.type === 'takeover' && activeRoomTabId === roomId) {
+    void releaseRoomTabForTakeover(roomId, message.requestId);
+    return;
+  }
+  if (message.type === 'released') {
+    const resolve = pendingRoomTabTakeovers.get(message.requestId);
+    if (resolve) resolve();
+  }
+});
+
+function activateRoomTab(roomId: string) {
+  activeRoomTabId = normalizeRoomTabId(roomId);
+}
+
+function deactivateRoomTab() {
+  activeRoomTabId = '';
+}
+
+function requestRoomTabTakeover(roomId: string) {
+  if (!roomTabChannel) return Promise.resolve();
+  const requestId = `${roomTabId}-${Date.now()}`;
+  return new Promise<void>(resolve => {
+    let timer: number | null = null;
+    const done = () => {
+      pendingRoomTabTakeovers.delete(requestId);
+      if (timer) clearTimeout(timer);
+      resolve();
+    };
+    // The existing page acknowledges only after its realtime connection has
+    // been released. A short timeout still lets a stale page fail open.
+    timer = window.setTimeout(done, 300);
+    pendingRoomTabTakeovers.set(requestId, done);
+    roomTabChannel.postMessage({
+      type: 'takeover',
+      roomId: normalizeRoomTabId(roomId),
+      requestId,
+      tabId: roomTabId
+    } satisfies RoomTabMessage);
+  });
+}
+
+async function releaseRoomTabForTakeover(roomId: string, requestId: string) {
+  deactivateRoomTab();
+  roomTabReleasedForTakeover = true;
+  await leaveRoom({
+    skipRoomRestore: true,
+    afterLeave: () => {
+      roomTabChannel?.postMessage({
+        type: 'released',
+        roomId,
+        requestId,
+        tabId: roomTabId
+      } satisfies RoomTabMessage);
+      // Browsers only close script-opened tabs. Routing away still guarantees
+      // this old page has left the room before the new one connects.
+      window.close();
+    }
+  });
+}
 const membersPopoverVisible = ref(false);
 const roomCredentialsKey = 'musiche-room-credentials';
 type RoomCredential = string | { entryPassword?: string };
@@ -619,9 +709,11 @@ async function openRouteRoom() {
     roomStore.snapshot &&
     Object.keys(route.query).length === 0
   ) {
+    activateRoomTab(id);
     await pauseOriginalPlayer();
     return;
   }
+  await requestRoomTabTakeover(id);
   routeRoomLoading.value = true;
   const saved = getRoomCredential(id);
   const requestedNickname = routeQueryValue('nickname');
@@ -635,6 +727,7 @@ async function openRouteRoom() {
       entryPassword,
       avatar: selectedAvatar.value
     });
+    activateRoomTab(id);
     if (roomStore.snapshot?.nickname !== joinNickname)
       await roomStore.updateNickname(joinNickname, selectedAvatar.value);
     await syncRoomAvatar();
@@ -773,9 +866,15 @@ async function updateCookie(source: (typeof musicSources)[number]) {
   }
 }
 
-function leaveRoom() {
+function leaveRoom(options: {
+  skipRoomRestore?: boolean;
+  afterLeave?: () => void;
+} = {}) {
+  if (options.skipRoomRestore)
+    sessionStorage.setItem(skipRoomRestoreOnceKey, '1');
   roomStore.leave();
-  router.replace('/room');
+  options.afterLeave?.();
+  return router.replace('/room');
 }
 
 function dissolveRoom() {
@@ -1186,13 +1285,15 @@ onMounted(async () => {
 });
 const classBodyName = 'music-room-detail';
 onUnmounted(() => {
+  deactivateRoomTab();
+  roomTabChannel?.close();
   setBodyClass(false);
   if (clockTimer) clearInterval(clockTimer);
   stopRoomWatch();
   stopErrorWatch();
   stopGuestQueueWatch();
   stopChatWatch();
-  roomStore.leave();
+  roomStore.leave(!roomTabReleasedForTakeover);
   document.removeEventListener('click', closeMembersPopover);
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   document.body.classList.remove(classBodyName);
@@ -1220,7 +1321,7 @@ watch(roomPlayDetailVisible, visible => {
       <section class="music-room-active" @click="startPlayCheck">
         <header class="music-room-active-header">
           <div class="music-room-active-header-title">
-            <span class="music-icon" @click="leaveRoom">左</span>
+            <span class="music-icon" @click="leaveRoom()">左</span>
             <span class="text-overflow-1">{{ snapshot.room.name }}</span>
             <div class="music-room-online-members-wrap" @click.stop>
               <button
