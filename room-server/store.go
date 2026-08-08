@@ -370,6 +370,17 @@ func (r *Room) snapshotLocked(memberID, token string, secret []byte) Snapshot {
 	for source := range r.config.Credentials {
 		sources = append(sources, source)
 	}
+	return Snapshot{Room: r.summaryLocked(), State: r.state, IsAdmin: verifyAdminToken(secret, token, r.config.ID, r.config.AdminPasswordHash, r.config.AdminVersion), AllowGuestQueue: !r.config.GuestQueueDisabled, MemberID: memberID, Nickname: member.Nickname, Avatar: member.Avatar, OnlineMembers: r.onlineMembersLocked(), CredentialSources: sources}
+}
+
+func (r *Room) presenceLocked() RoomPresence {
+	return RoomPresence{
+		RoomSummary:   r.summaryLocked(),
+		OnlineMembers: r.onlineMembersLocked(),
+	}
+}
+
+func (r *Room) onlineMembersLocked() []OnlineMember {
 	onlineMembersByID := make(map[string]OnlineMember, len(r.connections))
 	for connection := range r.connections {
 		if online, exists := r.config.Members[connection.memberID]; exists {
@@ -386,7 +397,7 @@ func (r *Room) snapshotLocked(memberID, token string, secret []byte) Snapshot {
 		}
 		return onlineMembers[i].Nickname < onlineMembers[j].Nickname
 	})
-	return Snapshot{Room: r.summaryLocked(), State: r.state, IsAdmin: verifyAdminToken(secret, token, r.config.ID, r.config.AdminPasswordHash, r.config.AdminVersion), AllowGuestQueue: !r.config.GuestQueueDisabled, MemberID: memberID, Nickname: member.Nickname, Avatar: member.Avatar, OnlineMembers: onlineMembers, CredentialSources: sources}
+	return onlineMembers
 }
 
 func (r *Room) saveLocked() error {

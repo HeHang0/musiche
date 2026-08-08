@@ -358,7 +358,12 @@ export const useRoomStore = defineStore('room', {
         if (event.type === 'snapshot')
           this.setSnapshot(event.data as RoomSnapshot);
         else if (event.type === 'presence' && this.snapshot) {
-          this.snapshot.room = event.data;
+          const presence = event.data as RoomSnapshot['room'] & {
+            onlineMembers?: RoomSnapshot['onlineMembers'];
+          };
+          this.snapshot.room = presence;
+          if (Array.isArray(presence.onlineMembers))
+            this.snapshot.onlineMembers = presence.onlineMembers;
         } else if (event.type === 'chat' && this.snapshot) {
           const chat = event.data as RoomChatMessage;
           if (!this.chatMessages.some(item => item.id === chat.id)) {

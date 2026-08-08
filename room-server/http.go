@@ -282,7 +282,7 @@ func (s *server) nickname(w http.ResponseWriter, r *http.Request, room *Room) {
 	snapshot := room.snapshotLocked(memberID, request.AdminToken, s.store.config.TokenSecret)
 	room.mu.Unlock()
 	writeJSONResponse(w, http.StatusOK, map[string]any{"snapshot": snapshot})
-	broadcastRoomSnapshot(room)
+	broadcastRoomPresence(room)
 }
 
 type AdminRequest struct {

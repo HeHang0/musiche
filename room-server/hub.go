@@ -239,8 +239,7 @@ func (s *RoomStore) unregisterRoomConnection(connection *RoomConnection, request
 	roomID := room.config.ID
 	room.mu.Unlock()
 	s.releaseConnection()
-	connection.broadcast(Event{Type: "presence", Data: roomSummary(room)})
-	broadcastRoomSnapshot(room)
+	broadcastRoomPresence(room)
 	_ = connection.sender.Close()
 	s.logf("realtime_disconnected transport=%s request_id=%s connection_id=%s room_id=%q member_id=%s duration_ms=%d reason=%s", connection.transportKind(), requestID, connection.id, roomID, shortLogID(connection.memberID), time.Since(connectedAt).Milliseconds(), reason)
 }
@@ -324,8 +323,7 @@ func (s *RoomStore) serveWebSocket(ws *websocket.Conn) {
 		s.logf("realtime_send_failed transport=websocket request_id=%s connection_id=%s room_id=%q member_id=%s event=snapshot error=%q", requestID, connectionID, roomID, shortLogID(connection.memberID), err)
 		return
 	}
-	connection.broadcast(Event{Type: "presence", Data: roomSummary(connection.room)})
-	broadcastRoomSnapshotExcept(connection.room, connection)
+	broadcastRoomPresence(connection.room)
 	for {
 		command := ClientCommand{}
 		if err := websocket.JSON.Receive(ws, &command); err != nil {
@@ -358,10 +356,11 @@ func shortLogID(value string) string {
 	return value[:12]
 }
 
-func roomSummary(room *Room) RoomSummary {
+func broadcastRoomPresence(room *Room) {
 	room.mu.RLock()
-	defer room.mu.RUnlock()
-	return room.summaryLocked()
+	presence := room.presenceLocked()
+	room.mu.RUnlock()
+	broadcastRoomEvent(room, Event{Type: "presence", Data: presence})
 }
 
 func (c *RoomConnection) isAdmin(token string) bool {

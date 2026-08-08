@@ -340,7 +340,7 @@ export class RoomRealtimeTransport {
     this.heartbeatTimer = setInterval(() => {
       if (this.isOpen())
         this.send({ type: 'command', action: 'heartbeat' });
-    }, 20000);
+    }, 45000);
   }
 
   private stopHeartbeat() {

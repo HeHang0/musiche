@@ -14,6 +14,8 @@ var (
 	errHTTPStreamFull   = errors.New("HTTP 实时流缓冲区已满")
 )
 
+const realtimeKeepaliveInterval = 45 * time.Second
+
 type httpStreamEventSender struct {
 	events chan Event
 	done   chan struct{}
@@ -102,11 +104,10 @@ func (s *server) realtimeStream(w http.ResponseWriter, r *http.Request) {
 		disconnectReason = "initial_snapshot_failed"
 		return
 	}
-	connection.broadcast(Event{Type: "presence", Data: roomSummary(connection.room)})
-	broadcastRoomSnapshotExcept(connection.room, connection)
+	broadcastRoomPresence(connection.room)
 
 	encoder := json.NewEncoder(w)
-	keepalive := time.NewTicker(20 * time.Second)
+	keepalive := time.NewTicker(realtimeKeepaliveInterval)
 	defer keepalive.Stop()
 	writeEvent := func(event Event) bool {
 		if err := encoder.Encode(event); err != nil {

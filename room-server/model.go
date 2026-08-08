@@ -131,6 +131,14 @@ type OnlineMember struct {
 	Avatar   string `json:"avatar,omitempty"`
 }
 
+// RoomPresence is deliberately much smaller than a Snapshot. It is sent for
+// member joins, leaves, and profile changes, where the queue and playback
+// state have not changed.
+type RoomPresence struct {
+	RoomSummary
+	OnlineMembers []OnlineMember `json:"onlineMembers"`
+}
+
 type Snapshot struct {
 	Room              RoomSummary    `json:"room"`
 	State             RoomState      `json:"state"`
