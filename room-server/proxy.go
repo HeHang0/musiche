@@ -56,6 +56,9 @@ func (s *server) proxy(writer http.ResponseWriter, request *http.Request) {
 		data.URL = queryURL
 		data.Headers = map[string]string{}
 		for key, values := range request.Header {
+			if strings.ToLower(key) == "referer" {
+				continue
+			}
 			data.Headers[key] = strings.Join(values, ",")
 		}
 	} else {

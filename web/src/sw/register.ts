@@ -42,6 +42,14 @@ async function unregisterOldServiceWorker(
 export async function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     try {
+      if (import.meta.env.DEV) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (let registration of registrations) {
+          await registration.unregister();
+        }
+        console.log('Service Worker unregistered in development mode.');
+        return;
+      }
       const workerName =
         (window as any).serviceWorkerJS || '/musiche.worker.js';
       if (await unregisterOldServiceWorker(workerName)) {

@@ -271,13 +271,17 @@ export async function yours(_offset: number): Promise<{
     }
   });
   let ret = await res.json();
+  const cookieObj = parseCookieText(qqCookie);
   function _pushList(retList: any[]) {
     retList.map((m: any) => {
       list.push({
         id: m.dissid || m.id,
         name: m.title,
         type: musicType,
-        image: m.picurl && parseHttpProxyAddress(m.picurl)
+        image:
+          cookieObj['uin'] && m.picurl?.includes(cookieObj['uin'])
+            ? parseHttpProxyAddress(m.picurl)
+            : m.picurl
       });
     });
   }
@@ -465,7 +469,8 @@ export async function playlistDetail(id: string, offset: number) {
     method: 'POST',
     data: JSON.stringify(data),
     headers: {
-      Referer: 'http://y.qq.com'
+      Referer: 'http://y.qq.com',
+      Cookie: qqCookie
     }
   });
   const ret = await res.json();
@@ -1036,15 +1041,21 @@ export async function userInfo(cookies: string): Promise<UserInfo | null> {
   if (!creator || !creator.encrypt_uin) return null;
   const cookieObj = parseCookieText(cookie);
   const cookieNewObject = {
-    uin: cookieObj.uin || '',
-    qm_keyst: cookieObj.qm_keyst || '',
-    qqmusic_key: cookieObj.qqmusic_key || '',
+    psrf_qqopenid: cookieObj.psrf_qqopenid || '',
+    wxopenid: cookieObj.wxopenid || '',
     psrf_qqrefresh_token: cookieObj.psrf_qqrefresh_token || '',
+    wxrefresh_token: cookieObj.wxrefresh_token || '',
+    psrf_access_token_expiresAt: cookieObj.psrf_access_token_expiresAt || '',
+    qqmusic_key: cookieObj.qqmusic_key || '',
+    qm_keyst: cookieObj.qm_keyst || '',
+    psrf_musickey_createtime: cookieObj.psrf_musickey_createtime || '',
     psrf_qqaccess_token: cookieObj.psrf_qqaccess_token || '',
-    psrf_musickey_createtime: cookieObj.psrf_musickey_createtime || ''
+    psrf_qqunionid: cookieObj.psrf_qqunionid || '',
+    wxunionid: cookieObj.wxunionid || '',
+    uin: cookieObj.uin || ''
   };
   if (cookieNewObject) {
-    // qqCookie = formatCookies(cookieNewObject);
+    qqCookie = formatCookies(cookieNewObject);
   }
   return {
     id: creator.encrypt_uin,
@@ -1072,18 +1083,19 @@ export async function refreshCookie(cookies: string | Record<string, string>) {
     data: JSON.stringify({
       req: {
         module: 'music.login.LoginServer',
-        method: 'Login',
+        method: 'QQLogin',
         param: {
           openid: cookieObj.psrf_qqopenid || cookieObj.wxopenid,
-          access_token: cookieObj.psrf_qqaccess_token,
           refresh_token:
             cookieObj.psrf_qqrefresh_token || cookieObj.wxrefresh_token,
-          expired_in: Number(cookieObj.psrf_access_token_expiresAt) || 0,
-          musicid: Number(cookieObj['uin']),
+          str_musicid: cookieObj.uin || '',
           musickey: cookieObj.qqmusic_key || cookieObj.qm_keyst,
-          refresh_key: cookieObj.refresh_key || '',
           unionid: cookieObj.psrf_qqunionid || cookieObj.wxunionid,
-          loginMode: 2
+          refresh_key: cookieObj.refresh_key || '',
+          loginMode: 2,
+          access_token: cookieObj.psrf_qqaccess_token,
+          expired_in: Number(cookieObj.psrf_access_token_expiresAt) || 0,
+          musicid: Number(cookieObj['uin'])
         }
       }
     }),
@@ -1096,7 +1108,12 @@ export async function refreshCookie(cookies: string | Record<string, string>) {
   });
   const ret = await res.json();
   const data = ret?.req?.data;
-  if (!data || !data.musickey) {
+  if (
+    !data ||
+    !data.musickey ||
+    String(data.musickeyCreateTime) === cookieObj.psrf_musickey_createtime
+  ) {
+    console.log('refreshCookie: no need to refresh');
     return cookies;
   }
   if (cookieObj.psrf_qqopenid) {
@@ -1130,3 +1147,4 @@ export async function refreshCookie(cookies: string | Record<string, string>) {
   onCookieChanged && onCookieChanged(qqCookie);
   return qqCookie;
 }
+(window as any).qqRefreshCookie = refreshCookie;

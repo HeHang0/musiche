@@ -119,7 +119,7 @@ func (r *Resolver) refreshQQCredential(raw string) (string, bool, error) {
 	payload := map[string]any{
 		"req": map[string]any{
 			"module": "music.login.LoginServer",
-			"method": "Login",
+			"method": "QQLogin",
 			"param": map[string]any{
 				"openid":        firstCookieValue(values, "psrf_qqopenid", "wxopenid"),
 				"access_token":  firstCookieValue(values, "psrf_qqaccess_token", "wxaccess_token"),
