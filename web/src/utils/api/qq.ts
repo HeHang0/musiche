@@ -1131,8 +1131,10 @@ export async function refreshCookie(cookies: string | Record<string, string>) {
     data.expired_at || cookieObj.psrf_access_token_expiresAt;
   if (cookieObj.qqmusic_key) {
     cookieObj.qqmusic_key = data.musickey || cookieObj.qqmusic_key;
+    cookieObj.qm_keyst = cookieObj.qqmusic_key;
   } else if (cookieObj.qm_keyst) {
     cookieObj.qm_keyst = data.musickey || cookieObj.qm_keyst;
+    cookieObj.qqmusic_key = cookieObj.qm_keyst;
   }
   cookieObj.psrf_musickey_createtime =
     data.musickeyCreateTime || cookieObj.psrf_musickey_createtime;
