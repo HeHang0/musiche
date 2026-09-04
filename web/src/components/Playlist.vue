@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Playlist } from '../utils/type';
 import { LogoImage } from '../utils/logo';
-import DailyImage from '../assets/images/calendar.png';
 interface Props {
   list: Playlist[];
   loading?: boolean;
@@ -20,12 +19,6 @@ const props = withDefaults(defineProps<Props>(), {
         <img
           class="music-play-list-item-image"
           :src="item.image || LogoImage" />
-        <div v-if="item.daily" class="music-play-list-item-image-daily">
-          <img :src="DailyImage" />
-          <span v-if="item.daily" :style="'color: ' + item.dailyColor">{{
-            new Date().getDate()
-          }}</span>
-        </div>
         <div
           class="music-play-list-item-name text-overflow-3"
           v-html="item.name"></div>

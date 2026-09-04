@@ -7,7 +7,6 @@ import { Music, MusicType, Playlist } from '../utils/type';
 import MusicList from '../components/MusicList.vue';
 import AnimalPage from '../components/AnimalPage.vue';
 import { LogoImage } from '../utils/logo';
-import DailyImage from '../assets/images/calendar.png';
 import { useSettingStore } from '../stores/setting';
 const { currentRoute, replace } = useRouter();
 const play = usePlayStore();
@@ -172,17 +171,6 @@ onUnmounted(unWatch);
               playlistInfo?.musicList?.[0]?.image ||
               LogoImage
             " />
-
-          <div
-            v-if="playlistInfo?.daily"
-            class="music-playlist-header-image-daily">
-            <img :src="DailyImage" />
-            <span
-              v-if="playlistInfo?.daily"
-              :style="'color: ' + playlistInfo?.dailyColor"
-              >{{ new Date().getDate() }}</span
-            >
-          </div>
           <el-skeleton
             animated
             :loading="loading"
