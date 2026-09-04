@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { computed, h, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import {
+  computed,
+  h,
+  nextTick,
+  onMounted,
+  onUnmounted,
+  Ref,
+  ref,
+  watch
+} from 'vue';
 import { ElMessage } from 'element-plus/es/components/message/index';
 import { ElMessageBox } from 'element-plus/es/components/message-box/index';
 import { useRoute, useRouter } from 'vue-router';
@@ -251,7 +260,14 @@ const searchType = ref<'music' | 'playlist'>('music');
 const searchLoading = ref(false);
 const searchMusics = ref<Music[]>([]);
 type RoomPlaylistItem = PlaylistSearchItem & { musicList?: Music[] };
-type ShortcutKey = 'recommend' | 'ranking' | 'lover' | 'favorites' | 'created';
+type ShortcutKey =
+  | 'recommend'
+  | 'ranking'
+  | 'lover'
+  | 'favorites'
+  | 'created'
+  | 'yours'
+  | 'playing';
 const searchPlaylists = ref<RoomPlaylistItem[]>([]);
 const playlistMusics = ref<Music[]>([]);
 const playlistTitle = ref('');
@@ -586,17 +602,19 @@ function musicSourceLogo(type: MusicType) {
     : '';
 }
 
-const shortcutOptions: Array<{
-  value: ShortcutKey;
-  label: string;
-  icon: string;
-}> = [
+const shortcutOptions: Ref<
+  {
+    value: ShortcutKey;
+    label: string;
+    icon: string;
+  }[]
+> = ref([
   { value: 'recommend', label: '发现音乐', icon: '荐' },
   { value: 'ranking', label: '音乐榜单', icon: '顶' },
-  { value: 'lover', label: '我喜欢的音乐', icon: '爱' },
   { value: 'favorites', label: '收藏的歌单', icon: '藏' },
-  { value: 'created', label: '创建的歌单', icon: '编' }
-];
+  { value: 'created', label: '创建的歌单', icon: '编' },
+  { value: 'lover', label: '我喜欢的音乐', icon: '爱' }
+]);
 const queueScrollbar = ref<any>(null);
 const queuePanel = ref<'queue' | 'history'>('queue');
 const chatScrollbar = ref<any>(null);
@@ -1440,11 +1458,27 @@ async function loadShortcut(value: ShortcutKey) {
     return;
   }
 
+  if (value === 'playing') {
+    playlistTitle.value = '正在播放列表';
+    playlistMusics.value = playStore.musicList.filter(m => !m.noRight);
+    return;
+  }
+
   searchType.value = 'playlist';
   searchLoading.value = true;
   try {
     let playlists: Playlist[] = [];
     switch (value) {
+      case 'yours':
+        if (!settingStore.userInfo[searchSource.value]?.id) {
+          (['cloud', 'qq', 'migu'] as MusicType[]).forEach(source => {
+            if (settingStore.userInfo[source]?.id) {
+              searchSource.value = source;
+            }
+          });
+        }
+        playlists = (await api.yours(searchSource.value, 0)).list;
+        break;
       case 'recommend':
         playlists = (await api.recommend(searchSource.value, 0)).list;
         break;
@@ -1485,6 +1519,63 @@ function closeSearchDrawer() {
   }
   searchVisible.value = false;
   backToPlaylistSearch();
+}
+
+function addMusics(musicList: Music[]) {
+  if (Array.isArray(musicList)) {
+    musicList = musicList.filter(m => !m.noRight);
+  }
+  if (musicList.length === 1) {
+    addMusic(musicList[0]);
+    return;
+  }
+  if (!musicList?.length) return;
+  if (!roomStore.isAdmin && snapshot.value?.allowGuestQueue === false) {
+    ElMessage({
+      ...messageOption('管理员已关闭游客点歌'),
+      type: 'warning'
+    });
+    return;
+  }
+  const queueLengthBeforeAdd = snapshot.value?.state.queue.length || 0;
+  const errorBeforeAdd = roomStore.lastError;
+  if (!roomStore.connected) {
+    ElMessage({
+      ...messageOption('正在连接歌房服务，请稍后再试'),
+      type: 'warning'
+    });
+    return;
+  }
+  musicList.forEach(music => roomStore.addQueue(music));
+  if (roomStore.lastError && roomStore.lastError !== errorBeforeAdd) {
+    ElMessage({ ...messageOption(roomStore.lastError), type: 'error' });
+    return;
+  }
+  let stopQueueWatch = () => {};
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  const cleanup = () => {
+    stopQueueWatch();
+    if (timeout) clearTimeout(timeout);
+    timeout = null;
+  };
+  stopQueueWatch = watch(
+    () => snapshot.value?.state.queue.length || 0,
+    queueLength => {
+      if (queueLength <= queueLengthBeforeAdd) return;
+      cleanup();
+      ElMessage({
+        ...messageOption(`已点歌：${musicList.length}首`),
+        type: 'success'
+      });
+      nextTick(() => {
+        const scrollbar = queueScrollbar.value;
+        const wrap = scrollbar?.wrapRef;
+        if (scrollbar && wrap) scrollbar.setScrollTop(wrap.scrollHeight);
+      });
+    }
+  );
+  // A failed or disconnected command should not leave watchers alive forever.
+  timeout = setTimeout(cleanup, 5000);
 }
 
 function addMusic(music: Music) {
@@ -1626,6 +1717,25 @@ onMounted(async () => {
   document.addEventListener('visibilitychange', handleVisibilityChange);
   if (!document.body.className.includes(classBodyName)) {
     document.body.classList.add(classBodyName);
+  }
+
+  if (
+    (['cloud', 'qq', 'migu'] as MusicType[]).find((source: MusicType) =>
+      Boolean(settingStore.userInfo[source]?.id)
+    )
+  ) {
+    shortcutOptions.value.unshift({
+      value: 'yours',
+      label: '我的音乐',
+      icon: '我'
+    });
+  }
+  if (playStore.musicList.length > 0) {
+    shortcutOptions.value.push({
+      value: 'playing',
+      label: '正在播放列表',
+      icon: '表'
+    });
   }
 });
 const classBodyName = 'music-room-detail';
@@ -2333,8 +2443,15 @@ watch(roomPlayDetailVisible, visible => {
         <div class="music-room-search-head">
           <div class="music-room-search-title">
             <small v-if="roomParticleDetailActive">SONG REQUEST</small>
-            <h2>{{ playlistTitle || '点歌' }}</h2>
+            <h2>{{ playlistTitle?.replace(/<[^>]*>/g, '') || '点歌' }}</h2>
           </div>
+          <el-button
+            type="primary"
+            size="small"
+            v-if="playlistMusics.length || searchMusics.length"
+            @click="addMusics(playlistTitle ? playlistMusics : searchMusics)"
+            >一键点歌</el-button
+          >
           <button
             class="music-room-search-close"
             type="button"
@@ -2369,8 +2486,11 @@ watch(roomPlayDetailVisible, visible => {
               <el-radio-button value="playlist">歌单</el-radio-button>
             </el-radio-group>
           </div>
-          <el-dropdown trigger="click" @command="loadShortcut">
-            <el-button class="music-room-shortcut-button">
+          <el-dropdown
+            trigger="click"
+            @command="loadShortcut"
+            :teleported="false">
+            <el-button class="music-room-search-shortcut-button">
               <span>快捷歌单</span>
               <el-icon><ArrowDown /></el-icon>
             </el-button>
@@ -2380,7 +2500,7 @@ watch(roomPlayDetailVisible, visible => {
                   v-for="option in shortcutOptions"
                   :key="option.value"
                   :command="option.value">
-                  <span class="music-room-shortcut-option">
+                  <span class="music-room-search-shortcut-option">
                     <span class="music-icon">{{ option.icon }}</span>
                     <span>{{ option.label }}</span>
                   </span>
@@ -2426,7 +2546,7 @@ watch(roomPlayDetailVisible, visible => {
               class="music-room-search-music">
               <img :src="item.image || LogoImage" />
               <div class="music-room-search-music-info text-overflow-1">
-                <b class="text-overflow-1">{{ item.name }}</b
+                <b class="text-overflow-1" v-html="item.name"></b
                 ><span v-if="item.creator || item.trackCount"
                   >{{ item.creator }} · {{ item.trackCount }} 首</span
                 >
@@ -3194,6 +3314,15 @@ watch(roomPlayDetailVisible, visible => {
         white-space: nowrap;
       }
     }
+    &-shortcut-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      .music-icon {
+        width: 20px;
+        text-align: center;
+      }
+    }
     &-title {
       display: flex;
       min-width: 0;
@@ -3255,7 +3384,8 @@ watch(roomPlayDetailVisible, visible => {
       gap: 8px;
       padding: 0 20px;
       justify-content: space-between;
-      :deep(.el-radio-group) {
+      color: green !important;
+      .el-radio-group {
         margin-left: 0;
       }
       & + & {
@@ -3274,15 +3404,6 @@ watch(roomPlayDetailVisible, visible => {
       }
       .music-room-shortcut-button {
         justify-content: space-between;
-      }
-    }
-    &-shortcut-option {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      .music-icon {
-        width: 20px;
-        text-align: center;
       }
     }
     &-music {

@@ -171,7 +171,8 @@ func (r *Resolver) refreshQQCredential(raw string) (string, bool, error) {
 	updateCookieAlias(values, []string{"psrf_qqrefresh_token", "wxrefresh_token"}, cookieString(data["refresh_token"]))
 	updateCookieAlias(values, []string{"psrf_qqaccess_token", "wxaccess_token"}, cookieString(data["access_token"]))
 	updateCookieAlias(values, []string{"psrf_qqunionid", "wxunionid"}, cookieString(data["unionid"]))
-	updateCookieAlias(values, []string{"qqmusic_key", "qm_keyst"}, cookieString(data["musickey"]))
+	updateCookieAlias(values, []string{"qqmusic_key"}, cookieString(data["musickey"]))
+	updateCookieAlias(values, []string{"qm_keyst"}, cookieString(data["musickey"]))
 	if value := cookieString(data["expired_at"]); value != "" {
 		values["psrf_access_token_expiresAt"] = value
 	}
